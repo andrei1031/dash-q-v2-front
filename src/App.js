@@ -4326,6 +4326,154 @@ function AdminAppLayout({ session }) {
             } catch(e) { alert("Failed to send."); }
         };
 
+    
+        // --- FEATURE 2: OMNI CHAT COMPONENT ---
+        const OmniChatView = () => {
+            const [activeChats, setActiveChats] = useState([]);
+            const [selectedChat, setSelectedChat] = useState(null);
+            const [messages, setMessages] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [replyText, setReplyText] = useState("");
+
+            // Fetch list of chats
+            const fetchChats = async () => {
+                setLoading(true);
+                try {
+                    const res = await axios.get(`${API_URL}/admin/active-chats`);
+                    setActiveChats(res.data);
+                } catch (e) { console.error(e); }
+                finally { setLoading(false); }
+            };
+
+            useEffect(() => { fetchChats(); }, []);
+
+            // Load specific conversation
+            const loadConversation = async (chatEntry) => {
+                setSelectedChat(chatEntry);
+                try {
+                    // We use the existing barbershop query but manually because we need raw access
+                    const { data } = await supabase
+                        .from('chat_messages')
+                        .select('*')
+                        .eq('queue_entry_id', chatEntry.id)
+                        .order('created_at', { ascending: true });
+                    
+                    // Format for ChatWindow
+                    setMessages(data.map(m => ({
+                        senderId: m.sender_id,
+                        message: m.message
+                    })));
+                } catch (e) { console.error(e); }
+            };
+
+            // Handle Admin Reply
+            const handleAdminReply = async (e) => {
+                e.preventDefault();
+                if(!replyText.trim() || !selectedChat) return;
+
+                try {
+                    const newMsg = { senderId: session.user.id, message: `[ADMIN]: ${replyText}` };
+                    setMessages(prev => [...prev, newMsg]); // Optimistic update
+                    
+                    await axios.post(`${API_URL}/admin/chat/reply`, {
+                        adminId: session.user.id,
+                        queueId: selectedChat.id,
+                        message: replyText
+                    });
+                    setReplyText("");
+                } catch(e) { alert("Failed to send."); }
+            };
+
+            return (
+                <div className="admin-chat-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', height: '70vh' }}>
+                    {/* LEFT: Chat List */}
+                    <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="card-header">
+                            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>💬 Active Chats ({activeChats.length})</h3>
+                            <button onClick={fetchChats} className="btn btn-icon"><IconRefresh /></button>
+                        </div>
+                        <div className="card-body" style={{ overflowY: 'auto', padding: '10px' }}>
+                            {loading && <Spinner />}
+                            {activeChats.map(chat => (
+                                <div 
+                                    key={chat.id} 
+                                    onClick={() => loadConversation(chat)}
+                                    className={`chat-list-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
+                                    style={{
+                                        padding: '12px', 
+                                        borderBottom: '1px solid var(--border-color)', 
+                                        cursor: 'pointer',
+                                        background: selectedChat?.id === chat.id ? 'var(--bg-dark)' : 'transparent',
+                                        borderLeft: selectedChat?.id === chat.id ? '3px solid var(--primary-orange)' : '3px solid transparent'
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 'bold' }}>{chat.customer_name}</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                        w/ {chat.barber_profiles?.full_name}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
+                                        Status: <span style={{ color: 'var(--primary-orange)' }}>{chat.status}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* RIGHT: Conversation */}
+                    <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                        {selectedChat ? (
+                            <>
+                                <div className="card-header">
+                                    <div>
+                                        <h3 style={{ margin: 0 }}>{selectedChat.customer_name}</h3>
+                                        <small style={{ color: 'var(--text-secondary)' }}>Queue ID: #{selectedChat.id}</small>
+                                    </div>
+                                </div>
+                                <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: 'var(--bg-dark)' }}>
+                                    {messages.map((msg, idx) => {
+                                        const isAdminMsg = msg.message.startsWith('[ADMIN]');
+                                        const isCustomer = msg.senderId === selectedChat.user_id;
+                                        
+                                        return (
+                                            <div key={idx} style={{
+                                                display: 'flex', 
+                                                justifyContent: isCustomer ? 'flex-start' : 'flex-end',
+                                                marginBottom: '10px'
+                                            }}>
+                                                <div style={{
+                                                    maxWidth: '70%',
+                                                    padding: '8px 12px',
+                                                    borderRadius: '12px',
+                                                    background: isAdminMsg ? '#ff3b30' : (isCustomer ? '#333' : 'var(--primary-orange)'),
+                                                    color: isAdminMsg ? 'white' : (isCustomer ? 'white' : 'black'),
+                                                    fontSize: '0.9rem'
+                                                }}>
+                                                    {msg.message}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                                <form onSubmit={handleAdminReply} style={{ padding: '10px', background: 'var(--surface-color)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px' }}>
+                                    <input 
+                                        value={replyText} 
+                                        onChange={e => setReplyText(e.target.value)} 
+                                        placeholder="Reply as Admin..." 
+                                        style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-dark)', color: 'white' }}
+                                    />
+                                    <button type="submit" className="btn btn-primary">Send</button>
+                                </form>
+                            </>
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
+                                Select a chat to view messages
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
         return (
             <div className="admin-chat-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', height: '70vh' }}>
                 {/* LEFT: Chat List */}
