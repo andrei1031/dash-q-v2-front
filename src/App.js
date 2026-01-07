@@ -4474,6 +4474,111 @@ function AdminAppLayout({ session }) {
             );
         };
 
+        // [App.js] - Inside AdminAppLayout
+
+    // --- NEW: ADMIN BOOKINGS VIEW ---
+    const BookingsView = () => {
+        const [bookings, setBookings] = useState([]);
+        const [loading, setLoading] = useState(false);
+
+        const fetchBookings = async () => {
+            setLoading(true);
+            try {
+                const res = await axios.get(`${API_URL}/admin/appointments`);
+                setBookings(res.data);
+            } catch (error) {
+                console.error("Failed to load bookings", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        useEffect(() => { fetchBookings(); }, []);
+
+        const handleAdminReject = async (apptId, customerName) => {
+            const reason = prompt(`Reason for rejecting ${customerName}'s appointment?`);
+            if (!reason) return; // Cancelled by admin
+
+            try {
+                // We reuse the existing reject endpoint
+                await axios.put(`${API_URL}/appointments/reject`, {
+                    appointmentId: apptId,
+                    reason: `(Admin Action) ${reason}` // Tag it so user knows Admin did it
+                });
+                alert("Appointment cancelled and user notified.");
+                fetchBookings(); // Refresh list
+            } catch (error) {
+                alert("Failed to reject appointment.");
+            }
+        };
+
+        return (
+            <div className="card">
+                <div className="card-header">
+                    <h2>📅 Shop Bookings</h2>
+                    <button onClick={fetchBookings} className="btn btn-icon"><IconRefresh /></button>
+                </div>
+                <div className="card-body">
+                    {loading ? <Spinner /> : bookings.length === 0 ? (
+                        <p className="empty-text">No upcoming appointments found.</p>
+                    ) : (
+                        <ul className="queue-list">
+                            {bookings.map((appt) => {
+                                const dateObj = new Date(appt.scheduled_time);
+                                const isToday = new Date().toDateString() === dateObj.toDateString();
+
+                                return (
+                                    <li key={appt.id} style={{
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center',
+                                        padding: '15px',
+                                        marginBottom: '10px',
+                                        borderLeft: isToday ? '4px solid var(--primary-orange)' : '4px solid var(--border-color)',
+                                        background: 'var(--bg-dark)',
+                                        borderRadius: '6px'
+                                    }}>
+                                        {/* Left: Time & Barber */}
+                                        <div>
+                                            <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px'}}>
+                                                <strong style={{fontSize:'1.1rem', color: isToday ? 'var(--primary-orange)' : 'var(--text-primary)'}}>
+                                                    {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
+                                                </strong>
+                                                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>
+                                                    {dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                </span>
+                                            </div>
+                                            <div style={{fontSize:'0.95rem'}}>
+                                                <strong>{appt.customer_name}</strong> 
+                                                <span style={{color:'var(--text-secondary)'}}> with </span>
+                                                <strong>{appt.barber_profiles?.full_name}</strong>
+                                            </div>
+                                            <div style={{fontSize:'0.85rem', color:'var(--text-secondary)', marginTop:'2px'}}>
+                                                Service: {appt.services?.name}
+                                                {appt.is_converted_to_queue && <span style={{color:'var(--success-color)', marginLeft:'8px', fontWeight:'bold'}}>(Live in Queue)</span>}
+                                            </div>
+                                        </div>
+
+                                        {/* Right: Reject Button */}
+                                        {!appt.is_converted_to_queue && (
+                                            <button 
+                                                onClick={() => handleAdminReject(appt.id, appt.customer_name)}
+                                                className="btn btn-danger"
+                                                style={{padding:'6px 12px', fontSize:'0.8rem'}}
+                                            >
+                                                ❌ Reject
+                                            </button>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
         return (
             <div className="admin-chat-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', height: '70vh' }}>
                 {/* LEFT: Chat List */}
@@ -5060,6 +5165,7 @@ function AdminAppLayout({ session }) {
                 <button className={activeTab === 'staff' ? 'active' : ''} onClick={() => setActiveTab('staff')}>💈 Staff</button>
                 <button className={activeTab === 'menu' ? 'active' : ''} onClick={() => setActiveTab('menu')}>✂️ Menu</button>
                 <button className={activeTab === 'omni' ? 'active' : ''} onClick={() => setActiveTab('omni')}>💬 Omni-Chat</button>
+                <button className={activeTab === 'bookings' ? 'active' : ''} onClick={() => setActiveTab('bookings')}>📅 Bookings</button>
                 <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>👥 Users</button>
                 <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>🚨 Reports</button>
             </div>
@@ -5071,6 +5177,7 @@ function AdminAppLayout({ session }) {
                     {activeTab === 'staff' && <StaffView />}
                     {activeTab === 'menu' && <MenuView />}
                     {activeTab === 'omni' && <OmniChatView />}
+                    {activeTab === 'bookings' && <BookingsView />}
                     {activeTab === 'users' && <UsersView />}
                     
                     {/* --- ADD THIS LINE --- */}
