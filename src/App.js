@@ -3790,13 +3790,14 @@ return (
                             const statusClass = entry.status === 'Done' ? 'done' : 'cancelled';
                             const barberName = entry.barber_profiles?.full_name || 'Unrecorded Barber';
 
+                            // --- FIXED PRICE CALCULATION ---
                             const basePrice = parseFloat(entry.services?.price_php || 0);
                             const heads = entry.head_count || 1; 
                             const vipFee = entry.is_vip ? 100 : 0;
                             
-                            // SAFETY CHECK: Make sure we don't get 'NaN' if tip is missing
-                            const tip = entry.tip_amount ? parseFloat(entry.tip_amount) : 0; 
-                            
+                            // Safety Check: Ensure tip is a number (defaults to 0 if null)
+                            const tip = entry.tip_amount ? parseFloat(entry.tip_amount) : 0;
+
                             // Formula: (Service * Heads) + (VIP * Heads) + Tip
                             const totalCost = (basePrice * heads) + (vipFee * heads) + tip;
 
@@ -3809,8 +3810,6 @@ return (
                                         <span className="service">
                                             {entry.services?.name || 'Unknown Service'}
                                         </span>
-                                        
-                                        {/* REMOVED: Star Rating Display */}
                                         
                                         {entry.is_vip && (
                                             <span className="status-badge" style={{ 
@@ -3827,6 +3826,7 @@ return (
                                         </span>
                                     </div>
                                     
+                                    {/* Comment Section */}
                                     {entry.comments && entry.comments.trim().length > 0 && (
                                         <p className="feedback-comment" style={{paddingLeft: '0', fontStyle: 'normal', marginTop: '5px', color: 'var(--text-primary)'}}>
                                             Comment: "{entry.comments}"
@@ -3837,15 +3837,16 @@ return (
                                         <span className="barber-name">
                                             {barberName}
                                         </span>
-                  s                      <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
+                                        
+                                        {/* TOTAL PRICE with Breakdown */}
+                                        <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
                                             <span style={{fontWeight:'bold'}}>₱{totalCost.toFixed(2)}</span>
                                             
-                                            {/* Show small breakdown if there's a tip or group */}
-                                            {(tip > 0 || heads > 1) && (
+                                            {/* Show details only if relevant */}
+                                            {(heads > 1 || tip > 0) && (
                                                 <small style={{fontSize:'0.7rem', color:'var(--text-secondary)'}}>
-                                                    {heads > 1 ? `${heads} pax` : ''} 
-                                                    {heads > 1 && tip > 0 ? ' + ' : ''} 
-                                                    {tip > 0 ? `₱${tip} tip` : ''}
+                                                    {heads > 1 ? `(${heads} pax)` : ''} 
+                                                    {tip > 0 ? ` + ₱${tip} tip` : ''}
                                                 </small>
                                             )}
                                         </span>
