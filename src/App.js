@@ -3790,14 +3790,14 @@ return (
                             const statusClass = entry.status === 'Done' ? 'done' : 'cancelled';
                             const barberName = entry.barber_profiles?.full_name || 'Unrecorded Barber';
 
-                            // --- PRICE CALCULATION FIX ---
                             const basePrice = parseFloat(entry.services?.price_php || 0);
                             const heads = entry.head_count || 1; 
                             const vipFee = entry.is_vip ? 100 : 0;
+                            const tip = parseFloat(entry.tip_amount || 0); // <--- Get the tip
                             
-                            // Formula: (Service Price + VIP Fee) * Heads
-                            // Example: (200 + 100) * 4 = 1200
-                            const totalCost = (basePrice + vipFee) * heads;
+                            // Formula: (Service * Heads) + (VIP * Heads) + Tip
+                            // Note: VIP is per head based on your previous request
+                            const totalCost = (basePrice * heads) + (vipFee * heads) + tip;
 
                             return (
                                 <li key={index} className={`history-item ${statusClass}`}>
@@ -3836,11 +3836,14 @@ return (
                                         <span className="barber-name">
                                             {barberName}
                                         </span>
-                                        
-                                        {/* UPDATED PRICE DISPLAY */}
-                                        <span className="amount">
-                                            ₱{totalCost.toFixed(2)}
-                                            {heads > 1 && <small style={{fontSize:'0.7rem', display:'block', color:'var(--text-secondary)'}}>({heads} pax)</small>}
+                                        <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
+                                            <span style={{fontWeight:'bold'}}>₱{totalCost.toFixed(2)}</span>
+                                            {/* Show small details if extras exist */}
+                                            {(tip > 0 || heads > 1) && (
+                                                <small style={{fontSize:'0.7rem', color:'var(--text-secondary)'}}>
+                                                    {heads > 1 ? `(${heads} pax)` : ''} {tip > 0 ? `+ ₱${tip} tip` : ''}
+                                                </small>
+                                            )}
                                         </span>
                                     </div>
                                 </li>
