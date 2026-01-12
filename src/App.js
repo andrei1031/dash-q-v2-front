@@ -3289,7 +3289,7 @@ return (
                             <div style={{marginTop: '10px'}}>
                                 {headCount > 1 ? (
                                     <div className="message warning small" style={{textAlign:'left'}}>
-                                        <strong style={{display:'block', marginBottom:'4px'}}>👥 Group Booking Details:</strong>
+                                        <strong style={{display:'block', marginBottom:'4px'}}>👥 Group Details:</strong>
                                         <ul style={{margin:0, paddingLeft:'20px'}}>
                                             <li>This will book <strong>{headCount} slots</strong> back-to-back.</li>
                                             <li>
@@ -3304,7 +3304,7 @@ return (
                                         </ul>
                                     </div>
                                 ) : (
-                                    <p className="message small">Booking for 1 person.</p>
+                                    <p className="message small">For 1 person.</p>
                                 )}
                             </div>
                         </div>
