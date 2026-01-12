@@ -1317,18 +1317,19 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
         const entry = modalState.data;
         if (!entry) return;
 
-        // --- NEW GROUP LOGIC ---
+        // --- GROUP & VIP LOGIC UPDATE ---
         const queueId = entry.id;
-        const heads = entry.head_count || 1; // Default to 1 if missing
+        const heads = entry.head_count || 1; 
         const servicePrice = parseFloat(entry.services?.price_php) || 0;
         
-        // Calculate Base: Price x Heads
+        // 1. Calculate Base Service Total (Price x Heads)
         const baseTotal = servicePrice * heads;
         
+        // 2. Calculate VIP Charge (100 x Heads)
         const isVIP = entry.is_vip === true;
-        const vipCharge = isVIP ? 100 : 0;
+        const vipCharge = isVIP ? (100 * heads) : 0; // <--- CHANGED HERE
         
-        // Total before tip
+        // 3. Total before tip
         const subtotalDue = baseTotal + vipCharge;
         
         const parsedTip = parseInt(tipInput || '0');
@@ -1346,9 +1347,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
                 queue_id: queueId,
                 barber_id: barberId,
                 tip_amount: parsedTip,
-                vip_charge: vipCharge,
-                // The backend server.js will handle the (Price * Heads) math 
-                // using the head_count stored in the DB, as we discussed.
+                vip_charge: vipCharge, // Sends the full multiplied amount (e.g., 400)
             });
             onCutComplete();
             setModalState({ 
@@ -1638,10 +1637,10 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
 
                                     {modalState.data.is_vip && (
                                         <>
-                                            {/* Updated Label for clarity */}
                                             <div style={{display:'flex', justifyContent:'space-between', color:'var(--primary-orange)'}}>
-                                                <span>VIP / Appointment Fee:</span>
-                                                <span>+ ₱100.00</span>
+                                                <span>VIP Fee (₱100 x {modalState.data.head_count || 1}):</span>
+                                                {/* SHOW MULTIPLIED VIP FEE */}
+                                                <span>+ ₱{(100 * (modalState.data.head_count || 1)).toFixed(2)}</span>
                                             </div>
                                         </>
                                     )}
@@ -1654,7 +1653,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
                                         <span style={{color: 'var(--success-color)'}}>
                                             ₱{(
                                                 ((parseFloat(modalState.data.services?.price_php || 0)) * (modalState.data.head_count || 1)) + 
-                                                (modalState.data.is_vip ? 100 : 0)
+                                                (modalState.data.is_vip ? (100 * (modalState.data.head_count || 1)) : 0) // <--- CHANGED HERE
                                             ).toFixed(2)}
                                         </span>
                                     </div>
@@ -2159,7 +2158,8 @@ function CustomerView({ session }) {
                             if (eventType === 'Done') {
                                 console.log("[Catcher] Confirmed 'Done'.");
                                 localStorage.setItem('pendingFeedback', JSON.stringify({
-                                    barberId: joinedBarberId, // Use the current state ID
+                                    barberId: joinedBarberId,
+                                    queueId: myQueueEntryId, 
                                     timestamp: Date.now()
                                 }));
                                 setIsServiceCompleteModalOpen(true);
@@ -2629,14 +2629,12 @@ function CustomerView({ session }) {
     }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, displayWait]);
 
     useEffect(() => { // First Time Instructions
-        const hasSeen = localStorage.getItem('hasSeenInstructions_v1');
-        if (!hasSeen) { setIsInstructionsModalOpen(true); }
         const pendingFeedback = localStorage.getItem('pendingFeedback');
         if (pendingFeedback) {
             const data = JSON.parse(pendingFeedback);
-            // Restore necessary state to submit the feedback
-            setJoinedBarberId(data.barberId); 
-            // We don't set myQueueEntryId because the queue is technically done
+            setJoinedBarberId(data.barberId);
+            // FIX: Save the queue ID to state so the form can use it
+            if (data.queueId) setMyQueueEntryId(data.queueId); 
             setIsServiceCompleteModalOpen(true);
         }
     }, []);
@@ -3008,7 +3006,8 @@ return (
                                 barber_id: joinedBarberId, 
                                 customer_name: customerName, 
                                 comments: feedbackText.trim(), 
-                                rating: customerRating 
+                                rating: customerRating,
+                                queue_id: myQueueEntryId
                             }); 
                         } catch (err) { 
                             console.error("Failed to submit feedback", err); 
@@ -3205,16 +3204,21 @@ return (
             <div className="modal-content">
                 <div className="modal-body">
                     <h2>Priority Service Confirmation</h2>
-                    {selectedServiceId && services.find(s => s.id.toString() === selectedServiceId) ? (
-                        <p>You have selected <strong>{services.find(s => s.id.toString() === selectedServiceId).name}</strong>. This VIP priority service incurs an <strong>additional ₱100</strong> fee, guaranteeing you the next "Up Next" slot.</p>
-                    ) : (
-                        <p>VIP priority service incurs an <strong>additional ₱100</strong> fee, guaranteeing you the next "Up Next" slot. Please ensure you have selected a service.</p>
-                    )}
-                    {!selectedServiceId && <p className="error-message small">Please select a service first.</p>}
+                    <p>
+                        You are booking for <strong>{headCount} person(s)</strong>.
+                    </p>
+                    <p>
+                        VIP priority incurs an additional <strong>₱100 per head</strong> fee.
+                    </p>
+                    <div style={{background:'rgba(255, 149, 0, 0.1)', padding:'10px', borderRadius:'8px', marginTop:'10px'}}>
+                        <strong>Total VIP Surcharge: ₱{100 * headCount}</strong>
+                    </div>
                 </div>
                 <div className="modal-footer">
                      <button onClick={cancelVIP} className="btn btn-secondary">Cancel VIP</button>
-                    <button onClick={confirmVIP} disabled={!selectedServiceId} className="btn btn-primary">Confirm (+₱100)</button>
+                    <button onClick={confirmVIP} disabled={!selectedServiceId} className="btn btn-primary">
+                        Confirm (+₱{100 * headCount})
+                    </button>
                 </div>
             </div>
         </div>
@@ -3784,8 +3788,16 @@ return (
                     <ul className="history-list">
                         {loyaltyHistory.map((entry, index) => {
                             const statusClass = entry.status === 'Done' ? 'done' : 'cancelled';
-                            const servicePrice = entry.services?.price_php || 'N/A';
                             const barberName = entry.barber_profiles?.full_name || 'Unrecorded Barber';
+
+                            // --- PRICE CALCULATION FIX ---
+                            const basePrice = parseFloat(entry.services?.price_php || 0);
+                            const heads = entry.head_count || 1; 
+                            const vipFee = entry.is_vip ? 100 : 0;
+                            
+                            // Formula: (Service Price + VIP Fee) * Heads
+                            // Example: (200 + 100) * 4 = 1200
+                            const totalCost = (basePrice + vipFee) * heads;
 
                             return (
                                 <li key={index} className={`history-item ${statusClass}`}>
@@ -3797,21 +3809,7 @@ return (
                                             {entry.services?.name || 'Unknown Service'}
                                         </span>
                                         
-                                        {/* NEW: Display Sanitized Star Rating for Done entries */}
-                                        {entry.status === 'Done' && entry.score !== null && (
-                                            <span className="rating-display" style={{ /* ... */ }}>
-                                                {/* Line 2452 (or similar): Use entry.score for filled stars */}
-                                                <span style={{color: '#FFD700'}}>
-                                                    {'★'.repeat(Math.round(Math.max(0, Math.min(5, entry.score || 0))))} 
-                                                </span>
-                                                
-                                                {/* Line 2455 (or similar): Use entry.score for empty stars */}
-                                                <span style={{color: 'var(--text-secondary)'}}>
-                                                    {'☆'.repeat(5 - Math.round(Math.max(0, Math.min(5, entry.score || 0))))}
-                                                </span>
-                                            </span>
-                                        )}
-                                        {/* END NEW SANITIZED STAR RENDERING */}
+                                        {/* REMOVED: Star Rating Display */}
                                         
                                         {entry.is_vip && (
                                             <span className="status-badge" style={{ 
@@ -3827,18 +3825,22 @@ return (
                                             {entry.status}
                                         </span>
                                     </div>
-                                    {/* FIX: Display Comment if it exists */}
+                                    
                                     {entry.comments && entry.comments.trim().length > 0 && (
                                         <p className="feedback-comment" style={{paddingLeft: '0', fontStyle: 'normal', marginTop: '5px', color: 'var(--text-primary)'}}>
                                             Comment: "{entry.comments}"
                                         </p>
                                     )}
+                                    
                                     <div className="history-meta">
                                         <span className="barber-name">
                                             {barberName}
                                         </span>
+                                        
+                                        {/* UPDATED PRICE DISPLAY */}
                                         <span className="amount">
-                                            ₱{servicePrice}
+                                            ₱{totalCost.toFixed(2)}
+                                            {heads > 1 && <small style={{fontSize:'0.7rem', display:'block', color:'var(--text-secondary)'}}>({heads} pax)</small>}
                                         </span>
                                     </div>
                                 </li>
