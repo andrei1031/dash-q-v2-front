@@ -3793,10 +3793,11 @@ return (
                             const basePrice = parseFloat(entry.services?.price_php || 0);
                             const heads = entry.head_count || 1; 
                             const vipFee = entry.is_vip ? 100 : 0;
-                            const tip = parseFloat(entry.tip_amount || 0); // <--- Get the tip
+                            
+                            // SAFETY CHECK: Make sure we don't get 'NaN' if tip is missing
+                            const tip = entry.tip_amount ? parseFloat(entry.tip_amount) : 0; 
                             
                             // Formula: (Service * Heads) + (VIP * Heads) + Tip
-                            // Note: VIP is per head based on your previous request
                             const totalCost = (basePrice * heads) + (vipFee * heads) + tip;
 
                             return (
@@ -3836,12 +3837,15 @@ return (
                                         <span className="barber-name">
                                             {barberName}
                                         </span>
-                                        <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
+                  s                      <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
                                             <span style={{fontWeight:'bold'}}>₱{totalCost.toFixed(2)}</span>
-                                            {/* Show small details if extras exist */}
+                                            
+                                            {/* Show small breakdown if there's a tip or group */}
                                             {(tip > 0 || heads > 1) && (
                                                 <small style={{fontSize:'0.7rem', color:'var(--text-secondary)'}}>
-                                                    {heads > 1 ? `(${heads} pax)` : ''} {tip > 0 ? `+ ₱${tip} tip` : ''}
+                                                    {heads > 1 ? `${heads} pax` : ''} 
+                                                    {heads > 1 && tip > 0 ? ' + ' : ''} 
+                                                    {tip > 0 ? `₱${tip} tip` : ''}
                                                 </small>
                                             )}
                                         </span>
