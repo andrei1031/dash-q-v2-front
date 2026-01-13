@@ -1819,7 +1819,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
                                             display: 'flex', 
                                             flexDirection: 'column', 
                                             gap: '10px',
-                                            borderLeft: isToday ? '4px solid var(--primary-orange)' : '4px solid var(--text-secondary)',
+                                            borderLeft: appt.status === 'pending' ? '4px solid #FFD700' : (isToday ? '4px solid var(--primary-orange)' : '4px solid var(--text-secondary)'), // Yellow for pending
                                             opacity: appt.is_converted_to_queue ? 0.6 : 1,
                                             padding: '10px',
                                             marginBottom: '10px',
@@ -1837,31 +1837,59 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
                                                 </span>
                                             </div>
                                             
+                                            {/* Status Badge */}
+                                            {appt.status === 'pending' && (
+                                                <div style={{background: '#FFD700', color: 'black', fontWeight: 'bold', borderRadius: '4px', fontSize: '0.8rem'}}>
+                                                    ⚠️ PENDING APPROVAL
+                                                </div>
+                                            )}
+
                                             {/* Customer Name */}
                                             <div style={{fontSize:'1rem'}}>
                                                 👤 <strong>{appt.customer_name}</strong>
                                             </div>
                                             
-                                            {/* Service & Action Row */}
-                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'5px', gap:'10px'}}>
-                                                <span style={{fontSize:'0.9rem', color:'var(--text-secondary)'}}>✂️ {appt.services?.name}</span>
+                                            {/* Action Row */}
+                                            <div style={{display:'flex', justifyContent:'center', alignItems:'center', marginTop:'5px', gap:'10px'}}>
                                                 
-                                                {appt.is_converted_to_queue ? (
-                                                    <span style={{color: 'var(--success-color)', fontWeight:'bold', fontSize:'0.75rem'}}>
-                                                        (IN QUEUE)
-                                                    </span>
-                                                ) : (
-                                                    /* ▼▼▼ REJECT BUTTON ▼▼▼ */
+                                                {appt.status === 'pending' ? (
+                                                    <>
+                                                        <button 
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await axios.put(`${API_URL}/appointments/approve`, { appointmentId: appt.id });
+                                                                    alert("Appointment Approved!");
+                                                                    fetchBarberAppointments();
+                                                                } catch(e) { alert("Error approving."); }
+                                                            }}
+                                                            className="btn btn-success"
+                                                            style={{padding: '4px 10px', fontSize: '0.75rem', minHeight: '30px'}}
+                                                        >
+                                                            ✅ Accept
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleRejectAppointment(appt.id)}
+                                                            className="btn btn-danger"
+                                                            style={{padding: '4px 10px', fontSize: '0.75rem', minHeight: '30px'}}
+                                                        >
+                                                            ❌ Decline
+                                                        </button>
+                                                    </>
+                                                ) : !appt.is_converted_to_queue ? (
                                                     <button 
                                                         onClick={() => handleRejectAppointment(appt.id)}
                                                         className="btn btn-danger"
                                                         style={{padding: '4px 10px', fontSize: '0.75rem', minHeight: '30px'}}
                                                     >
-                                                        ❌ Reject
+                                                        ❌ Cancel Appt
                                                     </button>
+                                                ) : (
+                                                    <span style={{color: 'var(--success-color)', fontWeight:'bold', fontSize:'0.75rem'}}>
+                                                        (IN QUEUE)
+                                                    </span>
                                                 )}
                                             </div>
-                                        </li>
+ </li>
                                         );
                                     })}
                                 </ul>
@@ -3878,19 +3906,24 @@ return (
                             // Determine Badge Color
                             let statusColor = 'var(--text-secondary)';
                             let statusBg = 'rgba(0,0,0,0.05)';
-                            
+                            let statusText = appt.status;
+
                             if (appt.is_converted_to_queue) {
-                                statusColor = '#007aff'; // Blue
+                                statusColor = '#007aff'; 
                                 statusBg = 'rgba(0,122,255,0.1)';
+                                statusText = 'Live in Queue';
                             } else if (appt.status === 'confirmed') {
                                 statusColor = 'var(--success-color)';
                                 statusBg = 'rgba(52,199,89,0.1)';
+                                statusText = 'CONFIRMED'; //
                             } else if (appt.status === 'pending') {
-                                statusColor = 'var(--primary-orange)';
-                                statusBg = 'rgba(255,149,0,0.1)';
+                                statusColor = '#FFD700'; // Gold/Yellow
+                                statusBg = 'rgba(255, 215, 0, 0.1)';
+                                statusText = 'WAITING FOR RESPONSE'; // <--- New Status Text
                             } else if (appt.status === 'cancelled') {
                                 statusColor = 'var(--error-color)';
                                 statusBg = 'rgba(255,59,48,0.1)';
+                                statusText = 'DECLINED';
                             }
 
                             return (
