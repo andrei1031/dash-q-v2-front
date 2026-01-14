@@ -1011,7 +1011,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
 }
 
 // --- BarberDashboard (Handles Barber's Queue Management) ---
-function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
+function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueueUpdate }) {
     const [queueDetails, setQueueDetails] = useState({ waiting: [], inProgress: null, upNext: null });
     const [error, setError] = useState('');
     const [fetchError, setFetchError] = useState('');
@@ -1181,6 +1181,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${barberId}` }, (payload) => {
                 console.log('Barber dashboard received queue update (via Realtime):', payload);
                 fetchQueueDetails();
+                if (onQueueUpdate) onQueueUpdate();
             })
             .subscribe((status, err) => {
                 if (status === 'SUBSCRIBED') {
@@ -1213,7 +1214,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session }) {
             if (channel && supabase?.removeChannel) { supabase.removeChannel(channel).then(() => console.log('Barber unsubscribed.')); }
             if (dashboardRefreshInterval) { clearInterval(dashboardRefreshInterval); }
         };
-    }, [barberId, fetchQueueDetails, setUnreadMessages]); // <-- Add setUnreadMessages here
+    }, [barberId, fetchQueueDetails, setUnreadMessages, onQueueUpdate]); // <-- Add setUnreadMessages here
 
     useEffect(() => {
         const handleVisibility = () => {
@@ -4047,6 +4048,11 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
         setRefreshAnalyticsSignal(prev => prev + 1);
     }, []);
 
+    const triggerStatsRefresh = useCallback(() => {
+        console.log("Triggering stats refresh...");
+        setRefreshAnalyticsSignal(prev => prev + 1);
+    }, []);
+
     return (
         <div className="app-layout barber-app-layout">
             <header className="app-header">
@@ -4074,6 +4080,7 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                         barberName={barberProfile.full_name}
                         onCutComplete={handleCutComplete}
                         session={session}
+                        onQueueUpdate={triggerStatsRefresh}
                     />
                     <AnalyticsDashboard
                         barberId={barberProfile.id}
