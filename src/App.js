@@ -2838,12 +2838,20 @@ function CustomerView({ session }) {
     
     useEffect(() => { // EWT Preview
         if (selectedBarberId) {
+            // 🟢 FIX: INSTANTLY CLEAR OLD DATA TO PREVENT GHOST NUMBERS
+            setLiveQueue([]); 
+            liveQueueRef.current = [];
+            setPeopleWaiting(0); // Reset the count immediately
+            setFinishTime(0);    // Reset the time immediately
+            setIsQueueLoading(true); // Show loading skeleton immediately
+
             console.log(`[EWT Preview] Fetching queue for barber ${selectedBarberId}`);
             fetchPublicQueue(selectedBarberId);
         } else {
             setLiveQueue([]);
             liveQueueRef.current = [];
-            setIsQueueLoading(false); // Stop loading if no barber is selected
+            setPeopleWaiting(0);
+            setIsQueueLoading(false); 
         }
     }, [selectedBarberId, fetchPublicQueue]);
 
