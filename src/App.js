@@ -2968,7 +2968,6 @@ function CustomerView({ session }) {
 
 return (
     <div className="card">
-        {showIOSPrompt && <IOSInstallPrompt onClose={() => setShowIOSPrompt(false)} />}
         
         {/* Instructions Modal */}
         <div className="modal-overlay" style={{ display: isInstructionsModalOpen ? 'flex' : 'none' }}>
