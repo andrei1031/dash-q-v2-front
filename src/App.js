@@ -1199,22 +1199,16 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
         dashboardRefreshInterval = setInterval(() => { 
             console.log('Dashboard periodic refresh...'); 
             fetchQueueDetails(); 
-
-            // --- ADD THIS FALLBACK ---
-            console.log('Periodic re-sync of unread messages...');
-            const saved = localStorage.getItem('barberUnreadMessages');
-            const unread = saved ? JSON.parse(saved) : {};
-            setUnreadMessages(unread);
-            // --- END FALLBACK ---
-
+            
+            if (onQueueUpdate) onQueueUpdate(); 
         }, 15000);
         // --- END OF FIX ---
 
         return () => {
-            if (channel && supabase?.removeChannel) { supabase.removeChannel(channel).then(() => console.log('Barber unsubscribed.')); }
-            if (dashboardRefreshInterval) { clearInterval(dashboardRefreshInterval); }
+            if (channel) supabase.removeChannel(channel);
+            if (dashboardRefreshInterval) clearInterval(dashboardRefreshInterval);
         };
-    }, [barberId, fetchQueueDetails, setUnreadMessages, onQueueUpdate]); // <-- Add setUnreadMessages here
+    }, [barberId, fetchQueueDetails, onQueueUpdate]); // <-- Add setUnreadMessages here
 
     useEffect(() => {
         const handleVisibility = () => {
@@ -4048,8 +4042,8 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
         setRefreshAnalyticsSignal(prev => prev + 1);
     }, []);
 
-    const triggerStatsRefresh = useCallback(() => {
-        console.log("Triggering stats refresh...");
+    const handleRealtimeUpdate = useCallback(() => {
+        console.log("🔄 Realtime event detected! Refreshing stats...");
         setRefreshAnalyticsSignal(prev => prev + 1);
     }, []);
 
@@ -4064,13 +4058,7 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                         onAvailabilityChange={(newStatus) => setBarberProfile(prev => ({ ...prev, is_available: newStatus }))}
                     />
                     <ThemeToggleButton />
-                    <button
-                        onClick={() => handleLogout(session.user.id)}
-                        className="btn btn-icon"
-                        title="Logout"
-                    >
-                        <IconLogout />
-                    </button>
+                    <button onClick={() => handleLogout(session.user.id)} className="btn btn-icon" title="Logout"><IconLogout /></button>
                 </div>
             </header>
             <main className="main-content">
@@ -4080,19 +4068,15 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                         barberName={barberProfile.full_name}
                         onCutComplete={handleCutComplete}
                         session={session}
-                        onQueueUpdate={triggerStatsRefresh}
+                        onQueueUpdate={handleRealtimeUpdate} // <--- PASSING THE TRIGGER DOWN
                     />
                     <AnalyticsDashboard
                         barberId={barberProfile.id}
-                        refreshSignal={refreshAnalyticsSignal}
+                        refreshSignal={refreshAnalyticsSignal} // <--- STATS WILL LISTEN TO THIS
                     />
                 </div>
             </main>
-                <MyReportsModal 
-                    isOpen={isMyReportsOpen} 
-                    onClose={() => setIsMyReportsOpen(false)} 
-                    userId={session.user.id} 
-                />
+            <MyReportsModal isOpen={isMyReportsOpen} onClose={() => setIsMyReportsOpen(false)} userId={session.user.id} />
         </div>
     );
 }
