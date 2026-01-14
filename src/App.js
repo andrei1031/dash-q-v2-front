@@ -47,33 +47,6 @@ if (supabaseUrl && supabaseAnonKey) {
         storage: { from: () => ({ upload: () => { throw new Error('Supabase storage not configured') }, getPublicUrl: () => ({ data: { publicUrl: null } }) }) }
     };
 }
-// --- iOS Install Modal Component ---
-// Apple requires users to "Add to Home Screen" to receive notifications.
-function IOSInstallPrompt({ onClose }) {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-    // Only show if on iOS AND NOT yet installed (in browser mode)
-    if (!isIOS || isStandalone) return null;
-
-    return (
-        <div className="modal-overlay">
-            <div className="modal-content">
-                <div className="modal-body">
-                    <h2 style={{color: 'var(--primary-orange)'}}>📲 Enable Notifications</h2>
-                    <p>To get notified when it's your turn, you <strong>must</strong> add this app to your Home Screen.</p>
-                    <ol style={{textAlign:'left', margin:'20px 0', lineHeight:'1.8'}}>
-                        <li>Tap the <strong>Share</strong> button <span style={{fontSize:'1.2rem'}}>⎋</span> below.</li>
-                        <li>Scroll down and select <strong>"Add to Home Screen"</strong> <span style={{fontSize:'1.2rem'}}>⊞</span>.</li>
-                    </ol>
-                </div>
-                <div className="modal-footer single-action">
-                    <button onClick={onClose} className="btn btn-secondary">I'll do it later</button>
-                </div>
-            </div>
-        </div>
-    );
-}
 
 // ##############################################
 // ##              SVG ICONS                   ##
