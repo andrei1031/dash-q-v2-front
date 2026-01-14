@@ -4487,13 +4487,21 @@ function AdminAppLayout({ session }) {
                                         alignItems: 'center',
                                         padding: '15px',
                                         marginBottom: '10px',
-                                        borderLeft: isToday ? '4px solid var(--primary-orange)' : '4px solid var(--border-color)',
+                                        // Visual Logic: Yellow border for Pending, Orange for Today, Gray for others
+                                        borderLeft: appt.status === 'pending' ? '4px solid #FFD700' : (isToday ? '4px solid var(--primary-orange)' : '4px solid var(--border-color)'),
                                         background: 'var(--bg-dark)',
                                         borderRadius: '6px'
                                     }}>
                                         {/* Left: Time & Barber */}
                                         <div>
                                             <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px'}}>
+                                                {/* Status Badge */}
+                                                {appt.status === 'pending' && (
+                                                    <span style={{background:'#FFD700', color:'black', padding:'2px 6px', borderRadius:'4px', fontSize:'0.7rem', fontWeight:'bold'}}>
+                                                        PENDING
+                                                    </span>
+                                                )}
+                                                
                                                 <strong style={{fontSize:'1.1rem', color: isToday ? 'var(--primary-orange)' : 'var(--text-primary)'}}>
                                                     {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
                                                 </strong>
