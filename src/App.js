@@ -4282,7 +4282,6 @@ function AdminAppLayout({ session }) {
         );
     };
 
-    // --- FEATURE 2: OMNI CHAT COMPONENT ---
     const OmniChatView = () => {
         const [activeChats, setActiveChats] = useState([]);
         const [selectedChat, setSelectedChat] = useState(null);
@@ -4290,7 +4289,7 @@ function AdminAppLayout({ session }) {
         const [loading, setLoading] = useState(false);
         const [replyText, setReplyText] = useState("");
 
-        // Fetch list of chats
+        // 1. Fetch list of chats (Initial Load)
         const fetchChats = async () => {
             setLoading(true);
             try {
@@ -4302,18 +4301,50 @@ function AdminAppLayout({ session }) {
 
         useEffect(() => { fetchChats(); }, []);
 
-        // Load specific conversation
+        // 🟢 NEW: LIVE LISTENER FOR SELECTED CHAT
+        useEffect(() => {
+            if (!selectedChat) return;
+
+            console.log(`[Admin] Subscribing to chat #${selectedChat.id}`);
+            const channel = supabase.channel(`admin_chat_${selectedChat.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'chat_messages',
+                        filter: `queue_entry_id=eq.${selectedChat.id}`
+                    },
+                    (payload) => {
+                        const newMsg = payload.new;
+                        // Avoid duplicating my own messages (Admin's reply)
+                        if (newMsg.sender_id !== session.user.id) {
+                            setMessages(prev => [...prev, {
+                                senderId: newMsg.sender_id,
+                                message: newMsg.message
+                            }]);
+                            // Optional: Play Sound
+                            playSound(messageNotificationSound); 
+                        }
+                    }
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        }, [selectedChat]); // Re-runs whenever admin clicks a different user
+
+        // 3. Load specific conversation (History)
         const loadConversation = async (chatEntry) => {
             setSelectedChat(chatEntry);
             try {
-                // We use the existing barbershop query but manually because we need raw access
                 const { data } = await supabase
                     .from('chat_messages')
                     .select('*')
                     .eq('queue_entry_id', chatEntry.id)
                     .order('created_at', { ascending: true });
                 
-                // Format for ChatWindow
                 setMessages(data.map(m => ({
                     senderId: m.sender_id,
                     message: m.message
@@ -4321,15 +4352,16 @@ function AdminAppLayout({ session }) {
             } catch (e) { console.error(e); }
         };
 
-        // Handle Admin Reply
+        // 4. Handle Admin Reply
         const handleAdminReply = async (e) => {
             e.preventDefault();
             if(!replyText.trim() || !selectedChat) return;
 
+            // Optimistic Update
+            const newMsg = { senderId: session.user.id, message: `[ADMIN]: ${replyText}` };
+            setMessages(prev => [...prev, newMsg]); 
+            
             try {
-                const newMsg = { senderId: session.user.id, message: `[ADMIN]: ${replyText}` };
-                setMessages(prev => [...prev, newMsg]); // Optimistic update
-                
                 await axios.post(`${API_URL}/admin/chat/reply`, {
                     adminId: session.user.id,
                     queueId: selectedChat.id,
