@@ -1674,7 +1674,7 @@ button .spinner {
 .barber-selection-list {
   display: grid;
   /* FIX: More responsive grid for smaller screens */
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
   margin-top: 5px;
 }
@@ -1692,6 +1692,7 @@ button .spinner {
   align-items: center;
   justify-content: center;
   min-height: 80px;
+  min-width: 0;
 }
 
 .barber-card:hover {
@@ -1711,6 +1712,7 @@ button .spinner {
   color: var(--text-primary);
   margin-bottom: 5px;
   line-height: 1.2;
+  word-break: break-word;
 }
 
 /* Rating Styles */
@@ -1828,9 +1830,10 @@ button .spinner {
   padding-bottom: 0 !important; /* Remove bottom padding on header */
   border-bottom: none !important; /* Remove separator line */
   justify-content: flex-start !important;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 .customer-view-tabs button {
-  margin-right: 15px;
   padding: 10px 15px;
   background: none;
   border: none;
@@ -2261,6 +2264,13 @@ button .spinner {
   }
   table {
     min-width: 500px; /* Force minimum width to trigger scroll */
+  }
+
+  /* Tabs on mobile */
+  .customer-view-tabs button {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    flex: 1;
   }
 }
 /* Stepper Control for Head Count */
