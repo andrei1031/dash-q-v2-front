@@ -122,6 +122,11 @@
   box-sizing: border-box;
 }
 
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 html {
   overflow-x: hidden;
 }
@@ -1191,6 +1196,7 @@ button:disabled {
   font-style: italic;
   margin: 0;
   padding-left: 26px; /* Aligns with customer name */
+  overflow-wrap: break-word;
 }
 
 .customer-feedback .feedback-comment {
@@ -1677,7 +1683,8 @@ button .spinner {
 .barber-selection-list {
   display: grid;
   /* FIX: More responsive grid for smaller screens */
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  width: 100%;
   gap: 10px;
   margin-top: 5px;
 }
