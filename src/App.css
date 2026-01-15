@@ -127,12 +127,15 @@ img {
   height: auto;
 }
 
-html {
+html, body {
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
@@ -141,7 +144,6 @@ body {
   background-color: var(--bg-dark);
   color: var(--text-primary);
   transition: background-color 0.2s linear, color 0.2s linear;
-  overflow-x: hidden;
 }
 
 /* Base link style */
@@ -161,6 +163,8 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
 }
 
@@ -190,6 +194,8 @@ a:hover {
 
 .main-content {
   flex-grow: 1;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .container {
@@ -1683,7 +1689,7 @@ button .spinner {
 .barber-selection-list {
   display: grid;
   /* FIX: More responsive grid for smaller screens */
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   width: 100%;
   gap: 10px;
   margin-top: 5px;
@@ -1703,6 +1709,7 @@ button .spinner {
   justify-content: center;
   min-height: 80px;
   min-width: 0;
+  width: 100%;
 }
 
 .barber-card:hover {
@@ -1842,6 +1849,7 @@ button .spinner {
   justify-content: flex-start !important;
   flex-wrap: wrap;
   gap: 5px;
+  width: 100%;
 }
 .customer-view-tabs button {
   padding: 10px 15px;
