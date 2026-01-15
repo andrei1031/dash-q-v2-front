@@ -2440,3 +2440,94 @@ body, html {
     min-width: 0; /* Fix flex child overflow issues */
   }
 }
+/* --- 1. GLOBAL LAYOUT LOCK (The Foundation) --- */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important; /* Force hide horizontal scrollbar */
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  overflow-x: hidden; /* Ensure React root doesn't overflow */
+}
+
+/* --- 2. CONTAINER & CARD CONSTRAINTS --- */
+.container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 15px; /* Ensure padding doesn't push width out */
+  margin: 20px auto;
+  box-sizing: border-box;
+}
+
+.card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box; /* Critical: Includes padding in width */
+  margin: 0; /* Remove external margins causing push */
+}
+
+/* --- 3. FIX THE TABS (The Likely Culprit) --- */
+.customer-view-tabs {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping */
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 5px !important; /* Reduce padding */
+  gap: 5px;
+}
+
+.customer-view-tabs button {
+  flex: 1 1 auto; /* Grow and SHRINK as needed */
+  min-width: 100px; /* Prevent becoming unreadably small */
+  max-width: 100%;
+  font-size: 0.85rem; /* Slightly smaller text for mobile */
+  padding: 10px 5px;
+  white-space: nowrap; /* Try to keep on one line... */
+  overflow: hidden;
+  text-overflow: ellipsis; /* ...but cut off if too long */
+}
+
+/* --- 4. FIX SUB-TABS (Join Now / Book Later) --- */
+/* Target the div holding the "Join Queue Now" buttons */
+.card-body .customer-view-tabs {
+  margin-left: -10px; /* Counteract default padding if needed */
+  margin-right: -10px;
+  width: calc(100% + 20px);
+}
+
+/* --- 5. MOBILE SPECIFIC OVERRIDES (< 480px) --- */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 10px 12px;
+  }
+
+  .app-header h1 {
+    font-size: 1rem;
+    max-width: 180px; /* Strict limit on header text width */
+  }
+
+  /* Force Inputs/Selects to stay inside */
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0; /* Flexbox safety */
+    box-sizing: border-box;
+  }
+
+  /* Fix Barber Cards Grid */
+  .barber-selection-list {
+    grid-template-columns: 1fr 1fr; /* Force 2 columns */
+    gap: 8px;
+  }
+  
+  .barber-card {
+    min-width: 0; /* Allow cards to shrink below content size if needed */
+  }
+}
