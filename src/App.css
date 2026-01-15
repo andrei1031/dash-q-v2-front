@@ -122,6 +122,11 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
@@ -132,6 +137,8 @@ body {
   background-color: var(--bg-dark);
   color: var(--text-primary);
   transition: background-color 0.2s linear, color 0.2s linear;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Base link style */
@@ -151,6 +158,8 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .app-header {
