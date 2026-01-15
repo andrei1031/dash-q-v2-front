@@ -2250,11 +2250,20 @@ button .spinner {
 
   /* Barber Selection Grid - 2 columns on small screens */
   .barber-selection-list {
-    grid-template-columns: 1fr 1fr; 
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
   .barber-card {
-    min-height: 100px;
-    padding: 10px 5px;
+    min-height: 80px;
+    padding: 8px 4px;
+  }
+  .barber-name {
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+  }
+  .barber-rating {
+    font-size: 0.75rem;
+    padding: 2px 5px;
   }
 
   /* EWT Container - Stack it */
