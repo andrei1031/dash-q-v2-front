@@ -167,7 +167,7 @@ a:hover {
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: clamp(1.1rem, 1rem + 1vw, 1.4rem);
   color: var(--text-primary);
 }
 
@@ -252,7 +252,7 @@ a:hover {
 .card-header h2 {
   margin: 0;
   color: var(--primary-orange);
-  font-size: 1.5rem;
+  font-size: clamp(1.25rem, 1.1rem + 1vw, 1.6rem);
 }
 
 .card-body {
@@ -632,7 +632,7 @@ button:disabled {
   margin-bottom: 5px;
 }
 .serving-item strong {
-  font-size: 1.8rem;
+  font-size: clamp(1.4rem, 1.2rem + 1.5vw, 2rem);
   color: var(--text-primary);
   font-weight: 700;
 }
@@ -799,7 +799,7 @@ button:disabled {
   margin-bottom: 5px;
 }
 .analytics-value {
-  font-size: 1.7rem;
+  font-size: clamp(1.4rem, 1.2rem + 1vw, 1.8rem);
   font-weight: 700;
   color: var(--primary-orange);
 }
@@ -831,7 +831,7 @@ button:disabled {
   margin-bottom: 20px;
 }
 .live-queue-view .queue-number-display strong {
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 1.5rem + 4vw, 3.5rem);
   color: var(--primary-orange);
   display: block;
 }
@@ -1942,7 +1942,7 @@ button .spinner {
 }
 
 .hero-title {
-  font-size: 3.5rem;
+  font-size: clamp(2rem, 1.5rem + 3vw, 4rem);
   font-weight: 800;
   line-height: 1.1;
   margin-bottom: 20px;
@@ -1959,7 +1959,7 @@ button .spinner {
 }
 
 .hero-subtitle {
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 0.95rem + 0.5vw, 1.3rem);
   color: var(--text-secondary);
   max-width: 600px;
   margin-bottom: 40px;
@@ -2172,9 +2172,6 @@ button .spinner {
   .serving-item {
     padding: 10px;
   }
-  .serving-item strong {
-    font-size: 1.4rem;
-  }
   
   /* Analytics Grid - Force 2 columns max */
   .analytics-grid, 
@@ -2189,9 +2186,6 @@ button .spinner {
   body {
     font-size: 14px; /* Slightly smaller base text */
   }
-  h2 {
-    font-size: 1.3rem;
-  }
   .app-header {
     justify-content: center;
     text-align: center;
@@ -2205,9 +2199,6 @@ button .spinner {
   }
 
   /* Hero Section */
-  .hero-title {
-    font-size: 2rem;
-  }
   .hero-buttons {
     flex-direction: column;
     width: 100%;
