@@ -413,20 +413,7 @@ const registerPushNotifications = async (userId) => {
         console.error("Push Registration Error:", error);
     }
 };
-useEffect(() => {
-    // Check if we have permission already
-    if (Notification.permission === 'default') {
-        // Ask for it
-        Notification.requestPermission().then(perm => {
-            if (perm === 'granted') {
-                registerPushNotifications(session.user.id);
-            }
-        });
-    } else if (Notification.permission === 'granted') {
-        // Ensure subscription is fresh
-        registerPushNotifications(session.user.id);
-    }
-}, [session.user.id]);
+
 
 // ##############################################
 // ##         MY REPORTS MODAL (SHARED)        ##
@@ -5668,6 +5655,22 @@ function App() {
     }, []);
 
     // --- Auth Listener ---
+
+    useEffect(() => {
+    // Check if we have permission already
+    if (Notification.permission === 'default') {
+        // Ask for it
+        Notification.requestPermission().then(perm => {
+            if (perm === 'granted') {
+                registerPushNotifications(session.user.id);
+            }
+        });
+    } else if (Notification.permission === 'granted') {
+        // Ensure subscription is fresh
+        registerPushNotifications(session.user.id);
+    }
+}, [session.user.id]);
+
     useEffect(() => {
         if (!supabase?.auth) {
             setLoadingRole(false);
