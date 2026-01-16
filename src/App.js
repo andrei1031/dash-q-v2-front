@@ -2520,6 +2520,11 @@ function CustomerView({ session }) {
     const handleJoinQueue = async (e) => {
         e.preventDefault();
         if (!customerName || !selectedBarberId || !selectedServiceId) { setMessage('Name, Barber, AND Service required.'); return; }
+        if (!selectedServiceId) {
+            setMessage('⚠️ Please select a service first!');
+            return;
+        }
+        if (!customerName || !selectedBarberId) { setMessage('Name, Barber, AND Service required.'); return; }
         if (myQueueEntryId) { setMessage('You are already checked in!'); return; }
         if (selectedFile && !referenceImageUrl) { setMessage('Please click "Upload Photo" first!'); return; }
 
@@ -3536,6 +3541,7 @@ return (
                 {joinMode === 'now' && (
                     <form onSubmit={handleJoinQueue}>
                         <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
+                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                         <div className="form-group">
                             <label>Group Size (Number of Heads):</label>
                             
