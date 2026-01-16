@@ -232,7 +232,7 @@ function ChatWindow({ currentUser_id, otherUser_id, messages = [], onSendMessage
                         <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
                             <div 
                                 className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
-                                style={{ whiteSpace: 'pre-line', wordBreak: 'break-word' }}
+                                style={{ whiteSpace: 'pre-line', wordBreak: 'break-word', maxWidth: '85%', padding: '10px 14px', borderRadius: '18px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
                             >
                                 {msg.message}
                             </div>
@@ -1514,7 +1514,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                         </div>
                         {error && !fetchError && <p className="error-message">{error}</p>}
                         
-                        <div className="action-buttons-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div className="action-buttons-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
                             {queueDetails.inProgress ? (
                                 <>
                                     <button onClick={handleCompleteCut} className="btn btn-success btn-full-width btn-icon-label">
@@ -3535,9 +3535,9 @@ return (
                         <div className="form-group">
                             <label>Select Available Barber:</label>
                             {barbers.length > 0 ? (
-                                <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                                <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
                                     {barbers.map((barber) => (
-                                        <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())}>
+                                        <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())} style={{ transition: 'all 0.2s ease', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                                             <span className="barber-name">{barber.full_name}</span>
                                             <div className="barber-rating">
                                                 <span className="star-icon">⭐</span>
@@ -4284,7 +4284,7 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto' }}>
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto' }}>
                     <BarberDashboard
                         barberId={barberProfile.id}
                         barberName={barberProfile.full_name}
@@ -5341,7 +5341,7 @@ function AdminAppLayout({ session }) {
             </div>
 
             <main className="main-content">
-                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto'}}>
+                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto'}}>
                     {activeTab === 'live' && <LiveShopView />}
                     {activeTab === 'stats' && <StatsView />}
                     {activeTab === 'staff' && <StaffView />}
@@ -5378,7 +5378,7 @@ function CustomerAppLayout({ session }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto' }}>
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto' }}>
                     <CustomerView session={session} />
                 </div>
             </main>
@@ -5403,10 +5403,10 @@ function LandingPage({ onGetStarted, onLogin, onAdminClick }) {
             </nav>
 
             <header className="hero-section">
-                <h1 className="hero-title">
+                <h1 className="hero-title" style={{fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', lineHeight: 1.1, marginBottom: '1rem'}}>
                     Queue Smarter,<br /> <span>Look Sharper.</span>
                 </h1>
-                <p className="hero-subtitle">
+                <p className="hero-subtitle" style={{fontSize: 'clamp(1rem, 2vw, 1.25rem)', maxWidth: '600px', margin: '0 auto 2rem'}}>
                     Skip the long wait. Join the live queue from anywhere, book appointments, and get notified when it's your turn.
                 </p>
                 <div className="hero-buttons">
