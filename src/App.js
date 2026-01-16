@@ -1280,6 +1280,47 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
         };
     }, [setUnreadMessages]); // <-- Make sure to add setUnreadMessages here
 
+    useEffect(() => {
+        if (!barberId || !supabase) return;
+
+        const chatChannel = supabase.channel(`barber_global_chat_${barberId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+                (payload) => {
+                    const newMsg = payload.new;
+                    
+                    // 1. Ignore my own messages
+                    if (newMsg.sender_id === session.user.id) return;
+
+                    // 2. Update the queue count locally
+                    setQueueDetails(prev => {
+                        const updateCount = (entry) => {
+                            // Match the message to the queue entry
+                            if (entry && entry.id === newMsg.queue_entry_id) {
+                                // Only increment if I am NOT currently reading this specific chat
+                                if (openChatQueueId !== entry.id) {
+                                    playSound(messageNotificationSound);
+                                    return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                                }
+                            }
+                            return entry;
+                        };
+
+                        return {
+                            ...prev,
+                            inProgress: updateCount(prev.inProgress),
+                            upNext: updateCount(prev.upNext),
+                            waiting: prev.waiting.map(updateCount)
+                        };
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(chatChannel); };
+    }, [barberId, openChatQueueId, session.user.id]);
+
     // --- Handlers ---
     const closeModal = () => {
         setModalState({ type: null, data: null });
@@ -1553,9 +1594,17 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                             ⭐ Check Loyalty
                                         </button>
                                     </div>
-                                    <button onClick={() => openChat(queueDetails.inProgress)} className="btn btn-icon" title={queueDetails.inProgress.profiles?.id ? "Chat" : "Guest"} disabled={!queueDetails.inProgress.profiles?.id}>
+                                    <button 
+                                        onClick={() => openChat(queueDetails.inProgress)} 
+                                        className="btn btn-icon" 
+                                        title="Chat"
+                                        disabled={!queueDetails.inProgress.profiles?.id}
+                                        style={{position: 'relative'}} // Ensure relative positioning for badge
+                                    >
                                         <IconChat />
-                                        {queueDetails.inProgress.profiles?.id && unreadMessages[queueDetails.inProgress.profiles.id] && (<span className="notification-badge"></span>)}
+                                        {queueDetails.inProgress.unread_count > 0 && (
+                                            <span className="notification-badge">{queueDetails.inProgress.unread_count}</span>
+                                        )}
                                     </button>
                                 </li>
                             </ul>
@@ -1575,9 +1624,17 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                         )}
                                         <PhotoDisplay entry={queueDetails.upNext} label="Up Next" />
                                     </div>
-                                    <button onClick={() => openChat(queueDetails.upNext)} className="btn btn-icon" title={queueDetails.upNext.profiles?.id ? "Chat" : "Guest"} disabled={!queueDetails.upNext.profiles?.id}>
+                                    <button 
+                                        onClick={() => openChat(queueDetails.upNext)} 
+                                        className="btn btn-icon" 
+                                        title="Chat"
+                                        disabled={!queueDetails.upNext.profiles?.id}
+                                        style={{position: 'relative'}}
+                                    >
                                         <IconChat />
-                                        {queueDetails.upNext.profiles?.id && unreadMessages[queueDetails.upNext.profiles.id] && (<span className="notification-badge"></span>)}
+                                        {queueDetails.upNext.unread_count > 0 && (
+                                            <span className="notification-badge">{queueDetails.upNext.unread_count}</span>
+                                        )}
                                     </button>
                                 </li>
                             </ul>
@@ -1596,9 +1653,18 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                     <DistanceBadge meters={c.current_distance_meters} />
                                     {c.reference_image_url && <PhotoDisplay entry={c} label="Waiting" />}
                                 </div>
-                                <button onClick={() => openChat(c)} className="btn btn-icon" disabled={!c.profiles?.id}>
+                                {/* REPLACE the Chat Button in "Waiting" loop with this: */}
+                                <button 
+                                    onClick={() => openChat(c)} 
+                                    className="btn btn-icon" 
+                                    title="Chat" 
+                                    disabled={!c.profiles?.id}
+                                    style={{position: 'relative'}}
+                                >
                                     <IconChat />
-                                    {c.unread_count > 0 && <span className="notification-badge">{c.unread_count}</span>}
+                                    {c.unread_count > 0 && (
+                                        <span className="notification-badge">{c.unread_count}</span>
+                                    )}
                                 </button>
                             </li>
                         )))}</ul>
