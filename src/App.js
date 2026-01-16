@@ -5655,21 +5655,23 @@ function App() {
     }, []);
 
     // --- Auth Listener ---
-
     useEffect(() => {
-    // Check if we have permission already
-    if (Notification.permission === 'default') {
-        // Ask for it
-        Notification.requestPermission().then(perm => {
-            if (perm === 'granted') {
+        // 1. SAFE CHECK: Ensure session and user exist before accessing ID
+        if (session?.user?.id) {
+            
+            // 2. Check Permission Status
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(perm => {
+                    if (perm === 'granted') {
+                        registerPushNotifications(session.user.id);
+                    }
+                });
+            } else if (Notification.permission === 'granted') {
+                // 3. Register safely
                 registerPushNotifications(session.user.id);
             }
-        });
-    } else if (Notification.permission === 'granted') {
-        // Ensure subscription is fresh
-        registerPushNotifications(session.user.id);
-    }
-}, [session.user.id]);
+        }
+    }, [session]);
 
     useEffect(() => {
         if (!supabase?.auth) {
