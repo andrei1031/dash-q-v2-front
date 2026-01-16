@@ -1191,6 +1191,59 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
         };
     }, [openChatQueueId, openChatCustomerId, session]);
 
+    useEffect(() => {
+        if (!barberId || !supabase) return;
+
+        console.log("🎧 Listening for incoming customer messages...");
+
+        const chatChannel = supabase.channel(`barber_global_chat_listener`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+                (payload) => {
+                    const newMsg = payload.new;
+
+                    // 1. Ignore messages sent by ME (the barber)
+                    if (newMsg.sender_id === session.user.id) return;
+
+                    // 2. Ignore if I already have this specific chat window OPEN
+                    if (openChatQueueId === newMsg.queue_entry_id) {
+                        // Optional: Mark as read immediately since we are looking at it
+                        axios.put(`${API_URL}/chat/read`, { 
+                            queueId: newMsg.queue_entry_id, 
+                            readerId: session.user.id 
+                        });
+                        return;
+                    }
+
+                    // 3. Find the customer in the queue and increment their badge
+                    setQueueDetails(prev => {
+                        const incrementBadge = (entry) => {
+                            if (entry && entry.id === newMsg.queue_entry_id) {
+                                console.log(`🔔 New message from ${entry.customer_name}! Incrementing badge.`);
+                                return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                            }
+                            return entry;
+                        };
+
+                        // Check all lists
+                        return {
+                            ...prev,
+                            inProgress: incrementBadge(prev.inProgress),
+                            upNext: incrementBadge(prev.upNext),
+                            waiting: prev.waiting.map(incrementBadge)
+                        };
+                    });
+
+                    // 4. Alert Sound
+                    playSound(messageNotificationSound);
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(chatChannel); };
+    }, [barberId, openChatQueueId, session.user.id]);
+
     // --- UPDATE SEND FUNCTION ---
     const sendBarberMessage = async (recipientId, messageText) => {
         if (!messageText.trim() || !openChatQueueId) return;
@@ -1556,11 +1609,14 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                         className="btn btn-icon" 
                                         title="Chat"
                                         disabled={!queueDetails.inProgress.profiles?.id}
-                                        style={{position: 'relative'}} // Ensure relative positioning for badge
+                                        style={{position: 'relative'}}
                                     >
                                         <IconChat />
+                                        {/* BADGE LOGIC */}
                                         {queueDetails.inProgress.unread_count > 0 && (
-                                            <span className="notification-badge">{queueDetails.inProgress.unread_count}</span>
+                                            <span className="notification-badge">
+                                                {queueDetails.inProgress.unread_count}
+                                            </span>
                                         )}
                                     </button>
                                 </li>
@@ -1589,8 +1645,11 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                         style={{position: 'relative'}}
                                     >
                                         <IconChat />
+                                        {/* BADGE LOGIC */}
                                         {queueDetails.upNext.unread_count > 0 && (
-                                            <span className="notification-badge">{queueDetails.upNext.unread_count}</span>
+                                            <span className="notification-badge">
+                                                {queueDetails.upNext.unread_count}
+                                            </span>
                                         )}
                                     </button>
                                 </li>
@@ -1619,8 +1678,11 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                     style={{position: 'relative'}}
                                 >
                                     <IconChat />
+                                    {/* BADGE LOGIC */}
                                     {c.unread_count > 0 && (
-                                        <span className="notification-badge">{c.unread_count}</span>
+                                        <span className="notification-badge">
+                                            {c.unread_count}
+                                        </span>
                                     )}
                                 </button>
                             </li>
