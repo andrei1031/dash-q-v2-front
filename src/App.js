@@ -367,6 +367,66 @@ function ReportModal({ isOpen, onClose, reporterId, reportedId, userRole, onSubm
         </div>
     );
 }
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// Add this inside App() or specific layouts (BarberAppLayout / CustomerAppLayout)
+
+const registerPushNotifications = async (userId) => {
+    if (!('serviceWorker' in navigator)) return;
+
+    try {
+        // 1. Register Service Worker
+        const register = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/'
+        });
+
+        // 2. Wait for it to be ready
+        await navigator.serviceWorker.ready;
+
+        // 3. Subscribe
+        const subscription = await register.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)
+        });
+
+        // 4. Send to Backend
+        await axios.post(`${API_URL}/subscribe`, {
+            subscription: subscription,
+            userId: userId
+        });
+
+        console.log("Push Notification Subscribed!");
+    } catch (error) {
+        console.error("Push Registration Error:", error);
+    }
+};
+useEffect(() => {
+    // Check if we have permission already
+    if (Notification.permission === 'default') {
+        // Ask for it
+        Notification.requestPermission().then(perm => {
+            if (perm === 'granted') {
+                registerPushNotifications(session.user.id);
+            }
+        });
+    } else if (Notification.permission === 'granted') {
+        // Ensure subscription is fresh
+        registerPushNotifications(session.user.id);
+    }
+}, [session.user.id]);
 
 // ##############################################
 // ##         MY REPORTS MODAL (SHARED)        ##
@@ -1092,21 +1152,37 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     };
 
     const fetchQueueDetails = useCallback(async () => {
-        console.log(`[BarberDashboard] Fetching queue details for barber ${barberId}...`);
+        if (!barberId) return;
         setFetchError('');
-        if (!barberId) { console.warn('[BarberDashboard] fetchQueueDetails called without barberId.'); return; }
         try {
             const response = await axios.get(`${API_URL}/queue/details/${barberId}`);
-            console.log('[BarberDashboard] Successfully fetched queue details:', response.data);
-            setQueueDetails(response.data);
+            let data = response.data;
+
+            // --- SMOOTH UI FIX ---
+            // Before updating the screen, check if we are currently chatting with someone.
+            // If yes, ensure their badge stays at 0, regardless of what the server says.
+            if (openChatQueueId) {
+                const clearBadge = (entry) => {
+                    // If this entry matches the chat window currently open...
+                    if (entry && entry.id === openChatQueueId) {
+                        return { ...entry, unread_count: 0 }; // ...keep the badge off.
+                    }
+                    return entry;
+                };
+
+                // Apply this check to all lists
+                if (data.inProgress) data.inProgress = clearBadge(data.inProgress);
+                if (data.upNext) data.upNext = clearBadge(data.upNext);
+                if (data.waiting) data.waiting = data.waiting.map(clearBadge);
+            }
+            // ---------------------
+
+            setQueueDetails(data);
         } catch (err) {
-            console.error('[BarberDashboard] Failed fetch queue details:', err);
-            const errMsg = err.response?.data?.error || err.message || 'Could not load queue details.';
-            setError(errMsg);
-            setFetchError(errMsg);
-            setQueueDetails({ waiting: [], inProgress: null, upNext: null });
+            console.error('[BarberDashboard] Queue fetch error:', err);
+            // Don't wipe the screen on error, just log it.
         }
-    }, [barberId]);
+    }, [barberId, openChatQueueId]); // <--- Added openChatQueueId so it updates when you open/close chats
 
 
     // Add this useEffect inside BarberDashboard
