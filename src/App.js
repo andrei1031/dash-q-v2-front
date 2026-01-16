@@ -200,7 +200,6 @@ function isIOsDevice() {
 // ##           MODERN UI COMPONENTS           ##
 // ##############################################
 
-const Spinner = () => <div className="spinner"></div>;
 
 function SkeletonLoader({ height, width, className = '' }) {
     const style = {
