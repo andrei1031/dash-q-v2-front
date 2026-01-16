@@ -3747,6 +3747,18 @@ return (
                                 stopBlinking(); // <--- ADD THIS: Stop blinking immediately on click
                                 try {
                                     await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
+                                    
+                                    // --- FIX: Update local state immediately to prevent button flicker ---
+                                    setLiveQueue(prev => {
+                                        const updated = prev.map(entry => 
+                                            entry.id.toString() === myQueueEntryId 
+                                                ? { ...entry, is_confirmed: true } 
+                                                : entry
+                                        );
+                                        liveQueueRef.current = updated; // Update ref for geolocation check
+                                        return updated;
+                                    });
+
                                     setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
                                     setTimeout(() => {
                                         fetchPublicQueue(joinedBarberId);
