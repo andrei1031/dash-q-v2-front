@@ -2896,7 +2896,7 @@ function CustomerView({ session }) {
             .subscribe();
 
         return () => { supabase.removeChannel(chatChannel); };
-    }, [session, joinedBarberId, myQueueEntryId, isChatOpen]); // Added isChatOpen dependency
+    }, [session, joinedBarberId, myQueueEntryId, isChatOpen, fetchChatHistory]); // Added isChatOpen dependency
 
     // --- UPDATE SEND FUNCTION ---
     const sendCustomerMessage = async (recipientId, messageText) => {
