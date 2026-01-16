@@ -860,8 +860,6 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
 
         if (isRefreshClick) {
             setIsRefreshing(true);
-        } else {
-            setIsLoading(true);
         }
 
         try {
