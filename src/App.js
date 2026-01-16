@@ -2771,8 +2771,8 @@ function CustomerView({ session }) {
                 const myEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
 
                 // 1. LOCAL ALERT LOGIC (Modified)
-                // ADDED: && !myEntry?.is_confirmed
-                if (distance > DISTANCE_THRESHOLD_METERS && displayWait < 15) {
+                // Trigger ONLY when "Up Next" AND Far Away AND Not Confirmed
+                if (distance > DISTANCE_THRESHOLD_METERS && myEntry?.status === 'Up Next') {
                     // Only trigger if I haven't clicked "I'm Coming" yet
                     if (!isTooFarModalOpen && !isOnCooldown && !myEntry?.is_confirmed) {
                         localStorage.setItem('stickyModal', 'tooFar');
@@ -2805,7 +2805,7 @@ function CustomerView({ session }) {
         
         return () => { if (locationWatchId.current) { navigator.geolocation.clearWatch(locationWatchId.current); } };
     
-    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, displayWait]);
+    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown]);
 
     useEffect(() => { // First Time Instructions
         const pendingFeedback = localStorage.getItem('pendingFeedback');
