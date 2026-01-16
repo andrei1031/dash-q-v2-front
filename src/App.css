@@ -1378,35 +1378,14 @@ button:disabled {
   margin-left: auto;
 }
 
-/* ===================================================================
-   SPINNER (Spinner.js)
-   =================================================================== */
-.spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--spinner-base);
-  border-top-color: var(--spinner-highlight);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
-  margin: 0; /* Removed negative margin for better flex alignment */
-}
 
-/* Spinner inside a button */
-button .spinner {
-  width: 16px;
-  height: 16px;
-}
+
 
 /* Spinner for light buttons (e.g., secondary) */
 /* FIX: Ensure dark mode button spinners are white */
 .btn-secondary:not(:disabled) .spinner,
 .btn-danger:not(:disabled) .spinner,
-.btn-success:not(:disabled) .spinner {
-  border-color: var(--spinner-base);
-  border-top-color: var(--spinner-highlight);
-}
+
 
 /* Primary button spinner is dark */
 .btn-primary .spinner {

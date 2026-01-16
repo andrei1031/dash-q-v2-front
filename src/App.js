@@ -358,7 +358,9 @@ function ReportModal({ isOpen, onClose, reporterId, reportedId, userRole, onSubm
                         <div className="modal-footer">
                             <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
                             <button type="submit" disabled={loading || isUploading} className="btn btn-danger">
-                                {loading || isUploading ? <Spinner /> : 'Submit Report'}
+                                {/* OLD: {loading || isUploading ? <Spinner /> : 'Submit Report'} */}
+                                {/* NEW: Static Text */}
+                                Submit Report
                             </button>
                         </div>
                     </form>
@@ -835,21 +837,23 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
         finally { setLoading(false); }
     };
     return (
-        <div className="availability-toggle">
-            <p>Status: 
-                <span className={`status-dot ${isAvailable ? 'online' : 'offline'}`}></span>
-                <strong>{isAvailable ? 'Available' : 'Offline'}</strong>
-            </p>
-            <button 
-                onClick={handleToggle} 
-                disabled={loading} 
-                className={`btn ${isAvailable ? 'btn-danger' : 'btn-success'}`}
-            >
-                {loading ? <Spinner /> : (isAvailable ? 'Go Offline' : 'Go Online')}
-            </button>
-            {error && <p className="error-message small">{error}</p>}
-        </div>
-    );
+    <div className="availability-toggle">
+        <p>Status: 
+            <span className={`status-dot ${isAvailable ? 'online' : 'offline'}`}></span>
+            <strong>{isAvailable ? 'Available' : 'Offline'}</strong>
+        </p>
+        <button 
+            onClick={handleToggle} 
+            disabled={loading} 
+            className={`btn ${isAvailable ? 'btn-danger' : 'btn-success'}`}
+        >
+            {/* OLD: {loading ? <Spinner /> : (isAvailable ? 'Go Offline' : 'Go Online')} */}
+            {/* NEW: No spinner, just text */}
+            {isAvailable ? 'Go Offline' : 'Go Online'}
+        </button>
+        {error && <p className="error-message small">{error}</p>}
+    </div>
+);
 }
 
 // --- AnalyticsDashboard (Displays Barber Stats) ---
@@ -1050,7 +1054,9 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
         
         <div className="card-footer">
             <button onClick={() => fetchAnalytics(true)} className="btn btn-secondary btn-full-width btn-icon-label" disabled={isRefreshing}>
-                {isRefreshing ? <Spinner /> : <IconRefresh />}
+                {/* OLD: {isRefreshing ? <Spinner /> : <IconRefresh />} */}
+                {/* NEW: Icon stays visible */}
+                <IconRefresh />
                 {isRefreshing ? 'Refreshing...' : 'Refresh Stats'}
             </button>
         </div>
@@ -1783,9 +1789,12 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                     </>
                 )}
             </div>
+            // --- FIND THIS AT THE BOTTOM OF BarberDashboard ---
             <div className="card-footer" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                 <button onClick={fetchBarberAppointments} className="btn btn-primary btn-icon-label" disabled={loadingAppts}>
-                    {loadingAppts ? <Spinner /> : '📅 Bookings'}
+                    {/* OLD: {loadingAppts ? <Spinner /> : '📅 Bookings'} */}
+                    {/* NEW: Static Text */}
+                    📅 Bookings
                 </button>
                 <button onClick={fetchQueueDetails} className="btn btn-secondary btn-icon-label">
                     <IconRefresh /> Refresh
