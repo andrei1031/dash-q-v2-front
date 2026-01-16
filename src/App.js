@@ -837,17 +837,24 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
         if (!barberId) return;
         // 🟢 FIX: No spinner on background refresh
         if (!isBackground) setIsLoading(true);
+        else setIsRefreshing(true);
 
         try {
             const res = await axios.get(`${API_URL}/analytics/${barberId}`);
             setAnalytics(res.data);
             
+            const feedbackRes = await axios.get(`${API_URL}/feedback/${barberId}`);
+            setFeedback(feedbackRes.data || []);
+            
             // 🟢 FIX: Only sync setting on FIRST load. Keep local toggle otherwise.
             if (!isBackground) {
                 setShowEarnings(res.data.showEarningsAnalytics ?? true);
             }
-        } catch (e) { console.error(e); } 
-        finally { if (!isBackground) setIsLoading(false); }
+        } catch (e) { console.error(e); setError('Failed to load analytics.'); } 
+        finally { 
+            if (!isBackground) setIsLoading(false);
+            else setIsRefreshing(false);
+        }
     }, [barberId]);
 
     useEffect(() => {
@@ -1921,7 +1928,6 @@ function CustomerView({ session }) {
     const [customerName] = useState(() => session.user?.user_metadata?.full_name || '');
     const [customerEmail] = useState(() => session.user?.email || '');
     const [message, setMessage] = useState('');
-    const [player_id, setPlayerId] = useState(null);
     const [myQueueEntryId, setMyQueueEntryId] = useState(() => localStorage.getItem('myQueueEntryId') || null);
     const [joinedBarberId, setJoinedBarberId] = useState(() => localStorage.getItem('joinedBarberId') || null);
     const [liveQueue, setLiveQueue] = useState([]);
@@ -2320,7 +2326,6 @@ function CustomerView({ session }) {
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
-                player_id: player_id,
                 user_id: session.user.id,
                 is_vip: isVIPToggled,
                 head_count: headCount,
@@ -2336,6 +2341,7 @@ function CustomerView({ session }) {
                 setSelectedBarberId(''); setSelectedServiceId('');
                 setReferenceImageUrl(newEntry.reference_image_url || '');
                 fetchPublicQueue(newEntry.barber_id.toString());
+                registerPush(newEntry.id);
                 setIsVIPToggled(false);
             } else { throw new Error("Invalid response from server."); }
        } catch (error) {
@@ -2380,6 +2386,7 @@ function CustomerView({ session }) {
     };
 
     const handleConfirmAttendance = async () => {
+        setOptimisticMessage("Sending confirmation...");
         try {
             await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
             
@@ -2388,8 +2395,16 @@ function CustomerView({ session }) {
             stopBlinking();
             if (navigator.vibrate) navigator.vibrate(0);
             
-            alert("Confirmed! Head inside.");
-        } catch (e) { console.error(e); }
+            setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
+            setTimeout(() => {
+                fetchPublicQueue(joinedBarberId);
+                setOptimisticMessage(null);
+            }, 1500);
+        } catch (e) { 
+            console.error(e);
+            setOptimisticMessage(null);
+            setMessage("Error: Could not confirm attendance.");
+        }
     };
 
     const handleBooking = async (e) => {
@@ -2668,7 +2683,7 @@ function CustomerView({ session }) {
         
         return () => { if (locationWatchId.current) { navigator.geolocation.clearWatch(locationWatchId.current); } };
     
-    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, displayWait]);
+    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, displayWait, liveQueue]);
 
     useEffect(() => { // First Time Instructions
         const pendingFeedback = localStorage.getItem('pendingFeedback');
@@ -3380,6 +3395,7 @@ return (
                         <div className="form-group photo-upload-group">
                             <label>Desired Haircut Photo (Optional):</label>
                             <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload" className="file-upload-input" />
+                            {photoError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please upload a photo!</p>}
                             <label htmlFor="file-upload" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
                             <button type="button" onClick={() => handleUploadPhoto(null)} disabled={!selectedFile || isUploading || referenceImageUrl} className="btn btn-secondary btn-icon-label">
                                 {isUploading ? <Spinner /> : <IconUpload />}
@@ -3404,6 +3420,7 @@ return (
                                         </button>
                                     ))}
                                 </div>
+                                {barberError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please select a barber!</p>}
                             ) : (<p className="empty-text">No barbers are available right now.</p>)}
                             <input type="hidden" value={selectedBarberId} required />
                         </div>
@@ -3437,7 +3454,10 @@ return (
                             <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                         </div>))}
 
-                        {isIOsDevice() && (<p className="message warning small"><b>iPhone Users:</b> Push alerts and sounds are not supported. Please keep this tab open and watch your email for notifications!</p>)}
+                        {isIOsDevice() && showIOSPrompt && (<div className="message warning small" style={{position:'relative'}}>
+                            <b>iPhone Users:</b> Push alerts and sounds are not supported. Please keep this tab open and watch your email for notifications!
+                            <button onClick={() => setShowIOSPrompt(false)} style={{position:'absolute', top:'5px', right:'10px', background:'none', border:'none', fontSize:'1.2rem', cursor:'pointer'}}>×</button>
+                        </div>)}
                         
                         <button type="submit" disabled={isLoading || !selectedBarberId || barbers.length === 0 || isUploading} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
                             {isLoading ? <Spinner /> : 'Join Queue Now'}
@@ -3551,21 +3571,7 @@ return (
                     {optimisticMessage ? (<p className="success-message small" style={{textAlign: 'center'}}>{optimisticMessage}</p>) : (!myQueueEntry.is_confirmed ? (
                         <>
                             <p>Please confirm you are ready to take the chair.</p>
-                            <button className="btn btn-primary btn-full-width" style={{ marginTop: '10px' }} onClick={async () => {
-                                setOptimisticMessage("Sending confirmation...");
-                                try {
-                                    await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
-                                    setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
-                                    setTimeout(() => {
-                                        fetchPublicQueue(joinedBarberId);
-                                        setOptimisticMessage(null);
-                                    }, 1500);
-                                } catch (err) {
-                                    setOptimisticMessage(null);
-                                    console.error("Confirm failed", err);
-                                    setMessage("Error: Could not confirm attendance. Please try again.");
-                                }
-                            }}>I'm Coming! 🏃‍♂️</button>
+                            <button className="btn btn-primary btn-full-width" style={{ marginTop: '10px' }} onClick={handleConfirmAttendance}>I'm Coming! 🏃‍♂️</button>
                         </>
                     ) : (<p><strong>✅ Confirmed!</strong> The barber knows you are coming. Please enter the shop now.</p>))}
                 </div>)}
@@ -3971,7 +3977,7 @@ return (
                                             fontWeight:'bold',
                                             textTransform: 'uppercase'
                                         }}>
-                                            {appt.is_converted_to_queue ? 'Live in Queue' : appt.status}
+                                            {statusText}
                                         </span>
                                     </div>
                                     
