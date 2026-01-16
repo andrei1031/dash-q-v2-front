@@ -1138,6 +1138,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
         }
     };
 
+    // --- FIND THIS FUNCTION INSIDE BarberDashboard ---
     const fetchQueueDetails = useCallback(async () => {
         if (!barberId) return;
         setFetchError('');
@@ -1145,8 +1146,8 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             const response = await axios.get(`${API_URL}/queue/details/${barberId}`);
             let data = response.data;
 
-            // --- FIX: Force Badge to 0 if Chat is Open ---
-            // This prevents the "Badge Reappearing" bug during auto-refresh
+            // --- 🟢 FIX START: Force Badge to 0 if Chat is Open ---
+            // This prevents the "Badge Reappearing" bug caused by server lag
             if (openChatQueueId) {
                 const clearBadge = (entry) => {
                     // If this customer matches the chat I have open...
@@ -1161,21 +1162,20 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                 if (data.upNext) data.upNext = clearBadge(data.upNext);
                 if (data.waiting) data.waiting = data.waiting.map(clearBadge);
             }
-            // ---------------------------------------------
+            // --- 🟢 FIX END ---
 
             setQueueDetails(data);
         } catch (err) {
             console.error('[BarberDashboard] Queue fetch error:', err);
         }
-    }, [barberId, openChatQueueId]); // <--- CRITICAL: Depends on openChatQueueId// <--- Added openChatQueueId so it updates when you open/close chats
+    }, [barberId, openChatQueueId]); // <--- CRITICAL: Add openChatQueueId to dependency array// <--- CRITICAL: Depends on openChatQueueId// <--- Added openChatQueueId so it updates when you open/close chats
 
 
-    // Add this useEffect inside BarberDashboard
+    // --- FIND THIS useEffect INSIDE BarberDashboard (around line 770) ---
     useEffect(() => {
         if (!barberId) return;
 
         // Listen to ALL chat messages. 
-        // Filter client-side if they belong to my current queue.
         const chatChannel = supabase.channel(`barber_global_chat_${barberId}`)
             .on(
                 'postgres_changes',
@@ -1186,15 +1186,16 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                     // If I sent it, ignore
                     if (newMsg.sender_id === session.user.id) return;
 
+                    // --- 🟢 FIX START: Ignore if chat is open ---
+                    if (newMsg.queue_entry_id === openChatQueueId) return; 
+                    // --- 🟢 FIX END ---
+
                     // Check if this message belongs to someone in my queue
                     setQueueDetails(prev => {
                         const updateCount = (entry) => {
                             if (entry && entry.id === newMsg.queue_entry_id) {
-                                // Only increment if chat is NOT currently open for this user
-                                if (openChatQueueId !== entry.id) {
-                                    playSound(messageNotificationSound); // Play sound
-                                    return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
-                                }
+                                playSound(messageNotificationSound); 
+                                return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
                             }
                             return entry;
                         };
@@ -1211,7 +1212,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             .subscribe();
 
         return () => { supabase.removeChannel(chatChannel); };
-    }, [barberId, openChatQueueId, session.user.id]);
+    }, [barberId, openChatQueueId, session.user.id]); // <--- CRITICAL: Add openChatQueueId
 
     // --- REPLACED SOCKET.IO WITH SUPABASE REALTIME ---
     useEffect(() => {
@@ -3013,7 +3014,7 @@ function CustomerView({ session }) {
         }
     }, [selectedBarberId]);
 
-    // Find the existing chat subscription useEffect
+    // --- FIND THIS useEffect INSIDE CustomerView (around line 1490) ---
     useEffect(() => { 
         if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
 
@@ -3023,22 +3024,29 @@ function CustomerView({ session }) {
         fetchChatHistory(myQueueEntryId);
 
         // 2. Subscribe to NEW messages
-        const chatChannel = supabase.channel(`chat_${myQueueEntryId}`)
+        const chatChannel = supabase.channel(`customer_chat_fix_${myQueueEntryId}`) // Unique name
             .on(
                 'postgres_changes', 
                 { 
                     event: 'INSERT', 
                     schema: 'public', 
                     table: 'chat_messages', 
-                    filter: `queue_entry_id=eq.${myQueueEntryId}` 
+                    filter: `queue_entry_id=eq.${myQueueEntryId}` // Ensure this matches DB ID
                 }, 
                 (payload) => {
                     const newMsg = payload.new;
+                    console.log("[Customer] Message received:", newMsg);
+
                     // Only add if it's NOT from me (prevent duplicates)
                     if (newMsg.sender_id !== session.user.id) {
                         setChatMessagesFromBarber(prev => {
-                            // Deduplication check: verify this ID isn't already in the list
-                            // (Optional safety net, though usually not needed if logic is clean)
+                            // Deduplication: Check if we already have this exact message content at the end
+                            // (Optional safety, but good for React strict mode)
+                            const lastMsg = prev[prev.length - 1];
+                            if (lastMsg && lastMsg.message === newMsg.message && lastMsg.senderId === newMsg.sender_id) {
+                                return prev;
+                            }
+                            
                             return [...prev, { 
                                 senderId: newMsg.sender_id, 
                                 message: newMsg.message 
@@ -3050,13 +3058,17 @@ function CustomerView({ session }) {
                         // Handle Badge logic
                         if (!isChatOpen) {
                             setHasUnreadFromBarber(true);
+                            localStorage.setItem('hasUnreadFromBarber', 'true');
                         } else {
+                            // If chat is open, mark read immediately
                             axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                         }
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                 console.log(`[Customer Chat] Subscription status: ${status}`);
+            });
 
         return () => {
             supabase.removeChannel(chatChannel);
