@@ -372,7 +372,7 @@ function ReportModal({ isOpen, onClose, reporterId, reportedId, userRole, onSubm
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding)
-        .replace(/-/g, '+') // <--- Fixed line (removed backslash)
+        .replace(/-/g, '+') 
         .replace(/_/g, '/');
 
     const rawData = window.atob(base64);
@@ -1789,7 +1789,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                     </>
                 )}
             </div>
-            // --- FIND THIS AT THE BOTTOM OF BarberDashboard ---
+
             <div className="card-footer" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                 <button onClick={fetchBarberAppointments} className="btn btn-primary btn-icon-label" disabled={loadingAppts}>
                     {/* OLD: {loadingAppts ? <Spinner /> : '📅 Bookings'} */}
