@@ -933,13 +933,6 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
     const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
     const carbonStatusMessage = (analytics.carbonSavedToday || 0) > 0 ? "✅ Daily Goal Reached!" : "⏳ Waiting for cuts...";
 
-    const renderSkeletons = () => (
-        <div className="analytics-grid">
-            <SkeletonLoader height="80px" /><SkeletonLoader height="80px" />
-            <SkeletonLoader height="80px" /><SkeletonLoader height="80px" />
-        </div>
-    );
-
     return (
         <div className="card">
             <div className="card-header">
@@ -957,7 +950,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
                 {error && <p className="error-message">{error}</p>}
                 
                 <h3 className="analytics-subtitle">Today</h3>
-                {isLoading ? renderSkeletons() : (
+                {isLoading ? <p className="empty-text">Loading dashboard data...</p> : (
                     <>
                         <div className="analytics-grid">
                             {/* 🟢 CONDITIONAL RENDERING BASED ON PERSISTENT STATE */}
