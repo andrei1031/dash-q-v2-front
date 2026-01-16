@@ -1018,10 +1018,6 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     const [chatMessages, setChatMessages] = useState({});
     const [openChatCustomerId, setOpenChatCustomerId] = useState(null);
     const [openChatQueueId, setOpenChatQueueId] = useState(null);
-    const [unreadMessages, setUnreadMessages] = useState(() => {
-        const saved = localStorage.getItem('barberUnreadMessages');
-        return saved ? JSON.parse(saved) : {};
-    });
 
     const [modalState, setModalState] = useState({ type: null, data: null });
     const [viewImageModalUrl, setViewImageModalUrl] = useState(null);
