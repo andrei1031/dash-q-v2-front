@@ -2128,14 +2128,25 @@ function CustomerView({ session }) {
     const fetchChatHistory = useCallback(async (queueId) => {
         if (!queueId) return;
         try {
-            const { data, error } = await supabase.from('chat_messages').select('sender_id, message').eq('queue_entry_id', queueId).order('created_at', { ascending: true });
+            // Select messages for this specific queue entry
+            const { data, error } = await supabase
+                .from('chat_messages')
+                .select('sender_id, message, created_at')
+                .eq('queue_entry_id', queueId)
+                .order('created_at', { ascending: true }); // Oldest first
+            
             if (error) throw error;
-            const formattedHistory = data.map(msg => ({
-                senderId: msg.sender_id,
-                message: msg.message
-            }));
-            setChatMessagesFromBarber(formattedHistory);
-        } catch (err) { console.error("Error fetching customer chat history:", err); }
+            
+            if (data) {
+                const formattedHistory = data.map(msg => ({
+                    senderId: msg.sender_id,
+                    message: msg.message
+                }));
+                setChatMessagesFromBarber(formattedHistory);
+            }
+        } catch (err) { 
+            console.error("Error fetching customer chat history:", err); 
+        }
     }, []);
 
     const handleCloseInstructions = () => {
@@ -2880,46 +2891,54 @@ function CustomerView({ session }) {
     }, [selectedBarberId]);
 
     // Find the existing chat subscription useEffect
-    useEffect(() => {
+    useEffect(() => { 
         if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
 
-        // 1. Initial Check for Unread (Fetch from DB directly for accuracy)
-        const checkUnread = async () => {
-            const { count } = await supabase
-                .from('chat_messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('queue_entry_id', myQueueEntryId)
-                .neq('sender_id', session.user.id) // From Barber
-                .is('read_at', null);
-            
-            if (count > 0 && !isChatOpen) {
-                setHasUnreadFromBarber(true);
-            }
-        };
-        checkUnread();
+        console.log("Restoring chat history for Queue ID:", myQueueEntryId);
 
+        // 1. Initial Load: Fetch History Immediately
+        fetchChatHistory(myQueueEntryId);
+
+        // 2. Subscribe to NEW messages
         const chatChannel = supabase.channel(`chat_${myQueueEntryId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `queue_entry_id=eq.${myQueueEntryId}` }, 
-            (payload) => {
-                const newMsg = payload.new;
-                if (newMsg.sender_id !== session.user.id) {
-                    // Add message to list
-                    setChatMessagesFromBarber(prev => [...prev, { senderId: newMsg.sender_id, message: newMsg.message }]);
-                    playSound(messageNotificationSound);
-                    
-                    // Handle Badge
-                    if (!isChatOpen) {
-                        setHasUnreadFromBarber(true);
-                    } else {
-                        // If chat is open, mark as read immediately
-                        axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+            .on(
+                'postgres_changes', 
+                { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'chat_messages', 
+                    filter: `queue_entry_id=eq.${myQueueEntryId}` 
+                }, 
+                (payload) => {
+                    const newMsg = payload.new;
+                    // Only add if it's NOT from me (prevent duplicates)
+                    if (newMsg.sender_id !== session.user.id) {
+                        setChatMessagesFromBarber(prev => {
+                            // Deduplication check: verify this ID isn't already in the list
+                            // (Optional safety net, though usually not needed if logic is clean)
+                            return [...prev, { 
+                                senderId: newMsg.sender_id, 
+                                message: newMsg.message 
+                            }];
+                        });
+                        
+                        playSound(messageNotificationSound);
+                        
+                        // Handle Badge logic
+                        if (!isChatOpen) {
+                            setHasUnreadFromBarber(true);
+                        } else {
+                            axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+                        }
                     }
                 }
-            })
+            )
             .subscribe();
 
-        return () => { supabase.removeChannel(chatChannel); };
-    }, [session, joinedBarberId, myQueueEntryId, isChatOpen, fetchChatHistory]); // Added isChatOpen dependency
+        return () => {
+            supabase.removeChannel(chatChannel);
+        };
+    }, [session, joinedBarberId, myQueueEntryId, fetchChatHistory, isChatOpen]); // Added dependencies// Added isChatOpen dependency
 
     // --- UPDATE SEND FUNCTION ---
     const sendCustomerMessage = async (recipientId, messageText) => {
