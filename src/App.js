@@ -2233,13 +2233,14 @@ function CustomerView({ session }) {
             const currentQueueId = localStorage.getItem('myQueueEntryId');
             
             // --- NOTIFICATION LOGIC (Your Turn / Up Next) ---
+            // --- NOTIFICATION LOGIC (Your Turn / Up Next) ---
             if (currentQueueId) {
                 const myEntry = queueData.find(e => e.id.toString() === currentQueueId);
 
                 if (myEntry) {
                     // 1. "UP NEXT" LOGIC
                     if (myEntry.status === 'Up Next') {
-                        // Check if ALREADY confirmed
+                        // --- ✅ FIX START: Check Confirmation ---
                         if (myEntry.is_confirmed) {
                             stopBlinking(); // Stop blinking immediately
                             // Do NOT play sound
@@ -2253,6 +2254,7 @@ function CustomerView({ session }) {
                                 if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
                             }
                         }
+                        // --- ✅ FIX END ---
                     } 
                     // 2. "IN PROGRESS" LOGIC
                     else if (myEntry.status === 'In Progress') {
@@ -2272,8 +2274,6 @@ function CustomerView({ session }) {
                     }
                 }
             }
-            
-
             // --- FIX: TRANSFER & MISSED EVENT DETECTION ---
             if (currentQueueId) {
                 // 1. Are we in the CURRENT barber's list?
@@ -2769,7 +2769,7 @@ function CustomerView({ session }) {
                 const myEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
 
                 // 1. LOCAL ALERT LOGIC (Modified)
-                // Trigger ONLY when "Up Next" AND Far Away AND Not Confirmed
+                // --- ✅ FIX START: Check Confirmation ---
                 if (distance > DISTANCE_THRESHOLD_METERS && myEntry?.status === 'Up Next') {
                     // Only trigger if I haven't clicked "I'm Coming" yet
                     if (!isTooFarModalOpen && !isOnCooldown && !myEntry?.is_confirmed) {
