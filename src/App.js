@@ -4294,7 +4294,7 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box' }}>
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto' }}>
                     <BarberDashboard
                         barberId={barberProfile.id}
                         barberName={barberProfile.full_name}
@@ -5351,7 +5351,7 @@ function AdminAppLayout({ session }) {
             </div>
 
             <main className="main-content">
-                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box'}}>
+                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto'}}>
                     {activeTab === 'live' && <LiveShopView />}
                     {activeTab === 'stats' && <StatsView />}
                     {activeTab === 'staff' && <StaffView />}
@@ -5388,7 +5388,7 @@ function CustomerAppLayout({ session }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box' }}>
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto' }}>
                     <CustomerView session={session} />
                 </div>
             </main>
