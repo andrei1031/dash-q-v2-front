@@ -444,7 +444,7 @@ function MyReportsModal({ isOpen, onClose, userId }) {
                     <button onClick={onClose} className="btn btn-icon"><IconX /></button>
                 </div>
                 <div className="modal-body" style={{textAlign:'left', maxHeight: '60vh', overflowY: 'auto'}}>
-                    {loading ? <Spinner /> : reports.length === 0 ? (
+                    {loading ? <p className="empty-text">Loading reports...</p> : reports.length === 0 ? (
                         <p className="empty-text">You haven't submitted any reports.</p>
                     ) : (
                         <ul className="queue-list">
@@ -647,7 +647,7 @@ function AuthForm() {
                             />
                         </div>
                         <button type="submit" disabled={loading} className="btn btn-primary btn-full-width">
-                            {loading ? <Spinner /> : 'Send Reset Link'}
+                            {loading ? 'Sending...' : 'Send Reset Link'}
                         </button>
                     </form>
                     <div className="card-footer">
@@ -726,7 +726,7 @@ function AuthForm() {
                         )}
                         
                         <button type="submit" disabled={loading} className="btn btn-primary btn-full-width">
-                            {loading ? <Spinner /> : (authView === 'login' ? 'Login' : 'Sign Up')}
+                            {loading ? 'Please wait...' : (authView === 'login' ? 'Login' : 'Sign Up')}
                         </button>
                     </form>
                     <div className="card-footer">
@@ -803,7 +803,7 @@ function UpdatePasswordForm({ onPasswordUpdated }) {
                     />
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary btn-full-width">
-                    {loading ? <Spinner /> : 'Set New Password'}
+                    {loading ? 'Updating...' : 'Set New Password'}
                 </button>
             </form>
             <div className="card-footer">
@@ -1932,7 +1932,6 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                     <div className="modal-body">
                         <h2>Loyalty Check</h2>
                         <p>Fetching history for {modalState.data?.name || 'Customer'}...</p>
-                        <Spinner />
                     </div>
                     <div className="modal-footer single-action">
                         <button onClick={closeModal} className="btn btn-secondary">
@@ -3623,7 +3622,7 @@ return (
                             <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload" className="file-upload-input" />
                             <label htmlFor="file-upload" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
                             <button type="button" onClick={() => handleUploadPhoto(null)} disabled={!selectedFile || isUploading || referenceImageUrl} className="btn btn-secondary btn-icon-label">
-                                {isUploading ? <Spinner /> : <IconUpload />}
+                                <IconUpload />
                                 {isUploading ? 'Uploading...' : (referenceImageUrl ? 'Photo Attached' : 'Upload Photo')}
                             </button>
                             {referenceImageUrl && <p className="success-message small">Photo ready. <a href={referenceImageUrl} target="_blank" rel="noopener noreferrer">View Photo</a></p>}
@@ -3694,7 +3693,7 @@ return (
                         )}
                         
                         <button type="submit" disabled={isLoading || !selectedBarberId || barbers.length === 0 || isUploading} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
-                            {isLoading ? <Spinner /> : 'Join Queue Now'}
+                            {isLoading ? 'Joining...' : 'Join Queue Now'}
                         </button>
                     </form>
                 )}
@@ -3778,7 +3777,7 @@ return (
                             </div>
                         )}
                         <button type="submit" disabled={isLoading || !selectedSlot} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
-                            {isLoading ? <Spinner /> : 'Confirm Booking'}
+                            {isLoading ? 'Booking...' : 'Confirm Booking'}
                         </button>
                     </form>
                 )}
@@ -4002,7 +4001,7 @@ return (
                         <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload-update" className="file-upload-input" />
                         <label htmlFor="file-upload-update" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
                         <button type="button" onClick={() => handleUploadPhoto(myQueueEntryId)} disabled={!selectedFile || isUploading} className="btn btn-secondary btn-icon-label">
-                            {isUploading ? <Spinner /> : <IconUpload />}
+                            <IconUpload />
                             {isUploading ? 'Uploading...' : 'Replace Photo'}
                         </button>
                         {myQueueEntry?.reference_image_url && <p className="success-message small">Current Photo: <a href={myQueueEntry.reference_image_url} target="_blank" rel="noopener noreferrer">View</a></p>}
@@ -4069,7 +4068,7 @@ return (
                         disabled={isLoading} 
                         className='btn btn-danger btn-full-width'
                     >
-                        {isLoading ? <Spinner /> : 'Leave Queue / Join Another'}
+                        {isLoading ? 'Leaving...' : 'Leave Queue / Join Another'}
                     </button>
                 </div>
             </div>
@@ -4702,7 +4701,7 @@ function AdminAppLayout({ session }) {
                         <button onClick={fetchChats} className="btn btn-icon"><IconRefresh /></button>
                     </div>
                     <div className="card-body" style={{ overflowY: 'auto', padding: '10px' }}>
-                        {loading && <Spinner />}
+                        {loading && <p style={{padding:'10px', textAlign:'center', color:'var(--text-secondary)'}}>Loading chats...</p>}
                         {activeChats.map(chat => (
                             <div 
                                 key={chat.id} 
@@ -4834,7 +4833,7 @@ function AdminAppLayout({ session }) {
                     <button onClick={fetchBookings} className="btn btn-icon"><IconRefresh /></button>
                 </div>
                 <div className="card-body">
-                    {loading ? <Spinner /> : bookings.length === 0 ? (
+                    {loading ? <p className="empty-text">Loading bookings...</p> : bookings.length === 0 ? (
                         <p className="empty-text">No upcoming appointments found.</p>
                     ) : (
                         <ul className="queue-list">
@@ -5219,7 +5218,7 @@ function AdminAppLayout({ session }) {
 
     // --- SUPER DETAILED ANALYTICS VIEW (RESPONSIVE FIX) ---
     const StatsView = () => {
-        if (!advancedStats) return <div className="loading-fullscreen"><Spinner /><span>Crunching numbers...</span></div>;
+        if (!advancedStats) return <div className="loading-fullscreen"><span>Crunching numbers...</span></div>;
         
         // --- SAFEGUARDS ---
         const totals = advancedStats.totals || { revenue: 0, cuts: 0 };
@@ -5627,7 +5626,7 @@ function AdminLoginForm({ onCancel, onLoginSuccess }) {
                             className="btn btn-full-width"
                             style={{backgroundColor: '#ff3b30', color: 'white', marginTop: '10px'}}
                         >
-                            {loading ? <Spinner /> : 'Authenticate'}
+                            {loading ? 'Authenticating...' : 'Authenticate'}
                         </button>
                     </form>
 
@@ -5767,7 +5766,7 @@ function App() {
     // --- Render Logic ---
     const renderAppContent = () => {
         // 1. Loading State
-        if (loadingRole) return <div className="loading-fullscreen"><Spinner /><span>Loading...</span></div>;
+        if (loadingRole) return <div className="loading-fullscreen"><span>Loading...</span></div>;
         
         // 2. Password Reset
         if (isUpdatingPassword) return <UpdatePasswordForm onPasswordUpdated={() => setIsUpdatingPassword(false)} />;
