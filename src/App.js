@@ -3922,7 +3922,7 @@ return (
                                             fontWeight:'bold',
                                             textTransform: 'uppercase'
                                         }}>
-                                            {appt.is_converted_to_queue ? 'Live in Queue' : appt.status}
+                                            {statusText}
                                         </span>
                                     </div>
                                     
