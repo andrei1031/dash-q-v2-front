@@ -950,14 +950,14 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             
             {isLoading ? <p className="empty-text">Loading dashboard data...</p> : (
                 <>
-                    <div className="analytics-grid">
+                    <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                         {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
                         <div className="analytics-item"><span className="analytics-label">Cuts</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
                         {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceToday}</span></div>}
                         <div className="analytics-item"><span className="analytics-label">Queue Size</span><span className="analytics-value small">{analytics.currentQueueSize ?? 0}</span></div>
                     </div>
                     <h3 className="analytics-subtitle">Last 7 Days</h3>
-                    <div className="analytics-grid">
+                    <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                         {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
                         <div className="analytics-item"><span className="analytics-label">Total Cuts</span><span className="analytics-value">{analytics.totalCutsWeek ?? 0}</span></div>
                         {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceWeek}</span></div>}
@@ -968,7 +968,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             
             <div className="carbon-footprint-section">
                 <h3 className="analytics-subtitle">🌱 Shop Carbon Savings</h3>
-                <div className="analytics-grid carbon-grid">
+                <div className="analytics-grid carbon-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                     <div className="analytics-item">
                         <span className="analytics-label">Today's Impact</span>
                         <span className="analytics-value carbon">
@@ -1518,13 +1518,13 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                 {fetchError && <p className="error-message large">Error loading queue: {fetchError}</p>}
                 {!fetchError && (
                     <>
-                        <div className="current-serving-display">
-                            <div className="serving-item now-serving"><span>Now Serving</span><strong>{queueDetails.inProgress ? `Customer #${queueDetails.inProgress.id}` : '---'}</strong></div>
-                            <div className="serving-item up-next"><span>Up Next</span><strong>{queueDetails.upNext ? `Customer #${queueDetails.upNext.id}` : '---'}</strong></div>
+                        <div className="current-serving-display" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            <div className="serving-item now-serving" style={{ flex: '1 1 150px' }}><span>Now Serving</span><strong>{queueDetails.inProgress ? `Customer #${queueDetails.inProgress.id}` : '---'}</strong></div>
+                            <div className="serving-item up-next" style={{ flex: '1 1 150px' }}><span>Up Next</span><strong>{queueDetails.upNext ? `Customer #${queueDetails.upNext.id}` : '---'}</strong></div>
                         </div>
                         {error && !fetchError && <p className="error-message">{error}</p>}
                         
-                        <div className="action-buttons-container">
+                        <div className="action-buttons-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {queueDetails.inProgress ? (
                                 <>
                                     <button onClick={handleCompleteCut} className="btn btn-success btn-full-width btn-icon-label">
@@ -3431,14 +3431,14 @@ return (
         {/* --- MAIN CONTENT START --- */}
         
         {/* 1. View Toggle Tabs */}
-        <div className="card-header customer-view-tabs">
-            <button className={viewMode === 'join' ? 'active' : ''} onClick={() => setViewMode('join')}>
+        <div className="card-header customer-view-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+            <button className={viewMode === 'join' ? 'active' : ''} onClick={() => setViewMode('join')} style={{ flex: '1 1 auto' }}>
                 Join Queue
             </button>
-            <button className={viewMode === 'appointments' ? 'active' : ''} onClick={() => setViewMode('appointments')}>
+            <button className={viewMode === 'appointments' ? 'active' : ''} onClick={() => setViewMode('appointments')} style={{ flex: '1 1 auto' }}>
                 Appointments
             </button>
-            <button className={viewMode === 'history' ? 'active' : ''} onClick={() => setViewMode('history')}>
+            <button className={viewMode === 'history' ? 'active' : ''} onClick={() => setViewMode('history')} style={{ flex: '1 1 auto' }}>
                 My History
             </button>
         </div>
@@ -3447,18 +3447,18 @@ return (
         {viewMode === 'join' && !myQueueEntryId && (
             <div className="card-body">
                 {/* 1. SUB-TABS: NOW vs LATER */}
-                <div className="customer-view-tabs" style={{marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px'}}>
+                <div className="customer-view-tabs" style={{marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
                     <button 
                         className={joinMode === 'now' ? 'active' : ''} 
                         onClick={() => setJoinMode('now')}
-                        style={{flex: 1, textAlign: 'center'}}
+                        style={{flex: '1 1 auto', textAlign: 'center'}}
                     >
                         ⚡ Join Queue Now
                     </button>
                     <button 
                         className={joinMode === 'later' ? 'active' : ''} 
                         onClick={() => setJoinMode('later')}
-                        style={{flex: 1, textAlign: 'center'}}
+                        style={{flex: '1 1 auto', textAlign: 'center'}}
                     >
                         📅 Book Appointment
                     </button>
@@ -3545,7 +3545,7 @@ return (
                         <div className="form-group">
                             <label>Select Available Barber:</label>
                             {barbers.length > 0 ? (
-                                <div className="barber-selection-list">
+                                <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                                     {barbers.map((barber) => (
                                         <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())}>
                                             <span className="barber-name">{barber.full_name}</span>
@@ -3585,9 +3585,9 @@ return (
                                 ))) : (<p className="empty-text">No feedback yet for this barber.</p>)}</ul></div>)}
 
                         {/* EWT Display */}
-                        {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{margin:0, textAlign:'center', width:'100%', color:'var(--text-secondary)'}}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container">
-                            <div className="ewt-item"><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
-                            <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
+                        {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{margin:0, textAlign:'center', width:'100%', color:'var(--text-secondary)'}}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
+                            <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                         </div>))}
 
                         {isIOsDevice() && showIOSPrompt && (
@@ -4294,7 +4294,7 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container">
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box' }}>
                     <BarberDashboard
                         barberId={barberProfile.id}
                         barberName={barberProfile.full_name}
@@ -4393,7 +4393,7 @@ function AdminAppLayout({ session }) {
                                     marginBottom: '15px',
                                     padding: '15px'
                                 }}>
-                                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
+                                    <div style={{display:'flex', flexWrap: 'wrap', gap: '10px', justifyContent:'space-between', marginBottom:'10px'}}>
                                         <strong style={{fontSize: '1.1rem'}}>{r.reason}</strong>
                                         <span className={`status-badge`} style={{
                                             background: r.status==='Pending'?'var(--error-color)':'var(--success-color)',
@@ -4617,9 +4617,9 @@ function AdminAppLayout({ session }) {
         };
 
         return (
-            <div className="admin-chat-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', height: '70vh' }}>
+            <div className="admin-chat-layout" style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', minHeight: '70vh' }}>
                 {/* LEFT: Chat List */}
-                <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 300px', height: '70vh' }}>
                     <div className="card-header">
                         <h3 style={{ fontSize: '1.1rem', margin: 0 }}>💬 Active Chats ({activeChats.length})</h3>
                         <button onClick={fetchChats} className="btn btn-icon"><IconRefresh /></button>
@@ -4660,7 +4660,7 @@ function AdminAppLayout({ session }) {
                 </div>
 
                 {/* RIGHT: Conversation */}
-                <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', flex: '2 1 400px', height: '70vh' }}>
                     {selectedChat ? (
                         <>
                             <div className="card-header">
@@ -4772,6 +4772,8 @@ function AdminAppLayout({ session }) {
                                 return (
                                     <li key={appt.id} style={{
                                     display: 'flex', 
+                                    flexWrap: 'wrap',
+                                    gap: '10px',
                                     justifyContent: 'space-between', 
                                     alignItems: 'center',
                                     padding: '15px',
@@ -4991,7 +4993,7 @@ function AdminAppLayout({ session }) {
     // [App.js] - Inside AdminAppLayout -> LiveShopView
 
     const LiveShopView = () => (
-        <div className="live-shop-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px'}}>
+        <div className="live-shop-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px'}}>
             {barbers.filter(b => b.is_active).map(barber => {
                 const barberQueue = allQueues.filter(q => q.barber_id === barber.id);
                 const inChair = barberQueue.find(q => q.status === 'In Progress');
@@ -5068,8 +5070,8 @@ function AdminAppLayout({ session }) {
     const StaffView = () => (
         <div className="card">
             <div className="card-header"><h2>Staff Management</h2></div>
-            <div className="card-body">
-                <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)'}}>
+            <div className="card-body" style={{overflowX: 'auto'}}>
+                <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
                     <thead>
                         <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
                             <th style={{padding:'10px'}}>Barber Name</th>
@@ -5300,8 +5302,8 @@ function AdminAppLayout({ session }) {
 
     const UsersView = () => (
         <div className="card">
-            <div className="card-body">
-                <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)'}}>
+            <div className="card-body" style={{overflowX: 'auto'}}>
+                <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
                     <thead>
                         <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
                             <th style={{padding:'10px'}}>Name</th><th style={{padding:'10px'}}>Role</th><th style={{padding:'10px'}}>Action</th>
@@ -5349,7 +5351,7 @@ function AdminAppLayout({ session }) {
             </div>
 
             <main className="main-content">
-                <div className="container" style={{maxWidth:'1200px'}}>
+                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box'}}>
                     {activeTab === 'live' && <LiveShopView />}
                     {activeTab === 'stats' && <StatsView />}
                     {activeTab === 'staff' && <StaffView />}
@@ -5386,7 +5388,7 @@ function CustomerAppLayout({ session }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container">
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box' }}>
                     <CustomerView session={session} />
                 </div>
             </main>
@@ -5428,7 +5430,7 @@ function LandingPage({ onGetStarted, onLogin, onAdminClick }) {
             </header>
 
             <section className="features-section">
-                <div className="features-grid">
+                <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
                     <div className="feature-card">
                         <div className="feature-icon"><IconNext /></div>
                         <h3>Live Queue Tracking</h3>
