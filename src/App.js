@@ -232,7 +232,7 @@ function ChatWindow({ currentUser_id, otherUser_id, messages = [], onSendMessage
                         <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
                             <div 
                                 className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
-                                style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                                style={{ whiteSpace: 'pre-line', wordBreak: 'break-word' }}
                             >
                                 {msg.message}
                             </div>
