@@ -825,7 +825,10 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
 function AnalyticsDashboard({ barberId, refreshSignal }) {
     const [analytics, setAnalytics] = useState({ totalEarningsToday: 0, totalCutsToday: 0, totalEarningsWeek: 0, totalCutsWeek: 0, dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, currentQueueSize: 0, totalCutsAllTime: 0, carbonSavedTotal: 0 });
     const [error, setError] = useState('');
-    const [showEarnings, setShowEarnings] = useState(true);
+    const [showEarnings, setShowEarnings] = useState(() => {
+        const saved = localStorage.getItem('showEarnings');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
     const [feedback, setFeedback] = useState([]);
     
     const [isLoading, setIsLoading] = useState(true);
@@ -846,10 +849,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             const feedbackRes = await axios.get(`${API_URL}/feedback/${barberId}`);
             setFeedback(feedbackRes.data || []);
             
-            // 🟢 FIX: Only sync setting on FIRST load. Keep local toggle otherwise.
-            if (!isBackground) {
-                setShowEarnings(res.data.showEarningsAnalytics ?? true);
-            }
+            // NOTE: We no longer sync showEarnings from server to preserve local user preference.
         } catch (e) { console.error(e); setError('Failed to load analytics.'); } 
         finally { 
             if (!isBackground) setIsLoading(false);
@@ -860,6 +860,12 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
     useEffect(() => {
         if (refreshSignal > 0) fetchAnalytics(true);
     }, [refreshSignal, barberId, fetchAnalytics]);
+
+    const toggleEarnings = () => {
+        const newState = !showEarnings;
+        setShowEarnings(newState);
+        localStorage.setItem('showEarnings', JSON.stringify(newState));
+    };
 
     const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
     const avgPriceWeek = (analytics.totalCutsWeek ?? 0) > 0 ? ((analytics.totalEarningsWeek ?? 0) / analytics.totalCutsWeek).toFixed(2) : '0.00';
@@ -920,7 +926,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
         <div className="card-header">
             <h2>Dashboard</h2>
             <button 
-                onClick={() => setShowEarnings(!showEarnings)} 
+                onClick={toggleEarnings} 
                 className="btn btn-secondary btn-icon-label"
             >
                 {showEarnings ? <IconEyeOff /> : <IconEye />}
@@ -2310,7 +2316,10 @@ function CustomerView({ session }) {
         let valid = true;
         if (!selectedServiceId) { setServiceError(true); valid = false; }
         if (!selectedBarberId) { setBarberError(true); valid = false; }
-        if (!referenceImageUrl) { setPhotoError(true); valid = false; }
+        if (selectedFile && !referenceImageUrl) { 
+            setPhotoError(true); 
+            valid = false; 
+        }
 
 
         if (!customerName || !selectedBarberId || !selectedServiceId) { setMessage('Name, Barber, AND Service required.'); return; }
