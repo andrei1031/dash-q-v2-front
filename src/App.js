@@ -12,22 +12,38 @@ import './App.css';
 const queueNotificationSound = new Audio('/queue_sound.mp3');
 const messageNotificationSound = new Audio('/chat_sound.mp3');
 
-/**
- * Helper function to play a sound, with error handling
- * for browser autoplay policies.
- */
-const playSound = (audioElement) => {
-    if (!audioElement) return;
-    audioElement.currentTime = 0;
-    audioElement.play().catch(error => {
-        console.warn("Sound notification was blocked by the browser:", error.message);
-    });
-};
 
+// --- Helper: Sound Control ---
+const playSound = (audio) => { audio.currentTime = 0; audio.play().catch(e => console.log("Sound blocked")); };
+const stopSound = (audio) => { audio.pause(); audio.currentTime = 0; }; // 🟢 FIX: Stop Sound
 
 // --- Global Constants ---
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 const API_URL = 'https://dash-q-backend.onrender.com/api' || 'http://localhost:3000';
+const VAPID_PUBLIC_KEY = 'BO2S_dWifM7ORRmLN_nQjprOvs0SaaUMDzyELPBGKUC_10-X0ZwKMEfPlvX1L5N-PtijUTkTWjJULACF7h-W9uE';
+
+// --- Helper: Push Registration ---
+const registerPush = async (queueId) => {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const register = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await register.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        await axios.post(`${API_URL}/push/subscribe`, { queueId, subscription });
+        console.log("Push Registered!");
+    } catch (e) {
+        console.error("Push Error:", e);
+    }
+};
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
 
 // --- Supabase Client Setup ---
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
@@ -817,36 +833,25 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
 
     const { theme } = useTheme();
 
-    const fetchAnalytics = useCallback(async (isRefreshClick = false) => {
+    const fetchAnalytics = useCallback(async (isBackground = false) => {
         if (!barberId) return;
-        setError('');
-
-        if (isRefreshClick) {
-            setIsRefreshing(true);
-        } else {
-            setIsLoading(true);
-        }
+        // 🟢 FIX: No spinner on background refresh
+        if (!isBackground) setIsLoading(true);
 
         try {
-            const response = await axios.get(`${API_URL}/analytics/${barberId}`);
-            setAnalytics({ dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, ...response.data });
-            setShowEarnings(response.data?.showEarningsAnalytics ?? true);
-
-            const feedbackResponse = await axios.get(`${API_URL}/feedback/${barberId}`);
-            setFeedback(feedbackResponse.data || []);
-
-        } catch (err) {
-            console.error('Failed fetch analytics/feedback:', err);
-            setError('Could not load dashboard data.');
-            setAnalytics({ totalEarningsToday: 0, totalCutsToday: 0, totalEarningsWeek: 0, totalCutsWeek: 0, dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, currentQueueSize: 0 });
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
+            const res = await axios.get(`${API_URL}/analytics/${barberId}`);
+            setAnalytics(res.data);
+            
+            // 🟢 FIX: Only sync setting on FIRST load. Keep local toggle otherwise.
+            if (!isBackground) {
+                setShowEarnings(res.data.showEarningsAnalytics ?? true);
+            }
+        } catch (e) { console.error(e); } 
+        finally { if (!isBackground) setIsLoading(false); }
     }, [barberId]);
 
     useEffect(() => {
-        fetchAnalytics(false); // Initial load
+        if (refreshSignal > 0) fetchAnalytics(true);
     }, [refreshSignal, barberId, fetchAnalytics]);
 
     const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
@@ -1948,6 +1953,9 @@ function CustomerView({ session }) {
     const liveQueueRef = useRef([]);
     const [selectedFile, setSelectedFile] = useState(null);
     const [referenceImageUrl, setReferenceImageUrl] = useState('');
+    const [serviceError, setServiceError] = useState(false);
+    const [barberError, setBarberError] = useState(false);
+    const [photoError, setPhotoError] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [isVIPToggled, setIsVIPToggled] = useState(false);
     const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
@@ -1986,6 +1994,7 @@ function CustomerView({ session }) {
     const [showIOSPrompt, setShowIOSPrompt] = useState(true);
     const [isMyReportsOpen, setIsMyReportsOpen] = useState(false);
     const [viewProduct, setViewProduct] = useState(null);
+    
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -2285,9 +2294,23 @@ function CustomerView({ session }) {
 
     const handleJoinQueue = async (e) => {
         e.preventDefault();
+
+        setServiceError(false);
+        setBarberError(false);
+        setPhotoError(false);
+
+
+        let valid = true;
+        if (!selectedServiceId) { setServiceError(true); valid = false; }
+        if (!selectedBarberId) { setBarberError(true); valid = false; }
+        if (!referenceImageUrl) { setPhotoError(true); valid = false; }
+
+
         if (!customerName || !selectedBarberId || !selectedServiceId) { setMessage('Name, Barber, AND Service required.'); return; }
         if (myQueueEntryId) { setMessage('You are already checked in!'); return; }
         if (selectedFile && !referenceImageUrl) { setMessage('Please click "Upload Photo" first!'); return; }
+
+        if (!valid) return;
 
         setIsLoading(true); setMessage('Joining queue...');
         try {
@@ -2354,6 +2377,19 @@ function CustomerView({ session }) {
     } finally { 
         setIsLoading(false); 
     }
+    };
+
+    const handleConfirmAttendance = async () => {
+        try {
+            await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
+            
+            // ADD THESE LINES:
+            stopSound(queueNotificationSound);
+            stopBlinking();
+            if (navigator.vibrate) navigator.vibrate(0);
+            
+            alert("Confirmed! Head inside.");
+        } catch (e) { console.error(e); }
     };
 
     const handleBooking = async (e) => {
@@ -2589,7 +2625,17 @@ function CustomerView({ session }) {
             const onPositionUpdate = (position) => {
                 const { latitude, longitude } = position.coords;
                 const distance = getDistanceInMeters(latitude, longitude, BARBERSHOP_LAT, BARBERSHOP_LON);
+                const myEntry = liveQueue.find(e => e.id.toString() === myQueueEntryId);
                 
+
+                if (myEntry && myEntry.status === 'Up Next' && distance > DISTANCE_THRESHOLD_METERS) {
+                    if (!isTooFarModalOpen && !isOnCooldown) {
+                        localStorage.setItem('stickyModal', 'tooFar');
+                        setIsTooFarModalOpen(true);
+                        setIsOnCooldown(true);
+                    }
+                }
+
                 // 1. LOCAL ALERT LOGIC (Existing)
                 if (distance > DISTANCE_THRESHOLD_METERS && displayWait < 15) {
                     if (!isTooFarModalOpen && !isOnCooldown) {
@@ -3269,7 +3315,10 @@ return (
                 {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                 {joinMode === 'now' && (
                     <form onSubmit={handleJoinQueue}>
-                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
+                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select>
+                        {serviceError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please select a service!</p>}
+                        </div>
+                        
                         <div className="form-group">
                             <label>Group Size (Number of Heads):</label>
                             
