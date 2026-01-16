@@ -2296,7 +2296,6 @@ function CustomerView({ session }) {
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
-                player_id: player_id,
                 user_id: session.user.id,
                 is_vip: isVIPToggled,
                 head_count: headCount,
