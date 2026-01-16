@@ -1153,49 +1153,6 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
 
     // --- FIND THIS useEffect INSIDE BarberDashboard (around line 770) ---
     useEffect(() => {
-        if (!barberId) return;
-
-        // Listen to ALL chat messages. 
-        const chatChannel = supabase.channel(`barber_global_chat_${barberId}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-                (payload) => {
-                    const newMsg = payload.new;
-                    
-                    // If I sent it, ignore
-                    if (newMsg.sender_id === session.user.id) return;
-
-                    // --- 🟢 FIX START: Ignore if chat is open ---
-                    if (newMsg.queue_entry_id === openChatQueueId) return; 
-                    // --- 🟢 FIX END ---
-
-                    // Check if this message belongs to someone in my queue
-                    setQueueDetails(prev => {
-                        const updateCount = (entry) => {
-                            if (entry && entry.id === newMsg.queue_entry_id) {
-                                playSound(messageNotificationSound); 
-                                return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
-                            }
-                            return entry;
-                        };
-
-                        return {
-                            ...prev,
-                            inProgress: updateCount(prev.inProgress),
-                            upNext: updateCount(prev.upNext),
-                            waiting: prev.waiting.map(updateCount)
-                        };
-                    });
-                }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(chatChannel); };
-    }, [barberId, openChatQueueId, session.user.id]); // <--- CRITICAL: Add openChatQueueId
-
-    // --- REPLACED SOCKET.IO WITH SUPABASE REALTIME ---
-    useEffect(() => {
         if (!openChatQueueId) return;
 
         console.log(`[Barber] Subscribing to chat for Queue #${openChatQueueId}`);
@@ -1344,47 +1301,6 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             if (dashboardRefreshInterval) clearInterval(dashboardRefreshInterval);
         };
     }, [barberId, fetchQueueDetails, onQueueUpdate]); // <-- Add setUnreadMessages here
-
-    useEffect(() => {
-        if (!barberId || !supabase) return;
-
-        const chatChannel = supabase.channel(`barber_global_chat_${barberId}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-                (payload) => {
-                    const newMsg = payload.new;
-                    
-                    // 1. Ignore my own messages
-                    if (newMsg.sender_id === session.user.id) return;
-
-                    // 2. Update the queue count locally
-                    setQueueDetails(prev => {
-                        const updateCount = (entry) => {
-                            // Match the message to the queue entry
-                            if (entry && entry.id === newMsg.queue_entry_id) {
-                                // Only increment if I am NOT currently reading this specific chat
-                                if (openChatQueueId !== entry.id) {
-                                    playSound(messageNotificationSound);
-                                    return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
-                                }
-                            }
-                            return entry;
-                        };
-
-                        return {
-                            ...prev,
-                            inProgress: updateCount(prev.inProgress),
-                            upNext: updateCount(prev.upNext),
-                            waiting: prev.waiting.map(updateCount)
-                        };
-                    });
-                }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(chatChannel); };
-    }, [barberId, openChatQueueId, session.user.id]);
 
     // --- Handlers ---
     const closeModal = () => {
@@ -3578,7 +3494,6 @@ return (
                 {joinMode === 'now' && (
                     <form onSubmit={handleJoinQueue}>
                         <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
-                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                         <div className="form-group">
                             <label>Group Size (Number of Heads):</label>
                             
