@@ -3476,6 +3476,27 @@ return (
             </div>
         </div>
         
+        {/* Add this inside CustomerView return, maybe above the tabs */}
+        {'Notification' in window && Notification.permission === 'default' && (
+            <div className="message warning small" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <span>Enable notifications for "Up Next" alerts?</span>
+                <button 
+                    onClick={() => {
+                        Notification.requestPermission().then(perm => {
+                            if (perm === 'granted') {
+                                registerPushNotifications(session.user.id);
+                                alert("Notifications Enabled!");
+                            }
+                        });
+                    }} 
+                    className="btn btn-primary"
+                    style={{fontSize: '0.8rem', padding: '4px 8px'}}
+                >
+                    Enable
+                </button>
+            </div>
+        )}
+
         {/* --- MAIN CONTENT START --- */}
         
         {/* 1. View Toggle Tabs */}
@@ -5655,23 +5676,44 @@ function App() {
     }, []);
 
     // --- Auth Listener ---
+    // --- REPLACE YOUR EXISTING useEffect IN App() WITH THIS ---
     useEffect(() => {
-        // 1. SAFE CHECK: Ensure session and user exist before accessing ID
-        if (session?.user?.id) {
-            
-            // 2. Check Permission Status
-            if (Notification.permission === 'default') {
-                Notification.requestPermission().then(perm => {
-                    if (perm === 'granted') {
-                        registerPushNotifications(session.user.id);
-                    }
-                });
-            } else if (Notification.permission === 'granted') {
-                // 3. Register safely
-                registerPushNotifications(session.user.id);
+        const initSession = async () => {
+            // 1. TOKEN RECOVERY (Make it Token Based)
+            // Explicitly check for an existing session in local storage to prevent flicker
+            const { data: { session: existingSession } } = await supabase.auth.getSession();
+            if (existingSession) {
+                setSession(existingSession);
+                checkUserRole(existingSession.user);
             }
-        }
-    }, [session]);
+            setLoadingRole(false);
+
+            // 2. SAFER NOTIFICATION CHECK (Prevents Mobile Crash)
+            // Only run if the browser actually supports it
+            if ('Notification' in window && 'serviceWorker' in navigator && existingSession?.user?.id) {
+                if (Notification.permission === 'granted') {
+                    // Only register if we ALREADY have permission. 
+                    // NEVER ask for permission here (it crashes mobile).
+                    registerPushNotifications(existingSession.user.id);
+                }
+            }
+        };
+
+        initSession();
+
+        // 3. Listen for Auth Changes (Login/Logout)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+            setSession(currentSession);
+            if (currentSession?.user) {
+                checkUserRole(currentSession.user);
+            } else {
+                setUserRole('customer'); // Default reset
+                setBarberProfile(null);
+            }
+        });
+
+        return () => subscription?.unsubscribe();
+    }, [checkUserRole]);
 
     useEffect(() => {
         if (!supabase?.auth) {
