@@ -232,7 +232,7 @@ function ChatWindow({ currentUser_id, otherUser_id, messages = [], onSendMessage
                         <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
                             <div 
                                 className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
-                                style={{ whiteSpace: 'pre-line', wordBreak: 'break-word', maxWidth: '85%', padding: '10px 14px', borderRadius: '18px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
+                                style={{ whiteSpace: 'pre-line', wordBreak: 'break-word' }}
                             >
                                 {msg.message}
                             </div>
@@ -853,191 +853,181 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
 );
 }
 
-// --- AnalyticsDashboard (Displays Barber Stats) ---
+// --- Component: AnalyticsDashboard (FIXED: PERSISTENT HIDE) ---
 function AnalyticsDashboard({ barberId, refreshSignal }) {
-    const [analytics, setAnalytics] = useState({ totalEarningsToday: 0, totalCutsToday: 0, totalEarningsWeek: 0, totalCutsWeek: 0, dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, currentQueueSize: 0, totalCutsAllTime: 0, carbonSavedTotal: 0 });
-    const [error, setError] = useState('');
-    const [showEarnings, setShowEarnings] = useState(true);
+    // 1. Initialize from Browser Memory (LocalStorage)
+    // This ensures it remembers your choice even after a page reload.
+    const [showEarnings, setShowEarnings] = useState(() => {
+        if (!barberId) return true;
+        const saved = localStorage.getItem(`barber_privacy_${barberId}`);
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    const [analytics, setAnalytics] = useState({ 
+        totalEarningsToday: 0, totalCutsToday: 0, 
+        totalEarningsWeek: 0, totalCutsWeek: 0, 
+        dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, 
+        currentQueueSize: 0, totalCutsAllTime: 0, carbonSavedToday: 0, carbonSavedTotal: 0 
+    });
     const [feedback, setFeedback] = useState([]);
-    
+    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-
     const { theme } = useTheme();
 
-    const fetchAnalytics = useCallback(async (isRefreshClick = false) => {
+    // 2. Toggle Handler (Saves to Memory)
+    const handleTogglePrivacy = () => {
+        const newState = !showEarnings;
+        setShowEarnings(newState);
+        // Save to browser immediately
+        localStorage.setItem(`barber_privacy_${barberId}`, JSON.stringify(newState));
+    };
+
+    const fetchAnalytics = useCallback(async (isBackground = false) => {
         if (!barberId) return;
         setError('');
 
-        if (isRefreshClick) {
-            setIsRefreshing(true);
-        }
+        // Only show spinner on FIRST load, never on background refresh
+        if (!isBackground) setIsLoading(true);
+        else setIsRefreshing(true);
 
         try {
             const response = await axios.get(`${API_URL}/analytics/${barberId}`);
-            setAnalytics({ dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, ...response.data });
-            setShowEarnings(response.data?.showEarningsAnalytics ?? true);
+            setAnalytics(prev => ({ ...prev, ...response.data }));
+            
+            // 🟢 CRITICAL FIX: We DO NOT overwrite 'showEarnings' here anymore.
+            // We trust the LocalStorage state initialized above.
 
             const feedbackResponse = await axios.get(`${API_URL}/feedback/${barberId}`);
             setFeedback(feedbackResponse.data || []);
 
         } catch (err) {
-            console.error('Failed fetch analytics/feedback:', err);
-            setError('Could not load dashboard data.');
-            setAnalytics({ totalEarningsToday: 0, totalCutsToday: 0, totalEarningsWeek: 0, totalCutsWeek: 0, dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, currentQueueSize: 0 });
+            console.error('Failed fetch analytics:', err);
+            if (!isBackground) setError('Could not load dashboard data.');
         } finally {
-            setIsLoading(false);
+            if (!isBackground) setIsLoading(false);
             setIsRefreshing(false);
         }
     }, [barberId]);
 
-    useEffect(() => {
-        fetchAnalytics(false); // Initial load
-    }, [refreshSignal, barberId, fetchAnalytics]);
+    // Initial Load
+    useEffect(() => { fetchAnalytics(false); }, [barberId, fetchAnalytics]);
 
-    const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
-    const avgPriceWeek = (analytics.totalCutsWeek ?? 0) > 0 ? ((analytics.totalEarningsWeek ?? 0) / analytics.totalCutsWeek).toFixed(2) : '0.00';
-    
+    // Background Refresh (New Cut / 5s Timer)
+    useEffect(() => { 
+        if (refreshSignal > 0) fetchAnalytics(true); 
+    }, [refreshSignal, fetchAnalytics]);
+
+    // --- CHART CONFIG ---
     const chartTextColor = theme === 'light' ? '#18181B' : '#FFFFFF';
     const chartGridColor = theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
-
     const chartOptions = { 
-        responsive: true, 
-        maintainAspectRatio: false, 
-        plugins: { 
-            legend: { position: 'top', labels: { color: chartTextColor } }, 
-            title: { display: true, text: 'Earnings per Day (Last 7 Days)', color: chartTextColor } 
-        }, 
-        scales: { 
-            y: { 
-                beginAtZero: true,
-                ticks: { color: chartTextColor },
-                grid: { color: chartGridColor }
-            },
-            x: {
-                ticks: { color: chartTextColor },
-                grid: { color: chartGridColor }
-            }
-        } 
+        responsive: true, maintainAspectRatio: false, 
+        plugins: { legend: { position: 'top', labels: { color: chartTextColor } }, title: { display: true, text: 'Earnings (7 Days)', color: chartTextColor } }, 
+        scales: { y: { beginAtZero: true, ticks: { color: chartTextColor }, grid: { color: chartGridColor } }, x: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } } } 
     };
     
     const dailyDataSafe = Array.isArray(analytics.dailyData) ? analytics.dailyData : [];
-    const chartData = { labels: dailyDataSafe.map(d => { try { return new Date(d.day + 'T00:00:00Z').toLocaleString(undefined, { month: 'numeric', day: 'numeric' }); } catch (e) { return '?'; } }), datasets: [{ label: 'Daily Earnings (₱)', data: dailyDataSafe.map(d => d.daily_earnings ?? 0), backgroundColor: 'rgba(52, 199, 89, 0.6)', borderColor: 'rgba(52, 199, 89, 1)', borderWidth: 1 }] };
-    const carbonSavedTotal = analytics.carbonSavedTotal || 0;
-    const carbonSavedToday = analytics.carbonSavedToday || 0;
+    const chartData = { labels: dailyDataSafe.map(d => new Date(d.day).toLocaleDateString(undefined, {month:'numeric', day:'numeric'})), datasets: [{ label: 'Earnings (₱)', data: dailyDataSafe.map(d => d.daily_earnings), backgroundColor: 'rgba(52, 199, 89, 0.6)', borderColor: 'rgba(52, 199, 89, 1)', borderWidth: 1 }] };
+    
+    const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
+    const carbonStatusMessage = (analytics.carbonSavedToday || 0) > 0 ? "✅ Daily Goal Reached!" : "⏳ Waiting for cuts...";
 
-    // Logic: If today is 5, it means SOMEONE (maybe you, maybe another barber) did a cut.
-    const carbonStatusMessage = carbonSavedToday > 0 
-        ? "✅ Daily Goal Reached!" 
-        : "⏳ Waiting for first cut...";
+    const renderSkeletons = () => (
+        <div className="analytics-grid">
+            <SkeletonLoader height="80px" /><SkeletonLoader height="80px" />
+            <SkeletonLoader height="80px" /><SkeletonLoader height="80px" />
+        </div>
+    );
 
     return (
-    <div className="card">
-        <div className="card-header">
-            <h2>Dashboard</h2>
-            <button 
-                onClick={() => setShowEarnings(!showEarnings)} 
-                className="btn btn-secondary btn-icon-label"
-            >
-                {showEarnings ? <IconEyeOff /> : <IconEye />}
-                {showEarnings ? 'Hide' : 'Show'}
-            </button>
-        </div>
-        
-        <div className="card-body">
-            {error && <p className="error-message">{error}</p>}
-            <h3 className="analytics-subtitle">Today</h3>
-            
-            {isLoading ? <p className="empty-text">Loading dashboard data...</p> : (
-                <>
-                    <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                        {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
-                        <div className="analytics-item"><span className="analytics-label">Cuts</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
-                        {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceToday}</span></div>}
-                        <div className="analytics-item"><span className="analytics-label">Queue Size</span><span className="analytics-value small">{analytics.currentQueueSize ?? 0}</span></div>
-                    </div>
-                    <h3 className="analytics-subtitle">Last 7 Days</h3>
-                    <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                        {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
-                        <div className="analytics-item"><span className="analytics-label">Total Cuts</span><span className="analytics-value">{analytics.totalCutsWeek ?? 0}</span></div>
-                        {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceWeek}</span></div>}
-                        <div className="analytics-item"><span className="analytics-label">Busiest Day</span><span className="analytics-value small">{analytics.busiestDay?.name ?? 'N/A'} {showEarnings && `(₱${analytics.busiestDay?.earnings ?? 0})`}</span></div>
-                    </div>
-                </>
-            )}
-            
-            <div className="carbon-footprint-section">
-                <h3 className="analytics-subtitle">🌱 Shop Carbon Savings</h3>
-                <div className="analytics-grid carbon-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                    <div className="analytics-item">
-                        <span className="analytics-label">Today's Impact</span>
-                        <span className="analytics-value carbon">
-                            +{carbonSavedToday}g
-                        </span>
-                        <small style={{color: 'var(--text-secondary)', fontSize: '0.8rem'}}>
-                            {carbonStatusMessage}
-                        </small>
-                    </div>
-                    <div className="analytics-item">
-                        <span className="analytics-label">All-Time Reduced</span>
-                        <span className="analytics-value carbon">
-                            {carbonSavedTotal}g
-                        </span>
-                        <small style={{color: 'var(--text-secondary)', fontSize: '0.8rem'}}>
-                            Dynamic Shop Total
-                        </small>
-                    </div>
-                </div>
+        <div className="card">
+            <div className="card-header">
+                <h2>Dashboard</h2>
+                <button 
+                    onClick={handleTogglePrivacy} 
+                    className="btn btn-secondary btn-icon-label"
+                >
+                    {showEarnings ? <IconEyeOff /> : <IconEye />}
+                    {showEarnings ? 'Hide' : 'Show'}
+                </button>
             </div>
-            {showEarnings && (
-                <div className="chart-container">
-                    {dailyDataSafe.length > 0 ? (<div style={{ height: '250px' }}><Bar options={chartOptions} data={chartData} /></div>) : (<p className='empty-text'>No chart data yet.</p>)}
-                </div>
-            )}
             
-            <div className="feedback-list-container">
-                <h3 className="analytics-subtitle">Recent Feedback</h3>
-                <ul className="feedback-list">
-                    {feedback.length > 0 ? (
-                        feedback.map((item, index) => (
+            <div className="card-body">
+                {error && <p className="error-message">{error}</p>}
+                
+                <h3 className="analytics-subtitle">Today</h3>
+                {isLoading ? renderSkeletons() : (
+                    <>
+                        <div className="analytics-grid">
+                            {/* 🟢 CONDITIONAL RENDERING BASED ON PERSISTENT STATE */}
+                            {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
+                            
+                            <div className="analytics-item"><span className="analytics-label">Cuts</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
+                            
+                            {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceToday}</span></div>}
+                            
+                            <div className="analytics-item"><span className="analytics-label">Queue Size</span><span className="analytics-value small">{analytics.currentQueueSize ?? 0}</span></div>
+                        </div>
+
+                        <h3 className="analytics-subtitle">Last 7 Days</h3>
+                        <div className="analytics-grid">
+                            {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
+                            <div className="analytics-item"><span className="analytics-label">Total Cuts</span><span className="analytics-value">{analytics.totalCutsWeek ?? 0}</span></div>
+                            <div className="analytics-item"><span className="analytics-label">All-Time</span><span className="analytics-value small">{analytics.totalCutsAllTime ?? 0} Cuts</span></div>
+                        </div>
+                    </>
+                )}
+                
+                <div className="carbon-footprint-section">
+                    <h3 className="analytics-subtitle">🌱 Shop Carbon Savings</h3>
+                    <div className="analytics-grid carbon-grid">
+                        <div className="analytics-item">
+                            <span className="analytics-label">Today's Impact</span>
+                            <span className="analytics-value carbon">+{analytics.carbonSavedToday || 0}g</span>
+                            <small style={{color: 'var(--text-secondary)', fontSize: '0.8rem'}}>{carbonStatusMessage}</small>
+                        </div>
+                        <div className="analytics-item">
+                            <span className="analytics-label">All-Time Reduced</span>
+                            <span className="analytics-value carbon">{analytics.carbonSavedTotal || 0}g</span>
+                        </div>
+                    </div>
+                </div>
+
+                {showEarnings && !isLoading && (
+                    <div className="chart-container">
+                        {dailyDataSafe.length > 0 ? (
+                            <div style={{ height: '200px' }}><Bar options={chartOptions} data={chartData} /></div>
+                        ) : (<p className='empty-text'>No chart data yet.</p>)}
+                    </div>
+                )}
+                
+                <div className="feedback-list-container">
+                    <h3 className="analytics-subtitle">Recent Feedback</h3>
+                    <ul className="feedback-list">
+                        {feedback.length > 0 ? feedback.map((item, index) => (
                             <li key={index} className="feedback-item">
                                 <div className="feedback-header">
-                                    {/* FIX: Sanitize score to be between 0 and 5 and apply style */}
-                                    <span className="feedback-score" style={{fontSize: '1.2rem', lineHeight: '1'}}>
-                                        <span style={{color: '#FFD700'}}>
-                                            {'★'.repeat(Math.round(Math.max(0, Math.min(5, item.score || 0))))} 
-                                        </span>
-                                        <span style={{color: 'var(--text-secondary)'}}>
-                                            {'☆'.repeat(5 - Math.round(Math.max(0, Math.min(5, item.score || 0))))} 
-                                        </span>
+                                    <span className="feedback-score" style={{color: '#FFD700'}}>
+                                        {'★'.repeat(Math.round(item.score || 0))}
                                     </span>
-                                    {/* END FIX */}
-                                    <span className="feedback-customer">
-                                        {item.customer_name || 'Customer'}
-                                    </span>
+                                    <span className="feedback-customer">{item.customer_name}</span>
                                 </div>
-                                {/* FIX: Ensure it handles null/empty comments */}
-                                {item.comments && item.comments.trim().length > 0 && 
-                                    <p className="feedback-comment">"{item.comments}"</p>
-                                }
+                                {item.comments && <p className="feedback-comment">"{item.comments}"</p>}
                             </li>
-                        ))
-                    ) : (
-                        <p className="empty-text">No feedback yet.</p>
-                    )}
-                </ul>
+                        )) : <p className="empty-text">No feedback yet.</p>}
+                    </ul>
+                </div>
+            </div>
+            
+            <div className="card-footer">
+                <button onClick={() => fetchAnalytics(true)} className="btn btn-secondary btn-full-width btn-icon-label" disabled={isRefreshing}>
+                    {isRefreshing ? <Spinner /> : <IconRefresh />}
+                    {isRefreshing ? 'Refreshing...' : 'Refresh Stats'}
+                </button>
             </div>
         </div>
-        
-        <div className="card-footer">
-            <button onClick={() => fetchAnalytics(true)} className="btn btn-secondary btn-full-width btn-icon-label" disabled={isRefreshing}>
-                {/* OLD: {isRefreshing ? <Spinner /> : <IconRefresh />} */}
-                {/* NEW: Icon stays visible */}
-                <IconRefresh />
-                {isRefreshing ? 'Refreshing...' : 'Refresh Stats'}
-            </button>
-        </div>
-    </div>);
+    );
 }
 
 // --- BarberDashboard (Handles Barber's Queue Management) ---
@@ -1524,7 +1514,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                         </div>
                         {error && !fetchError && <p className="error-message">{error}</p>}
                         
-                        <div className="action-buttons-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                        <div className="action-buttons-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {queueDetails.inProgress ? (
                                 <>
                                     <button onClick={handleCompleteCut} className="btn btn-success btn-full-width btn-icon-label">
@@ -3545,9 +3535,9 @@ return (
                         <div className="form-group">
                             <label>Select Available Barber:</label>
                             {barbers.length > 0 ? (
-                                <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+                                <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                                     {barbers.map((barber) => (
-                                        <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())} style={{ transition: 'all 0.2s ease', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                                        <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())}>
                                             <span className="barber-name">{barber.full_name}</span>
                                             <div className="barber-rating">
                                                 <span className="star-icon">⭐</span>
@@ -4294,7 +4284,7 @@ function BarberAppLayout({ session, barberProfile, setBarberProfile }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto' }}>
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto' }}>
                     <BarberDashboard
                         barberId={barberProfile.id}
                         barberName={barberProfile.full_name}
@@ -5351,7 +5341,7 @@ function AdminAppLayout({ session }) {
             </div>
 
             <main className="main-content">
-                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto'}}>
+                <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto'}}>
                     {activeTab === 'live' && <LiveShopView />}
                     {activeTab === 'stats' && <StatsView />}
                     {activeTab === 'staff' && <StaffView />}
@@ -5388,7 +5378,7 @@ function CustomerAppLayout({ session }) {
                 </div>
             </header>
             <main className="main-content">
-                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto' }}>
+                <div className="container" style={{ maxWidth: '1200px', width: '100%', padding: '0 15px', boxSizing: 'border-box', margin: '0 auto' }}>
                     <CustomerView session={session} />
                 </div>
             </main>
@@ -5413,10 +5403,10 @@ function LandingPage({ onGetStarted, onLogin, onAdminClick }) {
             </nav>
 
             <header className="hero-section">
-                <h1 className="hero-title" style={{fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', lineHeight: 1.1, marginBottom: '1rem'}}>
+                <h1 className="hero-title">
                     Queue Smarter,<br /> <span>Look Sharper.</span>
                 </h1>
-                <p className="hero-subtitle" style={{fontSize: 'clamp(1rem, 2vw, 1.25rem)', maxWidth: '600px', margin: '0 auto 2rem'}}>
+                <p className="hero-subtitle">
                     Skip the long wait. Join the live queue from anywhere, book appointments, and get notified when it's your turn.
                 </p>
                 <div className="hero-buttons">
