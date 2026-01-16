@@ -1112,6 +1112,50 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
         }
     }, [barberId]);
 
+
+    // Add this useEffect inside BarberDashboard
+    useEffect(() => {
+        if (!barberId) return;
+
+        // Listen to ALL chat messages. 
+        // Filter client-side if they belong to my current queue.
+        const chatChannel = supabase.channel(`barber_global_chat_${barberId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+                (payload) => {
+                    const newMsg = payload.new;
+                    
+                    // If I sent it, ignore
+                    if (newMsg.sender_id === session.user.id) return;
+
+                    // Check if this message belongs to someone in my queue
+                    setQueueDetails(prev => {
+                        const updateCount = (entry) => {
+                            if (entry && entry.id === newMsg.queue_entry_id) {
+                                // Only increment if chat is NOT currently open for this user
+                                if (openChatQueueId !== entry.id) {
+                                    playSound(messageNotificationSound); // Play sound
+                                    return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                                }
+                            }
+                            return entry;
+                        };
+
+                        return {
+                            ...prev,
+                            inProgress: updateCount(prev.inProgress),
+                            upNext: updateCount(prev.upNext),
+                            waiting: prev.waiting.map(updateCount)
+                        };
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(chatChannel); };
+    }, [barberId, openChatQueueId, session.user.id]);
+
     // --- REPLACED SOCKET.IO WITH SUPABASE REALTIME ---
     useEffect(() => {
         if (!openChatQueueId) return;
@@ -1356,7 +1400,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     };
 
 
-    const openChat = (customer) => {
+    const openChat = async (customer) => {
         const customerUserId = customer?.profiles?.id;
         const queueId = customer?.id;
 
@@ -1365,6 +1409,35 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             setOpenChatCustomerId(customerUserId);
             setOpenChatQueueId(queueId);
 
+            // --- 1. SERVER: Mark messages as Read in Database ---
+            // We do this immediately so the server knows the barber has seen them.
+            axios.put(`${API_URL}/chat/read`, { 
+                queueId: queueId, 
+                readerId: session.user.id 
+            }).catch(err => console.error("Failed to mark messages as read:", err));
+
+            // --- 2. LOCAL UI: Remove Badge Immediately (Optimistic Update) ---
+            // This updates the 'queueDetails' state directly so the badge disappears instantly
+            // without waiting for a re-fetch.
+            setQueueDetails(prev => {
+                const updateEntry = (entry) => {
+                    // If this entry matches the one we just opened, reset unread_count to 0
+                    if (entry && entry.id === queueId) {
+                        return { ...entry, unread_count: 0 };
+                    }
+                    return entry;
+                };
+
+                return {
+                    ...prev,
+                    inProgress: updateEntry(prev.inProgress),
+                    upNext: updateEntry(prev.upNext),
+                    waiting: prev.waiting.map(updateEntry)
+                };
+            });
+
+            // --- 3. CLEANUP: Clear legacy local storage state (Safety Net) ---
+            // Keeps your old notification system from conflicting if it's still running in the background.
             setUnreadMessages(prev => {
                 const updated = { ...prev };
                 delete updated[customerUserId];
@@ -1372,16 +1445,36 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                 return updated;
             });
 
+            // --- 4. DATA: Fetch Chat History ---
             const fetchHistory = async () => {
                 try {
-                    const { data } = await supabase.from('chat_messages').select('sender_id, message').eq('queue_entry_id', queueId).order('created_at', { ascending: true });
-                    const formattedHistory = data.map(msg => ({ senderId: msg.sender_id, message: msg.message }));
-                    setChatMessages(prev => ({ ...prev, [customerUserId]: formattedHistory }));
-                } catch (err) { console.error("Barber failed to fetch history:", err); }
+                    const { data, error } = await supabase
+                        .from('chat_messages')
+                        .select('sender_id, message')
+                        .eq('queue_entry_id', queueId)
+                        .order('created_at', { ascending: true });
+                    
+                    if (error) throw error;
+
+                    const formattedHistory = data.map(msg => ({ 
+                        senderId: msg.sender_id, 
+                        message: msg.message 
+                    }));
+                    
+                    setChatMessages(prev => ({ 
+                        ...prev, 
+                        [customerUserId]: formattedHistory 
+                    }));
+                } catch (err) { 
+                    console.error("Barber failed to fetch history:", err); 
+                }
             };
             fetchHistory();
 
-        } else { console.error("Cannot open chat: Customer user ID or Queue ID missing.", customer); setError("Could not get customer details."); }
+        } else { 
+            console.error("Cannot open chat: Customer user ID or Queue ID missing.", customer); 
+            setError("Could not get customer details."); 
+        }
     };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
@@ -1503,9 +1596,9 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                     <DistanceBadge meters={c.current_distance_meters} />
                                     {c.reference_image_url && <PhotoDisplay entry={c} label="Waiting" />}
                                 </div>
-                                <button onClick={() => openChat(c)} className="btn btn-icon" title={c.profiles?.id ? "Chat" : "Guest"} disabled={!c.profiles?.id}>
+                                <button onClick={() => openChat(c)} className="btn btn-icon" disabled={!c.profiles?.id}>
                                     <IconChat />
-                                    {c.profiles?.id && unreadMessages[c.profiles.id] && (<span className="notification-badge"></span>)}
+                                    {c.unread_count > 0 && <span className="notification-badge">{c.unread_count}</span>}
                                 </button>
                             </li>
                         )))}</ul>
@@ -2763,55 +2856,47 @@ function CustomerView({ session }) {
         }
     }, [selectedBarberId]);
 
-    // --- REPLACED SOCKET.IO WITH SUPABASE REALTIME ---
-    useEffect(() => { 
+    // Find the existing chat subscription useEffect
+    useEffect(() => {
         if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
 
-        // 1. Initial Load
-        fetchChatHistory(myQueueEntryId);
+        // 1. Initial Check for Unread (Fetch from DB directly for accuracy)
+        const checkUnread = async () => {
+            const { count } = await supabase
+                .from('chat_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('queue_entry_id', myQueueEntryId)
+                .neq('sender_id', session.user.id) // From Barber
+                .is('read_at', null);
+            
+            if (count > 0 && !isChatOpen) {
+                setHasUnreadFromBarber(true);
+            }
+        };
+        checkUnread();
 
-        // 2. Subscribe to NEW messages in the database
-        console.log("[Customer] Subscribing to Chat via Supabase...");
         const chatChannel = supabase.channel(`chat_${myQueueEntryId}`)
-            .on(
-                'postgres_changes', 
-                { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'chat_messages', 
-                    filter: `queue_entry_id=eq.${myQueueEntryId}` 
-                }, 
-                (payload) => {
-                    const newMsg = payload.new;
-                    console.log("[Customer] New message received:", newMsg);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `queue_entry_id=eq.${myQueueEntryId}` }, 
+            (payload) => {
+                const newMsg = payload.new;
+                if (newMsg.sender_id !== session.user.id) {
+                    // Add message to list
+                    setChatMessagesFromBarber(prev => [...prev, { senderId: newMsg.sender_id, message: newMsg.message }]);
+                    playSound(messageNotificationSound);
                     
-                    // --- THE FIX IS HERE ---
-                    // Only add the message if it is NOT from me.
-                    // (I already added my own message optimistically in sendCustomerMessage)
-                    if (newMsg.sender_id !== session.user.id) {
-                        setChatMessagesFromBarber(prev => [...prev, { 
-                        senderId: newMsg.sender_id, 
-                        message: newMsg.message 
-                    }]);
-                        
-                        // Play sound for incoming messages
-                        playSound(messageNotificationSound);
-                        setIsChatOpen(current => {
-                            if (!current) {
-                                setHasUnreadFromBarber(true);
-                                localStorage.setItem('hasUnreadFromBarber', 'true');
-                            }
-                            return current;
-                        });
+                    // Handle Badge
+                    if (!isChatOpen) {
+                        setHasUnreadFromBarber(true);
+                    } else {
+                        // If chat is open, mark as read immediately
+                        axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                     }
                 }
-            )
+            })
             .subscribe();
 
-        return () => {
-            supabase.removeChannel(chatChannel);
-        };
-    }, [session, joinedBarberId, myQueueEntryId, fetchChatHistory]);
+        return () => { supabase.removeChannel(chatChannel); };
+    }, [session, joinedBarberId, myQueueEntryId, isChatOpen]); // Added isChatOpen dependency
 
     // --- UPDATE SEND FUNCTION ---
     const sendCustomerMessage = async (recipientId, messageText) => {
@@ -3721,7 +3806,7 @@ return (
                             if (currentChatTargetBarberUserId) {
                                 setIsChatOpen(true);
                                 setHasUnreadFromBarber(false);
-                                localStorage.removeItem('hasUnreadFromBarber');
+                                axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                             } else { console.error("Barber user ID missing."); setMessage("Cannot initiate chat."); }
                         }} className="btn btn-secondary btn-full-width btn-icon-label chat-toggle-button">
                             <IconChat />Chat with Barber{hasUnreadFromBarber && (<span className="notification-badge"></span>)}</button>)}
@@ -4305,13 +4390,16 @@ function AdminAppLayout({ session }) {
             try {
                 const res = await axios.get(`${API_URL}/admin/active-chats`);
                 setActiveChats(res.data);
-            } catch (e) { console.error(e); }
-            finally { setLoading(false); }
+            } catch (e) { 
+                console.error(e); 
+            } finally { 
+                setLoading(false); 
+            }
         };
 
         useEffect(() => { fetchChats(); }, []);
 
-        // 🟢 NEW: LIVE LISTENER FOR SELECTED CHAT
+        // 2. Realtime Listener for the SELECTED chat (To see incoming messages while chatting)
         useEffect(() => {
             if (!selectedChat) return;
 
@@ -4333,7 +4421,6 @@ function AdminAppLayout({ session }) {
                                 senderId: newMsg.sender_id,
                                 message: newMsg.message
                             }]);
-                            // Optional: Play Sound
                             playSound(messageNotificationSound); 
                         }
                     }
@@ -4343,11 +4430,29 @@ function AdminAppLayout({ session }) {
             return () => {
                 supabase.removeChannel(channel);
             };
-        }, [selectedChat]); // Re-runs whenever admin clicks a different user
+        }, [selectedChat]);
 
-        // 3. Load specific conversation (History)
+        // 3. Load specific conversation (History) & Mark as Read
         const loadConversation = async (chatEntry) => {
             setSelectedChat(chatEntry);
+            
+            // A. Mark as Read on Server (Clears the badge for Admin)
+            try {
+                await axios.put(`${API_URL}/chat/read`, { 
+                    queueId: chatEntry.id, 
+                    readerId: session.user.id 
+                });
+                
+                // B. Update Local State (Remove badge immediately)
+                setActiveChats(prev => prev.map(c => 
+                    c.id === chatEntry.id ? { ...c, unread_count: 0 } : c
+                ));
+
+            } catch (e) {
+                console.error("Failed to mark as read", e);
+            }
+
+            // C. Fetch Messages
             try {
                 const { data } = await supabase
                     .from('chat_messages')
@@ -4404,7 +4509,15 @@ function AdminAppLayout({ session }) {
                                     borderLeft: selectedChat?.id === chat.id ? '3px solid var(--primary-orange)' : '3px solid transparent'
                                 }}
                             >
-                                <div style={{ fontWeight: 'bold' }}>{chat.customer_name}</div>
+                                {/* --- UNREAD BADGE LOGIC HERE --- */}
+                                <div style={{ fontWeight: 'bold', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                    <span>{chat.customer_name}</span>
+                                    {chat.unread_count > 0 && (
+                                        <span className="notification-badge" style={{position:'static', marginLeft:'10px'}}>
+                                            {chat.unread_count}
+                                        </span>
+                                    )}
+                                </div>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                     w/ {chat.barber_profiles?.full_name}
                                 </div>
