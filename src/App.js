@@ -226,11 +226,19 @@ function ChatWindow({ currentUser_id, otherUser_id, messages = [], onSendMessage
     return (
         <div className="chat-window">
             <div className="message-list">
-                {messages.map((msg, index) => (
-                    <div key={index} className={`message-bubble ${msg.senderId === currentUser_id ? 'my-message' : 'other-message'}`}>
-                        {msg.message}
-                    </div>
-                ))}
+                {messages.map((msg, index) => {
+                    const isMe = msg.senderId === currentUser_id;
+                    return (
+                        <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
+                            <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
+                                {msg.message}
+                            </div>
+                            <span className="message-timestamp">
+                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                            </span>
+                        </div>
+                    );
+                })}
                 <div ref={messagesEndRef} />
             </div>
             <form onSubmit={handleSendMessage} className="message-input-form">
@@ -1211,7 +1219,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                         setChatMessages(prev => {
                             const customerId = openChatCustomerId; 
                             const msgs = prev[customerId] || [];
-                            return { ...prev, [customerId]: [...msgs, { senderId: newMsg.sender_id, message: newMsg.message }] };
+                            return { ...prev, [customerId]: [...msgs, { senderId: newMsg.sender_id, message: newMsg.message, created_at: newMsg.created_at }] };
                         });
 
                         playSound(messageNotificationSound);
@@ -1285,7 +1293,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
         // Optimistic UI Update
         setChatMessages(prev => {
             const msgs = prev[recipientId] || [];
-            return { ...prev, [recipientId]: [...msgs, { senderId: session.user.id, message: messageText }] };
+            return { ...prev, [recipientId]: [...msgs, { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() }] };
         });
 
         try {
@@ -1535,7 +1543,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                 try {
                     const { data, error } = await supabase
                         .from('chat_messages')
-                        .select('sender_id, message')
+                        .select('sender_id, message, created_at')
                         .eq('queue_entry_id', queueId)
                         .order('created_at', { ascending: true });
                     
@@ -1543,7 +1551,8 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
 
                     const formattedHistory = data.map(msg => ({ 
                         senderId: msg.sender_id, 
-                        message: msg.message 
+                        message: msg.message,
+                        created_at: msg.created_at
                     }));
                     
                     setChatMessages(prev => ({ 
@@ -2238,7 +2247,8 @@ function CustomerView({ session }) {
             if (data) {
                 const formattedHistory = data.map(msg => ({
                     senderId: msg.sender_id,
-                    message: msg.message
+                    message: msg.message,
+                    created_at: msg.created_at
                 }));
                 setChatMessagesFromBarber(formattedHistory);
             }
@@ -3023,7 +3033,8 @@ function CustomerView({ session }) {
                             
                             return [...prev, { 
                                 senderId: newMsg.sender_id, 
-                                message: newMsg.message 
+                                message: newMsg.message,
+                                created_at: newMsg.created_at
                             }];
                         });
                         
@@ -3054,7 +3065,7 @@ function CustomerView({ session }) {
         if (!messageText.trim()) return;
         
         // Optimistic UI Update (Show immediately)
-        const tempMsg = { senderId: session.user.id, message: messageText };
+        const tempMsg = { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() };
         setChatMessagesFromBarber(prev => [...prev, tempMsg]);
 
         try {
@@ -4587,7 +4598,8 @@ function AdminAppLayout({ session }) {
                         if (newMsg.sender_id !== session.user.id) {
                             setMessages(prev => [...prev, {
                                 senderId: newMsg.sender_id,
-                                message: newMsg.message
+                                message: newMsg.message,
+                                created_at: newMsg.created_at
                             }]);
                             playSound(messageNotificationSound); 
                         }
@@ -4630,7 +4642,8 @@ function AdminAppLayout({ session }) {
                 
                 setMessages(data.map(m => ({
                     senderId: m.sender_id,
-                    message: m.message
+                    message: m.message,
+                    created_at: m.created_at
                 })));
             } catch (e) { console.error(e); }
         };
@@ -4641,7 +4654,7 @@ function AdminAppLayout({ session }) {
             if(!replyText.trim() || !selectedChat) return;
 
             // Optimistic Update
-            const newMsg = { senderId: session.user.id, message: `[ADMIN]: ${replyText}` };
+            const newMsg = { senderId: session.user.id, message: `[ADMIN]: ${replyText}`, created_at: new Date().toISOString() };
             setMessages(prev => [...prev, newMsg]); 
             
             try {
@@ -4715,7 +4728,8 @@ function AdminAppLayout({ session }) {
                                     return (
                                         <div key={idx} style={{
                                             display: 'flex', 
-                                            justifyContent: isCustomer ? 'flex-start' : 'flex-end',
+                                            flexDirection: 'column',
+                                            alignItems: isCustomer ? 'flex-start' : 'flex-end',
                                             marginBottom: '10px'
                                         }}>
                                             <div style={{
@@ -4728,6 +4742,9 @@ function AdminAppLayout({ session }) {
                                             }}>
                                                 {msg.message}
                                             </div>
+                                            <span style={{fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px', padding: '0 4px'}}>
+                                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                            </span>
                                         </div>
                                     )
                                 })}
