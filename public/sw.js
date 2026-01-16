@@ -1,35 +1,45 @@
 // public/sw.js
+
 self.addEventListener('push', function(event) {
-    const data = event.data.json();
+    console.log('[Service Worker] Push Received.');
     
+    const data = event.data ? event.data.json() : {};
+    
+    const title = data.title || 'Dash-Q Update';
     const options = {
-        body: data.body,
-        icon: '/logo192.png', // Make sure you have a logo in public folder
-        badge: '/favicon.ico',
+        body: data.body || 'You have a new notification.',
+        icon: '/icon-192x192.png', // Ensure this image exists in public folder
+        badge: '/badge-72x72.png', // Optional small icon
         vibrate: [100, 50, 100],
         data: {
-            dateOfArrival: Date.now(),
-            primaryKey: 1
+            url: data.url || '/'
         }
     };
 
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
+        self.registration.showNotification(title, options)
     );
 });
 
 self.addEventListener('notificationclick', function(event) {
+    console.log('[Service Worker] Notification click received.');
+    
     event.notification.close();
-    // Focus the window if open, or open a new one
+
     event.waitUntil(
-        clients.matchAll({type: 'window'}).then( function(clientList) {
-            for (var i = 0; i < clientList.length; i++) {
-                var client = clientList[i];
-                if (client.url === '/' && 'focus' in client)
+        clients.matchAll({type: 'window'}).then(windowClients => {
+            // Check if there is already a window/tab open with the target URL
+            for (var i = 0; i < windowClients.length; i++) {
+                var client = windowClients[i];
+                // If so, focus it.
+                if (client.url === event.notification.data.url && 'focus' in client) {
                     return client.focus();
+                }
             }
-            if (clients.openWindow)
-                return clients.openWindow('/');
+            // If not, open a new window
+            if (clients.openWindow) {
+                return clients.openWindow(event.notification.data.url);
+            }
         })
     );
 });
