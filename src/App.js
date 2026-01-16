@@ -3471,7 +3471,7 @@ return (
                 {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                 {joinMode === 'now' && (
                     <form onSubmit={handleJoinQueue}>
-                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
+                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                         <div className="form-group">
                             <label>Group Size (Number of Heads):</label>
                             
