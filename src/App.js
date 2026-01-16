@@ -1898,7 +1898,8 @@ const handleLogout = async (userId) => {
 
     // 2. CHECK SESSION BEFORE SIGNING OUT
     // This prevents the "403 Forbidden" error if the token is already dead.
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
 
     if (session) {
         const { error: signOutError } = await supabase.auth.signOut();
