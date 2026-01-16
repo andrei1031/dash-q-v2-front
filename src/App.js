@@ -201,19 +201,6 @@ function isIOsDevice() {
 // ##############################################
 
 
-function SkeletonLoader({ height, width, className = '' }) {
-    const style = {
-        height: height || '1em',
-        width: width || '100%',
-    };
-    return (
-        <div className={`skeleton-loader ${className}`} style={style}>
-            <span style={{ visibility: 'hidden' }}>Loading...</span>
-        </div>
-    );
-}
-
-
 // ##############################################
 // ##           CHAT COMPONENT               ##
 // ##############################################
@@ -935,24 +922,6 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
         ? "✅ Daily Goal Reached!" 
         : "⏳ Waiting for first cut...";
 
-    const renderSkeletons = () => (
-        <>
-            <div className="analytics-grid">
-                <SkeletonLoader height="75px" />
-                <SkeletonLoader height="75px" />
-                <SkeletonLoader height="75px" />
-                <SkeletonLoader height="75px" />
-            </div>
-            <h3 className="analytics-subtitle">Last 7 Days</h3>
-            <div className="analytics-grid">
-                <SkeletonLoader height="75px" />
-                <SkeletonLoader height="75px" />
-                <SkeletonLoader height="75px" />
-                <SkeletonLoader height="75px" />
-            </div>
-        </>
-    );
-
     return (
     <div className="card">
         <div className="card-header">
@@ -970,7 +939,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             {error && <p className="error-message">{error}</p>}
             <h3 className="analytics-subtitle">Today</h3>
             
-            {isLoading ? renderSkeletons() : (
+            {isLoading ? <p className="empty-text">Loading dashboard data...</p> : (
                 <>
                     <div className="analytics-grid">
                         {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
@@ -3671,7 +3640,7 @@ return (
                                 ))) : (<p className="empty-text">No feedback yet for this barber.</p>)}</ul></div>)}
 
                         {/* EWT Display */}
-                        {isQueueLoading && selectedBarberId ? (<div className="ewt-container skeleton-ewt"><SkeletonLoader height="40px" /></div>) : (selectedBarberId && (<div className="ewt-container">
+                        {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{margin:0, textAlign:'center', width:'100%', color:'var(--text-secondary)'}}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container">
                             <div className="ewt-item"><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
                             <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                         </div>))}
@@ -3946,11 +3915,7 @@ return (
             </div>
                 <ul className="queue-list live">
                     {isQueueLoading ? (
-                        <>
-                            <li className="skeleton-li"><SkeletonLoader height="25px" /></li>
-                            <li className="skeleton-li"><SkeletonLoader height="25px" /></li>
-                            <li className="skeleton-li"><SkeletonLoader height="25px" /></li>
-                        </>
+                        <li className="empty-text">Loading queue...</li>
                     ) : (!isQueueLoading && liveQueue.length === 0 && !queueMessage ? (
                         <li className="empty-text">Queue is empty.</li>
                     ) : (
