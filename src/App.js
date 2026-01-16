@@ -3409,6 +3409,7 @@ return (
                         <div className="form-group">
                             <label>Select Available Barber:</label>
                             {barbers.length > 0 ? (
+                                <>
                                 <div className="barber-selection-list">
                                     {barbers.map((barber) => (
                                         <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())}>
@@ -3422,6 +3423,7 @@ return (
                                     ))}
                                 </div>
                                 {barberError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please select a barber!</p>}
+                                </>
                             ) : (<p className="empty-text">No barbers are available right now.</p>)}
                             <input type="hidden" value={selectedBarberId} required />
                         </div>
