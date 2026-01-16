@@ -230,7 +230,10 @@ function ChatWindow({ currentUser_id, otherUser_id, messages = [], onSendMessage
                     const isMe = msg.senderId === currentUser_id;
                     return (
                         <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
-                            <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
+                            <div 
+                                className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
+                                style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                            >
                                 {msg.message}
                             </div>
                             <span className="message-timestamp">
