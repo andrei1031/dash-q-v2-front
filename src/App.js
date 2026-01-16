@@ -12,38 +12,22 @@ import './App.css';
 const queueNotificationSound = new Audio('/queue_sound.mp3');
 const messageNotificationSound = new Audio('/chat_sound.mp3');
 
+/**
+ * Helper function to play a sound, with error handling
+ * for browser autoplay policies.
+ */
+const playSound = (audioElement) => {
+    if (!audioElement) return;
+    audioElement.currentTime = 0;
+    audioElement.play().catch(error => {
+        console.warn("Sound notification was blocked by the browser:", error.message);
+    });
+};
 
-// --- Helper: Sound Control ---
-const playSound = (audio) => { audio.currentTime = 0; audio.play().catch(e => console.log("Sound blocked")); };
-const stopSound = (audio) => { audio.pause(); audio.currentTime = 0; }; // 🟢 FIX: Stop Sound
 
 // --- Global Constants ---
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 const API_URL = 'https://dash-q-backend.onrender.com/api' || 'http://localhost:3000';
-const VAPID_PUBLIC_KEY = 'BO2S_dWifM7ORRmLN_nQjprOvs0SaaUMDzyELPBGKUC_10-X0ZwKMEfPlvX1L5N-PtijUTkTWjJULACF7h-W9uE';
-
-// --- Helper: Push Registration ---
-const registerPush = async (queueId) => {
-    if (!('serviceWorker' in navigator)) return;
-    try {
-        const register = await navigator.serviceWorker.register('/sw.js');
-        const subscription = await register.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-        await axios.post(`${API_URL}/push/subscribe`, { queueId, subscription });
-        console.log("Push Registered!");
-    } catch (e) {
-        console.error("Push Error:", e);
-    }
-};
-
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
-}
 
 // --- Supabase Client Setup ---
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
@@ -825,10 +809,7 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
 function AnalyticsDashboard({ barberId, refreshSignal }) {
     const [analytics, setAnalytics] = useState({ totalEarningsToday: 0, totalCutsToday: 0, totalEarningsWeek: 0, totalCutsWeek: 0, dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, currentQueueSize: 0, totalCutsAllTime: 0, carbonSavedTotal: 0 });
     const [error, setError] = useState('');
-    const [showEarnings, setShowEarnings] = useState(() => {
-        const saved = localStorage.getItem('showEarnings');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
+    const [showEarnings, setShowEarnings] = useState(true);
     const [feedback, setFeedback] = useState([]);
     
     const [isLoading, setIsLoading] = useState(true);
@@ -836,36 +817,37 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
 
     const { theme } = useTheme();
 
-    const fetchAnalytics = useCallback(async (isBackground = false) => {
+    const fetchAnalytics = useCallback(async (isRefreshClick = false) => {
         if (!barberId) return;
-        // 🟢 FIX: No spinner on background refresh
-        if (!isBackground) setIsLoading(true);
-        else setIsRefreshing(true);
+        setError('');
+
+        if (isRefreshClick) {
+            setIsRefreshing(true);
+        } else {
+            setIsLoading(true);
+        }
 
         try {
-            const res = await axios.get(`${API_URL}/analytics/${barberId}`);
-            setAnalytics(res.data);
-            
-            const feedbackRes = await axios.get(`${API_URL}/feedback/${barberId}`);
-            setFeedback(feedbackRes.data || []);
-            
-            // NOTE: We no longer sync showEarnings from server to preserve local user preference.
-        } catch (e) { console.error(e); setError('Failed to load analytics.'); } 
-        finally { 
-            if (!isBackground) setIsLoading(false);
-            else setIsRefreshing(false);
+            const response = await axios.get(`${API_URL}/analytics/${barberId}`);
+            setAnalytics({ dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, ...response.data });
+            setShowEarnings(response.data?.showEarningsAnalytics ?? true);
+
+            const feedbackResponse = await axios.get(`${API_URL}/feedback/${barberId}`);
+            setFeedback(feedbackResponse.data || []);
+
+        } catch (err) {
+            console.error('Failed fetch analytics/feedback:', err);
+            setError('Could not load dashboard data.');
+            setAnalytics({ totalEarningsToday: 0, totalCutsToday: 0, totalEarningsWeek: 0, totalCutsWeek: 0, dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, currentQueueSize: 0 });
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
         }
     }, [barberId]);
 
     useEffect(() => {
-        if (refreshSignal > 0) fetchAnalytics(true);
+        fetchAnalytics(false); // Initial load
     }, [refreshSignal, barberId, fetchAnalytics]);
-
-    const toggleEarnings = () => {
-        const newState = !showEarnings;
-        setShowEarnings(newState);
-        localStorage.setItem('showEarnings', JSON.stringify(newState));
-    };
 
     const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
     const avgPriceWeek = (analytics.totalCutsWeek ?? 0) > 0 ? ((analytics.totalEarningsWeek ?? 0) / analytics.totalCutsWeek).toFixed(2) : '0.00';
@@ -926,7 +908,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
         <div className="card-header">
             <h2>Dashboard</h2>
             <button 
-                onClick={toggleEarnings} 
+                onClick={() => setShowEarnings(!showEarnings)} 
                 className="btn btn-secondary btn-icon-label"
             >
                 {showEarnings ? <IconEyeOff /> : <IconEye />}
@@ -1904,8 +1886,7 @@ const handleLogout = async (userId) => {
 
     // 2. CHECK SESSION BEFORE SIGNING OUT
     // This prevents the "403 Forbidden" error if the token is already dead.
-    const { data } = await supabase.auth.getSession();
-    const session = data?.session;
+    const { data: { session } } = await supabase.auth.getSession();
 
     if (session) {
         const { error: signOutError } = await supabase.auth.signOut();
@@ -1935,6 +1916,7 @@ function CustomerView({ session }) {
     const [customerName] = useState(() => session.user?.user_metadata?.full_name || '');
     const [customerEmail] = useState(() => session.user?.email || '');
     const [message, setMessage] = useState('');
+    const [player_id, setPlayerId] = useState(null);
     const [myQueueEntryId, setMyQueueEntryId] = useState(() => localStorage.getItem('myQueueEntryId') || null);
     const [joinedBarberId, setJoinedBarberId] = useState(() => localStorage.getItem('joinedBarberId') || null);
     const [liveQueue, setLiveQueue] = useState([]);
@@ -1966,9 +1948,6 @@ function CustomerView({ session }) {
     const liveQueueRef = useRef([]);
     const [selectedFile, setSelectedFile] = useState(null);
     const [referenceImageUrl, setReferenceImageUrl] = useState('');
-    const [serviceError, setServiceError] = useState(false);
-    const [barberError, setBarberError] = useState(false);
-    const [photoError, setPhotoError] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [isVIPToggled, setIsVIPToggled] = useState(false);
     const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
@@ -2007,7 +1986,6 @@ function CustomerView({ session }) {
     const [showIOSPrompt, setShowIOSPrompt] = useState(true);
     const [isMyReportsOpen, setIsMyReportsOpen] = useState(false);
     const [viewProduct, setViewProduct] = useState(null);
-    
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -2307,26 +2285,9 @@ function CustomerView({ session }) {
 
     const handleJoinQueue = async (e) => {
         e.preventDefault();
-
-        setServiceError(false);
-        setBarberError(false);
-        setPhotoError(false);
-
-
-        let valid = true;
-        if (!selectedServiceId) { setServiceError(true); valid = false; }
-        if (!selectedBarberId) { setBarberError(true); valid = false; }
-        if (selectedFile && !referenceImageUrl) { 
-            setPhotoError(true); 
-            valid = false; 
-        }
-
-
         if (!customerName || !selectedBarberId || !selectedServiceId) { setMessage('Name, Barber, AND Service required.'); return; }
         if (myQueueEntryId) { setMessage('You are already checked in!'); return; }
         if (selectedFile && !referenceImageUrl) { setMessage('Please click "Upload Photo" first!'); return; }
-
-        if (!valid) return;
 
         setIsLoading(true); setMessage('Joining queue...');
         try {
@@ -2336,6 +2297,7 @@ function CustomerView({ session }) {
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
+                player_id: player_id,
                 user_id: session.user.id,
                 is_vip: isVIPToggled,
                 head_count: headCount,
@@ -2351,7 +2313,6 @@ function CustomerView({ session }) {
                 setSelectedBarberId(''); setSelectedServiceId('');
                 setReferenceImageUrl(newEntry.reference_image_url || '');
                 fetchPublicQueue(newEntry.barber_id.toString());
-                registerPush(newEntry.id);
                 setIsVIPToggled(false);
             } else { throw new Error("Invalid response from server."); }
        } catch (error) {
@@ -2393,28 +2354,6 @@ function CustomerView({ session }) {
     } finally { 
         setIsLoading(false); 
     }
-    };
-
-    const handleConfirmAttendance = async () => {
-        setOptimisticMessage("Sending confirmation...");
-        try {
-            await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
-            
-            // ADD THESE LINES:
-            stopSound(queueNotificationSound);
-            stopBlinking();
-            if (navigator.vibrate) navigator.vibrate(0);
-            
-            setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
-            setTimeout(() => {
-                fetchPublicQueue(joinedBarberId);
-                setOptimisticMessage(null);
-            }, 1500);
-        } catch (e) { 
-            console.error(e);
-            setOptimisticMessage(null);
-            setMessage("Error: Could not confirm attendance.");
-        }
     };
 
     const handleBooking = async (e) => {
@@ -2650,17 +2589,7 @@ function CustomerView({ session }) {
             const onPositionUpdate = (position) => {
                 const { latitude, longitude } = position.coords;
                 const distance = getDistanceInMeters(latitude, longitude, BARBERSHOP_LAT, BARBERSHOP_LON);
-                const myEntry = liveQueue.find(e => e.id.toString() === myQueueEntryId);
                 
-
-                if (myEntry && myEntry.status === 'Up Next' && distance > DISTANCE_THRESHOLD_METERS) {
-                    if (!isTooFarModalOpen && !isOnCooldown) {
-                        localStorage.setItem('stickyModal', 'tooFar');
-                        setIsTooFarModalOpen(true);
-                        setIsOnCooldown(true);
-                    }
-                }
-
                 // 1. LOCAL ALERT LOGIC (Existing)
                 if (distance > DISTANCE_THRESHOLD_METERS && displayWait < 15) {
                     if (!isTooFarModalOpen && !isOnCooldown) {
@@ -2693,7 +2622,7 @@ function CustomerView({ session }) {
         
         return () => { if (locationWatchId.current) { navigator.geolocation.clearWatch(locationWatchId.current); } };
     
-    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, displayWait, liveQueue]);
+    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, displayWait]);
 
     useEffect(() => { // First Time Instructions
         const pendingFeedback = localStorage.getItem('pendingFeedback');
@@ -3340,10 +3269,7 @@ return (
                 {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                 {joinMode === 'now' && (
                     <form onSubmit={handleJoinQueue}>
-                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select>
-                        {serviceError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please select a service!</p>}
-                        </div>
-                        
+                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                         <div className="form-group">
                             <label>Group Size (Number of Heads):</label>
                             
@@ -3405,7 +3331,6 @@ return (
                         <div className="form-group photo-upload-group">
                             <label>Desired Haircut Photo (Optional):</label>
                             <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload" className="file-upload-input" />
-                            {photoError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please upload a photo!</p>}
                             <label htmlFor="file-upload" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
                             <button type="button" onClick={() => handleUploadPhoto(null)} disabled={!selectedFile || isUploading || referenceImageUrl} className="btn btn-secondary btn-icon-label">
                                 {isUploading ? <Spinner /> : <IconUpload />}
@@ -3418,7 +3343,6 @@ return (
                         <div className="form-group">
                             <label>Select Available Barber:</label>
                             {barbers.length > 0 ? (
-                                <>
                                 <div className="barber-selection-list">
                                     {barbers.map((barber) => (
                                         <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())}>
@@ -3431,8 +3355,6 @@ return (
                                         </button>
                                     ))}
                                 </div>
-                                {barberError && <p className="error-text small" style={{color:'var(--error-color)', marginTop:'5px'}}>⚠️ Please select a barber!</p>}
-                                </>
                             ) : (<p className="empty-text">No barbers are available right now.</p>)}
                             <input type="hidden" value={selectedBarberId} required />
                         </div>
@@ -3466,10 +3388,7 @@ return (
                             <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                         </div>))}
 
-                        {isIOsDevice() && showIOSPrompt && (<div className="message warning small" style={{position:'relative'}}>
-                            <b>iPhone Users:</b> Push alerts and sounds are not supported. Please keep this tab open and watch your email for notifications!
-                            <button onClick={() => setShowIOSPrompt(false)} style={{position:'absolute', top:'5px', right:'10px', background:'none', border:'none', fontSize:'1.2rem', cursor:'pointer'}}>×</button>
-                        </div>)}
+                        {isIOsDevice() && (<p className="message warning small"><b>iPhone Users:</b> Push alerts and sounds are not supported. Please keep this tab open and watch your email for notifications!</p>)}
                         
                         <button type="submit" disabled={isLoading || !selectedBarberId || barbers.length === 0 || isUploading} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
                             {isLoading ? <Spinner /> : 'Join Queue Now'}
@@ -3583,7 +3502,21 @@ return (
                     {optimisticMessage ? (<p className="success-message small" style={{textAlign: 'center'}}>{optimisticMessage}</p>) : (!myQueueEntry.is_confirmed ? (
                         <>
                             <p>Please confirm you are ready to take the chair.</p>
-                            <button className="btn btn-primary btn-full-width" style={{ marginTop: '10px' }} onClick={handleConfirmAttendance}>I'm Coming! 🏃‍♂️</button>
+                            <button className="btn btn-primary btn-full-width" style={{ marginTop: '10px' }} onClick={async () => {
+                                setOptimisticMessage("Sending confirmation...");
+                                try {
+                                    await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
+                                    setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
+                                    setTimeout(() => {
+                                        fetchPublicQueue(joinedBarberId);
+                                        setOptimisticMessage(null);
+                                    }, 1500);
+                                } catch (err) {
+                                    setOptimisticMessage(null);
+                                    console.error("Confirm failed", err);
+                                    setMessage("Error: Could not confirm attendance. Please try again.");
+                                }
+                            }}>I'm Coming! 🏃‍♂️</button>
                         </>
                     ) : (<p><strong>✅ Confirmed!</strong> The barber knows you are coming. Please enter the shop now.</p>))}
                 </div>)}
@@ -3989,7 +3922,7 @@ return (
                                             fontWeight:'bold',
                                             textTransform: 'uppercase'
                                         }}>
-                                            {statusText}
+                                            {appt.is_converted_to_queue ? 'Live in Queue' : appt.status}
                                         </span>
                                     </div>
                                     
