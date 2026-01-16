@@ -1916,7 +1916,6 @@ function CustomerView({ session }) {
     const [customerName] = useState(() => session.user?.user_metadata?.full_name || '');
     const [customerEmail] = useState(() => session.user?.email || '');
     const [message, setMessage] = useState('');
-    const [player_id, setPlayerId] = useState(null);
     const [myQueueEntryId, setMyQueueEntryId] = useState(() => localStorage.getItem('myQueueEntryId') || null);
     const [joinedBarberId, setJoinedBarberId] = useState(() => localStorage.getItem('joinedBarberId') || null);
     const [liveQueue, setLiveQueue] = useState([]);
@@ -3388,7 +3387,20 @@ return (
                             <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                         </div>))}
 
-                        {isIOsDevice() && (<p className="message warning small"><b>iPhone Users:</b> Push alerts and sounds are not supported. Please keep this tab open and watch your email for notifications!</p>)}
+                        {isIOsDevice() && showIOSPrompt && (
+                            <div className="message warning small" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                                <span>
+                                    <b>iPhone Users:</b> Push alerts/sounds are not supported. Please keep this tab open!
+                                </span>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowIOSPrompt(false)}
+                                    style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        )}
                         
                         <button type="submit" disabled={isLoading || !selectedBarberId || barbers.length === 0 || isUploading} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
                             {isLoading ? <Spinner /> : 'Join Queue Now'}
