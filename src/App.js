@@ -1251,32 +1251,6 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     }, [barberId, fetchQueueDetails, onQueueUpdate]); // <-- Add setUnreadMessages here
 
     useEffect(() => {
-        const handleVisibility = () => {
-            if (document.visibilityState === 'visible') {
-                console.log("Barber tab is visible, re-syncing unread messages...");
-                const saved = localStorage.getItem('barberUnreadMessages');
-                const unread = saved ? JSON.parse(saved) : {};
-                setUnreadMessages(unread);
-            }
-        };
-
-        const handleFocus = () => {
-            console.log("Barber tab is focused, re-syncing unread messages...");
-            const saved = localStorage.getItem('barberUnreadMessages');
-            const unread = saved ? JSON.parse(saved) : {};
-            setUnreadMessages(unread);
-        };
-
-        document.addEventListener("visibilitychange", handleVisibility);
-        window.addEventListener("focus", handleFocus);
-
-        return () => {
-            document.removeEventListener("visibilitychange", handleVisibility);
-            window.removeEventListener("focus", handleFocus);
-        };
-    }, [setUnreadMessages]); // <-- Make sure to add setUnreadMessages here
-
-    useEffect(() => {
         if (!barberId || !supabase) return;
 
         const chatChannel = supabase.channel(`barber_global_chat_${barberId}`)
@@ -1446,19 +1420,15 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             setOpenChatCustomerId(customerUserId);
             setOpenChatQueueId(queueId);
 
-            // --- 1. SERVER: Mark messages as Read in Database ---
-            // We do this immediately so the server knows the barber has seen them.
+            // 1. SERVER: Mark messages as Read
             axios.put(`${API_URL}/chat/read`, { 
                 queueId: queueId, 
                 readerId: session.user.id 
             }).catch(err => console.error("Failed to mark messages as read:", err));
 
-            // --- 2. LOCAL UI: Remove Badge Immediately (Optimistic Update) ---
-            // This updates the 'queueDetails' state directly so the badge disappears instantly
-            // without waiting for a re-fetch.
+            // 2. LOCAL UI: Remove Badge Immediately (Optimistic Update)
             setQueueDetails(prev => {
                 const updateEntry = (entry) => {
-                    // If this entry matches the one we just opened, reset unread_count to 0
                     if (entry && entry.id === queueId) {
                         return { ...entry, unread_count: 0 };
                     }
@@ -1473,16 +1443,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                 };
             });
 
-            // --- 3. CLEANUP: Clear legacy local storage state (Safety Net) ---
-            // Keeps your old notification system from conflicting if it's still running in the background.
-            setUnreadMessages(prev => {
-                const updated = { ...prev };
-                delete updated[customerUserId];
-                localStorage.setItem('barberUnreadMessages', JSON.stringify(updated));
-                return updated;
-            });
-
-            // --- 4. DATA: Fetch Chat History ---
+            // 3. DATA: Fetch Chat History
             const fetchHistory = async () => {
                 try {
                     const { data, error } = await supabase
