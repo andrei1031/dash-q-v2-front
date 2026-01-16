@@ -1145,31 +1145,29 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             const response = await axios.get(`${API_URL}/queue/details/${barberId}`);
             let data = response.data;
 
-            // --- SMOOTH UI FIX ---
-            // Before updating the screen, check if we are currently chatting with someone.
-            // If yes, ensure their badge stays at 0, regardless of what the server says.
+            // --- FIX: Force Badge to 0 if Chat is Open ---
+            // This prevents the "Badge Reappearing" bug during auto-refresh
             if (openChatQueueId) {
                 const clearBadge = (entry) => {
-                    // If this entry matches the chat window currently open...
+                    // If this customer matches the chat I have open...
                     if (entry && entry.id === openChatQueueId) {
-                        return { ...entry, unread_count: 0 }; // ...keep the badge off.
+                        return { ...entry, unread_count: 0 }; // ...force badge to 0 locally.
                     }
                     return entry;
                 };
 
-                // Apply this check to all lists
+                // Apply this fix to all lists
                 if (data.inProgress) data.inProgress = clearBadge(data.inProgress);
                 if (data.upNext) data.upNext = clearBadge(data.upNext);
                 if (data.waiting) data.waiting = data.waiting.map(clearBadge);
             }
-            // ---------------------
+            // ---------------------------------------------
 
             setQueueDetails(data);
         } catch (err) {
             console.error('[BarberDashboard] Queue fetch error:', err);
-            // Don't wipe the screen on error, just log it.
         }
-    }, [barberId, openChatQueueId]); // <--- Added openChatQueueId so it updates when you open/close chats
+    }, [barberId, openChatQueueId]); // <--- CRITICAL: Depends on openChatQueueId// <--- Added openChatQueueId so it updates when you open/close chats
 
 
     // Add this useEffect inside BarberDashboard
