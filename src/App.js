@@ -2319,23 +2319,43 @@ function CustomerView({ session }) {
             if (currentQueueId) {
                 const myEntry = queueData.find(e => e.id.toString() === currentQueueId);
 
-                if (myEntry && (myEntry.status === 'In Progress' || myEntry.status === 'Up Next')) {
-                    const modalFlag = localStorage.getItem('stickyModal');
-                    if (modalFlag !== 'yourTurn') {
-                        console.log(`[Catcher] Status Update: ${myEntry.status}`);
-                        playSound(queueNotificationSound);
-                        if (myEntry.status === 'In Progress') startBlinking(TURN_TITLE);
-                        else if (myEntry.status === 'Up Next') startBlinking(NEXT_UP_TITLE);
-                        localStorage.setItem('stickyModal', 'yourTurn');
-                        if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-                    }
-                } else if (myEntry && myEntry.status === 'Waiting') {
-                    stopBlinking();
-                    if (localStorage.getItem('stickyModal') === 'yourTurn') {
-                         localStorage.removeItem('stickyModal');
+                if (myEntry) {
+                    // 1. "UP NEXT" LOGIC
+                    if (myEntry.status === 'Up Next') {
+                        // Check if ALREADY confirmed
+                        if (myEntry.is_confirmed) {
+                            stopBlinking(); // Stop blinking immediately
+                            // Do NOT play sound
+                        } else {
+                            // Only play if NOT confirmed yet
+                            const modalFlag = localStorage.getItem('stickyModal');
+                            if (modalFlag !== 'yourTurn') {
+                                playSound(queueNotificationSound);
+                                startBlinking(NEXT_UP_TITLE);
+                                localStorage.setItem('stickyModal', 'yourTurn');
+                                if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                            }
+                        }
+                    } 
+                    // 2. "IN PROGRESS" LOGIC
+                    else if (myEntry.status === 'In Progress') {
+                        const modalFlag = localStorage.getItem('stickyModal');
+                        if (modalFlag !== 'yourTurn') {
+                            playSound(queueNotificationSound);
+                            startBlinking(TURN_TITLE);
+                            localStorage.setItem('stickyModal', 'yourTurn');
+                        }
+                    } 
+                    // 3. "WAITING" LOGIC
+                    else if (myEntry.status === 'Waiting') {
+                        stopBlinking();
+                        if (localStorage.getItem('stickyModal') === 'yourTurn') {
+                             localStorage.removeItem('stickyModal');
+                        }
                     }
                 }
             }
+            
 
             // --- FIX: TRANSFER & MISSED EVENT DETECTION ---
             if (currentQueueId) {
@@ -2828,14 +2848,20 @@ function CustomerView({ session }) {
                 const { latitude, longitude } = position.coords;
                 const distance = getDistanceInMeters(latitude, longitude, BARBERSHOP_LAT, BARBERSHOP_LON);
                 
-                // 1. LOCAL ALERT LOGIC (Existing)
+                // Find my current entry status from the Ref (so it's always fresh)
+                const myEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
+
+                // 1. LOCAL ALERT LOGIC (Modified)
+                // ADDED: && !myEntry?.is_confirmed
                 if (distance > DISTANCE_THRESHOLD_METERS && displayWait < 15) {
-                    if (!isTooFarModalOpen && !isOnCooldown) {
+                    // Only trigger if I haven't clicked "I'm Coming" yet
+                    if (!isTooFarModalOpen && !isOnCooldown && !myEntry?.is_confirmed) {
                         localStorage.setItem('stickyModal', 'tooFar');
                         setIsTooFarModalOpen(true);
                         setIsOnCooldown(true);
                     }
                 } else {
+                    // If I'm close OR I confirmed, clear the cooldown
                     if (isOnCooldown) { setIsOnCooldown(false); }
                 }
 
@@ -2941,16 +2967,27 @@ function CustomerView({ session }) {
             queueChannel = supabase.channel(`public_queue_${joinedBarberId}`)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${joinedBarberId}` }, (payload) => {
                     console.log("Realtime Update Received:", payload);
+                    
                     if (payload.eventType === 'UPDATE' && payload.new.id.toString() === myQueueEntryId) {
                         const newStatus = payload.new.status;
-                        console.log(`My status updated to: ${newStatus}`);
+                        const isConfirmed = payload.new.is_confirmed; // <--- Get confirmation status
+
+                        console.log(`My status updated to: ${newStatus} (Confirmed: ${isConfirmed})`);
+                        
                         if (newStatus === 'Up Next') {
-                            playSound(queueNotificationSound);
-                            startBlinking(NEXT_UP_TITLE);
-                            localStorage.setItem('stickyModal', 'yourTurn');
-                            if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                            if (isConfirmed) {
+                                // If I just confirmed, STOP everything
+                                stopBlinking();
+                            } else {
+                                // Only alert if NOT confirmed
+                                playSound(queueNotificationSound);
+                                startBlinking(NEXT_UP_TITLE);
+                                localStorage.setItem('stickyModal', 'yourTurn');
+                                if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                            }
                         }
                         else if (newStatus === 'In Progress') { 
+                            // ... (Keep existing logic) ...
                             playSound(queueNotificationSound);
                             startBlinking(TURN_TITLE);
                             localStorage.setItem('stickyModal', 'yourTurn');
@@ -3789,6 +3826,7 @@ return (
                             <p>Please confirm you are ready to take the chair.</p>
                             <button className="btn btn-primary btn-full-width" style={{ marginTop: '10px' }} onClick={async () => {
                                 setOptimisticMessage("Sending confirmation...");
+                                stopBlinking(); // <--- ADD THIS: Stop blinking immediately on click
                                 try {
                                     await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
                                     setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
