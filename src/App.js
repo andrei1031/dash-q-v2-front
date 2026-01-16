@@ -2077,7 +2077,6 @@ function CustomerView({ session }) {
     const [hasUnreadFromBarber, setHasUnreadFromBarber] = useState(() => localStorage.getItem('hasUnreadFromBarber') === 'true');
     const [chatMessagesFromBarber, setChatMessagesFromBarber] = useState([]);
     const [optimisticMessage, setOptimisticMessage] = useState(null);
-    const [displayWait, setDisplayWait] = useState(0);
     const [finishTime, setFinishTime] = useState(() => {
         const saved = localStorage.getItem('targetFinishTime');
         return saved ? parseInt(saved, 10) : 0;
@@ -2198,14 +2197,13 @@ function CustomerView({ session }) {
         stopBlinking();
         localStorage.removeItem('myQueueEntryId'); 
         localStorage.removeItem('joinedBarberId');
-        localStorage.removeItem('displayWait');
         localStorage.removeItem('targetFinishTime'); 
         localStorage.removeItem('pendingFeedback');// <-- ADD THIS
         setMyQueueEntryId(null); setJoinedBarberId(null);
         setLiveQueue([]); setQueueMessage(''); setSelectedBarberId('');
         setSelectedServiceId(''); setMessage('');
         setIsChatOpen(false);
-        setChatMessagesFromBarber([]); setDisplayWait(0);
+        setChatMessagesFromBarber([]);
         setReferenceImageUrl('');
         setSelectedFile(null);
         setIsUploading(false);
@@ -3113,10 +3111,6 @@ function CustomerView({ session }) {
                 }
             }
             
-            // Update UI Minutes
-            const targetToUse = myQueueEntryId ? parseInt(localStorage.getItem('targetFinishTime') || calculatedTarget) : calculatedTarget;
-            const remainingMins = Math.max(0, Math.ceil((targetToUse - now) / 60000));
-            setDisplayWait(remainingMins);
         };
         
         if (liveQueue.length > 0 || myQueueEntryId) {
@@ -3154,24 +3148,6 @@ function CustomerView({ session }) {
         };
     }, [isServiceCompleteModalOpen, isCancelledModalOpen, isTooFarModalOpen]); // Dependencies are only for the remaining modals
 
-    // --- ADD THIS NEW BLOCK ---
-    useEffect(() => { // UI Re-render Timer (Checks Timestamp)
-        if (!myQueueEntryId) return;
-
-        // Update the UI every 5 seconds to keep the minute accurate
-        const timerId = setInterval(() => { 
-            const storedTarget = localStorage.getItem('targetFinishTime');
-            if (storedTarget) {
-                const target = parseInt(storedTarget, 10);
-                const now = Date.now();
-                // Calculate remaining minutes based on Real Time
-                const remaining = Math.max(0, Math.ceil((target - now) / 60000));
-                setDisplayWait(remaining);
-            }
-        }, 5000); 
-
-        return () => clearInterval(timerId);
-    }, [myQueueEntryId]);
     // --- Render Customer View ---
 // App.js (Inside function CustomerView({ session }) { ... })
 
