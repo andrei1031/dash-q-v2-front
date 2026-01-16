@@ -1150,7 +1150,7 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
             if (openChatQueueId) {
                 const clearBadge = (entry) => {
                     // If this customer matches the chat I have open...
-                    if (entry && entry.id === openChatQueueId) {
+                    if (entry && entry.id == openChatQueueId) {
                         return { ...entry, unread_count: 0 }; // ...force badge to 0 locally.
                     }
                     return entry;
