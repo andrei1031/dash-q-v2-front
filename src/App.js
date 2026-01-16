@@ -2456,23 +2456,10 @@ function CustomerView({ session }) {
 
     const handleJoinQueue = async (e) => {
         e.preventDefault();
-        if (!customerName || !selectedBarberId || !selectedServiceId) { setMessage('Name, Barber, AND Service required.'); return; }
         // 1. Check Service SPECIFICALLY first to show the red warning
         if (!selectedServiceId) {
             setMessage('⚠️ Please select a service before joining the queue.');
             return;
-        }
-
-        // 2. Check Barber
-        if (!selectedBarberId) { 
-             setMessage('⚠️ Please select a barber.'); 
-             return; 
-        }
-        
-        // 3. Check Name (Safety check)
-        if (!customerName) { 
-             setMessage('Error: Customer name is missing.'); 
-             return; 
         }
         if (myQueueEntryId) { setMessage('You are already checked in!'); return; }
         if (selectedFile && !referenceImageUrl) { setMessage('Please click "Upload Photo" first!'); return; }
@@ -3484,19 +3471,7 @@ return (
                 {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                 {joinMode === 'now' && (
                     <form onSubmit={handleJoinQueue}>
-                        <label>Select Service:</label>
-                        <select 
-                            value={selectedServiceId} 
-                            onChange={(e) => setSelectedServiceId(e.target.value)} 
-                            /* 🟢 REMOVED "required" ATTRIBUTE HERE */
-                        >
-                            <option value="">-- Choose service --</option>
-                            {services.map((service) => (
-                                <option key={service.id} value={service.id}>
-                                    {service.name} ({service.duration_minutes} min / ₱{service.price_php})
-                                </option>
-                            ))}
-                        </select>
+                        <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                         <div className="form-group">
                             <label>Group Size (Number of Heads):</label>
                             
