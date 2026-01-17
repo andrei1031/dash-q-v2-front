@@ -855,12 +855,10 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
 
 // --- Component: AnalyticsDashboard (FIXED: PERSISTENT HIDE) ---
 function AnalyticsDashboard({ barberId, refreshSignal }) {
-    // 1. Initialize from Browser Memory (LocalStorage)
-    // This ensures it remembers your choice even after a page reload.
     const [showEarnings, setShowEarnings] = useState(() => {
         if (!barberId) return true;
         const saved = localStorage.getItem(`barber_privacy_${barberId}`);
-        return saved !== null ? JSON.parse(saved) : true;
+        return saved !== null ? JSON.parse(saved) : true; // Default to true if nothing saved
     });
 
     const [analytics, setAnalytics] = useState({ 
@@ -879,33 +877,30 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
     const handleTogglePrivacy = () => {
         const newState = !showEarnings;
         setShowEarnings(newState);
-        // Save to browser immediately
+        // Save to browser immediately with a unique key for this barber
         localStorage.setItem(`barber_privacy_${barberId}`, JSON.stringify(newState));
     };
 
-    const fetchAnalytics = useCallback(async (isBackground = false) => {
+    const fetchAnalytics = useCallback(async (isRefreshClick = false) => {
         if (!barberId) return;
         setError('');
 
-        // Only show spinner on FIRST load, never on background refresh
-        if (!isBackground) setIsLoading(true);
-        else setIsRefreshing(true);
+        if (isRefreshClick) setIsRefreshing(true); 
+        // Note: We removed setIsLoading(true) in the previous fix to stop flashing
 
         try {
             const response = await axios.get(`${API_URL}/analytics/${barberId}`);
-            setAnalytics(prev => ({ ...prev, ...response.data }));
+            setAnalytics({ dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, ...response.data });
             
-            // 🟢 CRITICAL FIX: We DO NOT overwrite 'showEarnings' here anymore.
-            // We trust the LocalStorage state initialized above.
 
             const feedbackResponse = await axios.get(`${API_URL}/feedback/${barberId}`);
             setFeedback(feedbackResponse.data || []);
 
         } catch (err) {
             console.error('Failed fetch analytics:', err);
-            if (!isBackground) setError('Could not load dashboard data.');
+            // setError('Could not load dashboard data.'); // Optional: keep silent on background refresh
         } finally {
-            if (!isBackground) setIsLoading(false);
+            setIsLoading(false);
             setIsRefreshing(false);
         }
     }, [barberId]);
@@ -938,7 +933,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             <div className="card-header">
                 <h2>Dashboard</h2>
                 <button 
-                    onClick={handleTogglePrivacy} 
+                    onClick={handleTogglePrivacy} // <--- CHANGE THIS to use the new handler
                     className="btn btn-secondary btn-icon-label"
                 >
                     {showEarnings ? <IconEyeOff /> : <IconEye />}
