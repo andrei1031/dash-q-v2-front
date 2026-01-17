@@ -853,12 +853,12 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
 );
 }
 
-// --- Component: AnalyticsDashboard (FIXED: PERSISTENT HIDE) ---
 function AnalyticsDashboard({ barberId, refreshSignal }) {
+    // 1. Initialize from Browser Memory (LocalStorage)
     const [showEarnings, setShowEarnings] = useState(() => {
         if (!barberId) return true;
         const saved = localStorage.getItem(`barber_privacy_${barberId}`);
-        return saved !== null ? JSON.parse(saved) : true; // Default to true if nothing saved
+        return saved !== null ? JSON.parse(saved) : true;
     });
 
     const [analytics, setAnalytics] = useState({ 
@@ -873,11 +873,10 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const { theme } = useTheme();
 
-    // 2. Toggle Handler (Saves to Memory)
+    // 2. Custom Toggle Handler (Saves to Memory)
     const handleTogglePrivacy = () => {
         const newState = !showEarnings;
         setShowEarnings(newState);
-        // Save to browser immediately with a unique key for this barber
         localStorage.setItem(`barber_privacy_${barberId}`, JSON.stringify(newState));
     };
 
@@ -885,32 +884,36 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
         if (!barberId) return;
         setError('');
 
-        if (isRefreshClick) setIsRefreshing(true); 
-        // Note: We removed setIsLoading(true) in the previous fix to stop flashing
+        if (isRefreshClick) setIsRefreshing(true);
 
         try {
             const response = await axios.get(`${API_URL}/analytics/${barberId}`);
-            setAnalytics({ dailyData: [], busiestDay: { name: 'N/A', earnings: 0 }, ...response.data });
             
+            setAnalytics(prev => ({ 
+                ...prev,
+                dailyData: [], 
+                busiestDay: { name: 'N/A', earnings: 0 }, 
+                ...response.data 
+            }));
 
             const feedbackResponse = await axios.get(`${API_URL}/feedback/${barberId}`);
             setFeedback(feedbackResponse.data || []);
 
         } catch (err) {
             console.error('Failed fetch analytics:', err);
-            // setError('Could not load dashboard data.'); // Optional: keep silent on background refresh
+            if (isLoading) setError('Could not load dashboard data.');
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [barberId]);
+    }, [barberId, isLoading]);
 
-    // Initial Load
-    useEffect(() => { fetchAnalytics(false); }, [barberId, fetchAnalytics]);
-
-    // Background Refresh (New Cut / 5s Timer)
     useEffect(() => { 
-        if (refreshSignal > 0) fetchAnalytics(true); 
+        fetchAnalytics(false); 
+    }, [barberId, fetchAnalytics]);
+
+    useEffect(() => { 
+        if (refreshSignal > 0) fetchAnalytics(false); 
     }, [refreshSignal, fetchAnalytics]);
 
     // --- CHART CONFIG ---
@@ -933,7 +936,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             <div className="card-header">
                 <h2>Dashboard</h2>
                 <button 
-                    onClick={handleTogglePrivacy} // <--- CHANGE THIS to use the new handler
+                    onClick={handleTogglePrivacy} 
                     className="btn btn-secondary btn-icon-label"
                 >
                     {showEarnings ? <IconEyeOff /> : <IconEye />}
@@ -944,28 +947,37 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             <div className="card-body">
                 {error && <p className="error-message">{error}</p>}
                 
+                {/* --- SECTION 1: TODAY (Immediate Performance) --- */}
                 <h3 className="analytics-subtitle">Today</h3>
-                {isLoading ? <p className="empty-text">Loading dashboard data...</p> : (
-                    <>
-                        <div className="analytics-grid">
-                            {/* 🟢 CONDITIONAL RENDERING BASED ON PERSISTENT STATE */}
-                            {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
-                            
-                            <div className="analytics-item"><span className="analytics-label">Cuts</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
-                            
-                            {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceToday}</span></div>}
-                            
-                            <div className="analytics-item"><span className="analytics-label">Queue Size</span><span className="analytics-value small">{analytics.currentQueueSize ?? 0}</span></div>
-                        </div>
+                <div className="analytics-grid">
+                    {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
+                    <div className="analytics-item"><span className="analytics-label">Cuts Today</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
+                    {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceToday}</span></div>}
+                    <div className="analytics-item"><span className="analytics-label">Current Queue</span><span className="analytics-value small">{analytics.currentQueueSize ?? 0}</span></div>
+                </div>
 
-                        <h3 className="analytics-subtitle">Last 7 Days</h3>
-                        <div className="analytics-grid">
-                            {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
-                            <div className="analytics-item"><span className="analytics-label">Total Cuts</span><span className="analytics-value">{analytics.totalCutsWeek ?? 0}</span></div>
-                            <div className="analytics-item"><span className="analytics-label">All-Time</span><span className="analytics-value small">{analytics.totalCutsAllTime ?? 0} Cuts</span></div>
-                        </div>
-                    </>
-                )}
+                {/* --- SECTION 2: WEEKLY (Trends & Planning) --- */}
+                <h3 className="analytics-subtitle">Last 7 Days</h3>
+                <div className="analytics-grid">
+                    {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
+                    
+                    <div className="analytics-item"><span className="analytics-label">Total Cuts</span><span className="analytics-value">{analytics.totalCutsWeek ?? 0}</span></div>
+                    
+                    {/* --- 🟢 RESTORED: BUSIEST DAY --- */}
+                    <div className="analytics-item">
+                        <span className="analytics-label">Busiest Day</span>
+                        <span className="analytics-value small" style={{fontSize: '1.2rem'}}>
+                            {analytics.busiestDay?.name || 'N/A'}
+                            {showEarnings && analytics.busiestDay?.earnings > 0 && (
+                                <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px'}}>
+                                    (₱{analytics.busiestDay.earnings})
+                                </div>
+                            )}
+                        </span>
+                    </div>
+
+                    <div className="analytics-item"><span className="analytics-label">All-Time Cuts</span><span className="analytics-value small">{analytics.totalCutsAllTime ?? 0}</span></div>
+                </div>
                 
                 <div className="carbon-footprint-section">
                     <h3 className="analytics-subtitle">🌱 Shop Carbon Savings</h3>
@@ -982,7 +994,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
                     </div>
                 </div>
 
-                {showEarnings && !isLoading && (
+                {showEarnings && (
                     <div className="chart-container">
                         {dailyDataSafe.length > 0 ? (
                             <div style={{ height: '200px' }}><Bar options={chartOptions} data={chartData} /></div>
