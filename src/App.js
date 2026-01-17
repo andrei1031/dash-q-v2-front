@@ -2109,6 +2109,12 @@ function CustomerView({ session }) {
         const saved = localStorage.getItem('targetFinishTime');
         return saved ? parseInt(saved, 10) : 0;
     });
+
+    const [travelDirection, setTravelDirection] = useState(null); // 'closing', 'away', or null
+    const [etaMinutes, setEtaMinutes] = useState(null);
+    const [hasArrived, setHasArrived] = useState(false); // TRUE if < 20m
+    const lastDistanceRef = useRef(null);
+
     const [isTooFarModalOpen, setIsTooFarModalOpen] = useState(false);
     const [isOnCooldown, setIsOnCooldown] = useState(false);
     const locationWatchId = useRef(null);
@@ -2690,6 +2696,23 @@ function CustomerView({ session }) {
         return () => clearInterval(interval);
     }, [myQueueEntryId, joinedBarberId]);
 
+
+    const handleConfirmAttendance = async () => {
+        try {
+            await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
+            stopSound(queueNotificationSound); // Stop the noise
+            stopBlinking();
+            if (navigator.vibrate) navigator.vibrate(0);
+            
+            // Optimistic update
+            setOptimisticMessage("✅ Confirmed! Welcome to the shop.");
+            setTimeout(() => setOptimisticMessage(null), 3000);
+        } catch (e) { 
+            console.error(e);
+            setMessage("Failed to confirm. Please try again.");
+        }
+    };
+
     // FUNCTION: Handle the switch
     const handleSelfTransfer = async () => {
         if (!freeBarber) return;
@@ -2780,57 +2803,80 @@ function CustomerView({ session }) {
             fetchLoyaltyHistory(session.user.id);
         }
     }, [viewMode, session?.user?.id, fetchLoyaltyHistory]);
-    useEffect(() => { // Geolocation Watcher + Uploader
-        const BARBERSHOP_LAT = 16.414830431367967;
-        const BARBERSHOP_LON = 120.59712292628716;
-        const DISTANCE_THRESHOLD_METERS = 200;
-
-        if (!('geolocation' in navigator)) { console.warn('Geolocation not available.'); return; }
-
-        if (myQueueEntryId) {
-            const onPositionUpdate = (position) => {
-                const { latitude, longitude } = position.coords;
-                const distance = getDistanceInMeters(latitude, longitude, BARBERSHOP_LAT, BARBERSHOP_LON);
-                
-                // Find my current entry status from the Ref (so it's always fresh)
-                const myEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
-
-                // 1. LOCAL ALERT LOGIC (Modified)
-                // --- ✅ FIX START: Check Confirmation ---
-                if (distance > DISTANCE_THRESHOLD_METERS && myEntry?.status === 'Up Next') {
-                    // Only trigger if I haven't clicked "I'm Coming" yet
-                    if (!isTooFarModalOpen && !isOnCooldown && !myEntry?.is_confirmed) {
-                        localStorage.setItem('stickyModal', 'tooFar');
-                        setIsTooFarModalOpen(true);
-                        setIsOnCooldown(true);
-                    }
-                } else {
-                    // If I'm close OR I confirmed, clear the cooldown
-                    if (isOnCooldown) { setIsOnCooldown(false); }
-                }
-
-                // 2. SERVER UPLOAD LOGIC (New)
-                // We limit uploads to once every 60 seconds to save battery/data
-                const now = Date.now();
-                if (now - lastUploadTime.current > 60000) { 
-                    console.log(`[X-Ray] Uploading distance: ${Math.round(distance)}m`);
-                    axios.put(`${API_URL}/queue/location`, {
-                        queueId: myQueueEntryId,
-                        distance: distance
-                    }).catch(err => console.error("Loc upload failed", err));
-                    
-                    lastUploadTime.current = now;
-                }
-            };
-            
-            const onPositionError = (err) => { console.warn(`GPS Error: ${err.message}`); };
-            
-            locationWatchId.current = navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-        }
+    useEffect(() => { 
+        const BARBERSHOP_LAT = 16.414830; // Update with real coords
+        const BARBERSHOP_LON = 120.597122;
         
-        return () => { if (locationWatchId.current) { navigator.geolocation.clearWatch(locationWatchId.current); } };
-    
-    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown]);
+        // 1. Distance Thresholds
+        const WARNING_DISTANCE = 300; // Meters to trigger "Too Far"
+        const ARRIVAL_DISTANCE = 30;  // Meters to trigger "Green Light"
+        const WALKING_SPEED_MPM = 80; // Approx 80 meters per minute (average walking speed)
+
+        if (!myQueueEntryId || !('geolocation' in navigator)) return;
+
+        const onPositionUpdate = (position) => {
+            const { latitude, longitude } = position.coords;
+            const currentDist = getDistanceInMeters(latitude, longitude, BARBERSHOP_LAT, BARBERSHOP_LON);
+            const prevDist = lastDistanceRef.current;
+
+            // A. DIRECTION & VELOCITY LOGIC
+            if (prevDist !== null) {
+                // If moved more than 3 meters (filter GPS jitter)
+                if (Math.abs(currentDist - prevDist) > 3) {
+                    if (currentDist < prevDist) setTravelDirection('closing'); // ⬇️ Getting closer
+                    else setTravelDirection('away'); // ⬆️ Moving away
+                }
+            }
+            lastDistanceRef.current = currentDist;
+
+            // B. ETA CALCULATION
+            // Simple formula: Distance / Speed
+            const estimatedMins = Math.ceil(currentDist / WALKING_SPEED_MPM);
+            setEtaMinutes(estimatedMins);
+
+            // C. ARRIVAL "GREEN LIGHT" DETECTION
+            if (currentDist <= ARRIVAL_DISTANCE) {
+                if (!hasArrived) {
+                    setHasArrived(true); // Unlock the button!
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Success buzz
+                }
+            } else {
+                setHasArrived(false);
+            }
+
+            // D. SERVER UPLOAD (Keep existing throttling)
+            const now = Date.now();
+            if (now - lastUploadTime.current > 60000) { 
+                axios.put(`${API_URL}/queue/location`, {
+                    queueId: myQueueEntryId,
+                    distance: currentDist
+                }).catch(e => console.error("Loc upload fail"));
+                lastUploadTime.current = now;
+            }
+
+            // E. "TOO FAR" ALERT (Only if Up Next)
+            const myEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
+            if (myEntry && myEntry.status === 'Up Next' && currentDist > WARNING_DISTANCE) {
+                if (!isTooFarModalOpen && !isOnCooldown) {
+                    localStorage.setItem('stickyModal', 'tooFar');
+                    setIsTooFarModalOpen(true);
+                    setIsOnCooldown(true);
+                }
+            }
+        };
+
+        const onError = (err) => console.warn("GPS Error:", err);
+        
+        locationWatchId.current = navigator.geolocation.watchPosition(onPositionUpdate, onError, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 10000
+        });
+
+        return () => {
+            if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current);
+        };
+    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, hasArrived]);
 
     useEffect(() => { // First Time Instructions
         const pendingFeedback = localStorage.getItem('pendingFeedback');
@@ -3394,22 +3440,25 @@ return (
         
         {/* Too Far Modal */}
         <div className="modal-overlay" style={{ display: isTooFarModalOpen ? 'flex' : 'none' }}>
-            <div className="modal-content">
-                <div className="modal-body"><h2>A Friendly Reminder!</h2><p>Hey, please don’t wander off too far...</p></div>
-                <div className="modal-footer">
-                    <button id="close-too-far-modal-btn" onClick={() => {
-                        setIsTooFarModalOpen(false);
-                        localStorage.removeItem('stickyModal');
-                        console.log("Cooldown started.");
-                        setTimeout(() => { console.log("Cooldown finished."); setIsOnCooldown(false); }, 300000);
-                    }}
-                    className="btn btn-primary"
-                    >
-                        {isModalButtonDisabled ? `Please wait (${modalCountdown})...` : "Okay, I'll stay close"}
-                    </button>
+                <div className="modal-content">
+                    <div className="modal-body">
+                        <h2 style={{color: 'var(--error-color)'}}>⚠️ You are drifting away!</h2>
+                        <p>You are moving further from the shop.</p>
+                        <p><strong>ETA to return: ~{etaMinutes} mins</strong></p>
+                        <p>Please head back so you don't lose your spot!</p>
+                    </div>
+                    <div className="modal-footer">
+                        <button onClick={() => {
+                            setIsTooFarModalOpen(false);
+                            localStorage.removeItem('stickyModal');
+                            setIsOnCooldown(true);
+                            setTimeout(() => setIsOnCooldown(false), 300000);
+                        }} className="btn btn-primary">
+                            I'm Turning Back 🏃‍♂️
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
 
         {/* VIP Modal */}
         <div className="modal-overlay" style={{ display: isVIPModalOpen ? 'flex' : 'none' }}>
@@ -3740,42 +3789,52 @@ return (
             <div className="live-queue-view card-body">
                 {/* --- YOUR LIVE QUEUE CONTENT GOES HERE --- */}
                 {myQueueEntry?.status === 'In Progress' && (<div className="status-banner in-progress-banner"><h2><IconCheck /> It's Your Turn!</h2><p>The barber is calling you now.</p></div>)}
-                {myQueueEntry?.status === 'Up Next' && (<div className={`status-banner up-next-banner ${myQueueEntry.is_confirmed ? 'confirmed-pulse' : ''}`}>
-                    <h2><IconNext /> You're Up Next!</h2>
-                    {optimisticMessage ? (<p className="success-message small" style={{textAlign: 'center'}}>{optimisticMessage}</p>) : (!myQueueEntry.is_confirmed ? (
-                        <>
-                            <p>Please confirm you are ready to take the chair.</p>
-                            <button className="btn btn-primary btn-full-width" style={{ marginTop: '10px' }} onClick={async () => {
-                                setOptimisticMessage("Sending confirmation...");
-                                stopBlinking(); // <--- ADD THIS: Stop blinking immediately on click
-                                try {
-                                    await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
-                                    
-                                    // --- FIX: Update local state immediately to prevent button flicker ---
-                                    setLiveQueue(prev => {
-                                        const updated = prev.map(entry => 
-                                            entry.id.toString() === myQueueEntryId 
-                                                ? { ...entry, is_confirmed: true } 
-                                                : entry
-                                        );
-                                        liveQueueRef.current = updated; // Update ref for geolocation check
-                                        return updated;
-                                    });
+                {myQueueEntry?.status === 'Up Next' && (
+                        <div className={`status-banner up-next-banner ${myQueueEntry.is_confirmed ? 'confirmed-pulse' : ''}`}>
+                            <h2><IconNext /> You're Up Next!</h2>
+                            
+                            {optimisticMessage ? (
+                                <p className="success-message small" style={{textAlign: 'center'}}>{optimisticMessage}</p>
+                            ) : myQueueEntry.is_confirmed ? (
+                                <p><strong>✅ Confirmed!</strong> Please sit in the waiting area.</p>
+                            ) : (
+                                <>
+                                    {/* STATUS INDICATORS */}
+                                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
+                                        <span>
+                                            {travelDirection === 'closing' ? '⬇️ Closing in...' : travelDirection === 'away' ? '⬆️ Moving away...' : '📍 Location active'}
+                                        </span>
+                                        <span>
+                                            Est. Arrival: <strong>{etaMinutes !== null ? `${etaMinutes} min` : 'Calc...'}</strong>
+                                        </span>
+                                    </div>
 
-                                    setOptimisticMessage("✅ Confirmation Sent! Head to the shop.");
-                                    setTimeout(() => {
-                                        fetchPublicQueue(joinedBarberId);
-                                        setOptimisticMessage(null);
-                                    }, 1500);
-                                } catch (err) {
-                                    setOptimisticMessage(null);
-                                    console.error("Confirm failed", err);
-                                    setMessage("Error: Could not confirm attendance. Please try again.");
-                                }
-                            }}>I'm Coming! 🏃‍♂️</button>
-                        </>
-                    ) : (<p><strong>✅ Confirmed!</strong> The barber knows you are coming. Please enter the shop now.</p>))}
-                </div>)}
+                                    {/* CONDITIONAL BUTTON */}
+                                    {hasArrived ? (
+                                        // SCENARIO 1: AT THE SHOP (GREEN LIGHT)
+                                        <div style={{animation: 'pulse-border 2s infinite', borderRadius:'6px'}}>
+                                            <p style={{color: 'var(--success-color)', fontWeight:'bold', margin:'5px 0'}}>
+                                                🎯 You have arrived!
+                                            </p>
+                                            <button onClick={handleConfirmAttendance} className="btn btn-success btn-full-width">
+                                                Tap to Check-In ✅
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        // SCENARIO 2: FAR AWAY (LOCKED)
+                                        <div style={{opacity: 0.8}}>
+                                            <p style={{fontSize:'0.85rem', margin:'0 0 10px 0'}}>
+                                                Please move closer to the shop to check in.
+                                            </p>
+                                            <button disabled className="btn btn-secondary btn-full-width">
+                                                🔒 Moving Closer... ({lastDistanceRef.current ? Math.round(lastDistanceRef.current) : '?'}m)
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
                 {/* OPPORTUNITY BANNER */}
                 {freeBarber && (
                     <div style={{
