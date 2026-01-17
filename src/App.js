@@ -23,7 +23,11 @@ const playSound = (audioElement) => {
         console.warn("Sound notification was blocked by the browser:", error.message);
     });
 };
-
+const stopSound = (audioElement) => {
+    if (!audioElement) return;
+    audioElement.pause();
+    audioElement.currentTime = 0;
+};
 
 // --- Global Constants ---
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
