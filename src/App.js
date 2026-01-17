@@ -1049,10 +1049,6 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     const [isApptListOpen, setIsApptListOpen] = useState(false);
     const [barberAppointments, setBarberAppointments] = useState([]);
     const [loadingAppts, setLoadingAppts] = useState(false);
-    const [unreadMessages, setUnreadMessages] = useState(() => {
-        const saved = localStorage.getItem('barberUnreadMessages');
-        return saved ? JSON.parse(saved) : {};
-    });
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
@@ -1638,8 +1634,10 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                                         disabled={!upNext.profiles?.id}
                                     >
                                         <IconChat />
-                                        {upNext.profiles?.id && unreadMessages[upNext.profiles.id] && (
-                                            <span className="notification-badge"></span>
+                                        {upNext.profiles?.id && upNext.unread_count > 0 && (
+                                            <span className="notification-badge">
+                                                {upNext.unread_count}
+                                            </span>
                                         )}
                                     </button>
                                 </li>
