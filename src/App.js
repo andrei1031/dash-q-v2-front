@@ -1015,7 +1015,7 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             
             <div className="card-footer">
                 <button onClick={() => fetchAnalytics(true)} className="btn btn-secondary btn-full-width btn-icon-label" disabled={isRefreshing}>
-                    {isRefreshing ? <Spinner /> : <IconRefresh />}
+                    <IconRefresh />
                     {isRefreshing ? 'Refreshing...' : 'Refresh Stats'}
                 </button>
             </div>
