@@ -1049,6 +1049,9 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     const [isApptListOpen, setIsApptListOpen] = useState(false);
     const [barberAppointments, setBarberAppointments] = useState([]);
     const [loadingAppts, setLoadingAppts] = useState(false);
+    
+    const upNext = queueDetails.upNext;
+    const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
 
     const fetchBarberAppointments = async () => {
         setLoadingAppts(true);
@@ -1577,37 +1580,69 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
                         ) : (<p className="empty-text">Chair empty</p>)}
 
                         <h3 className="queue-subtitle">Up Next</h3>
-                        {queueDetails.upNext ? (
+                        {upNext ? (
                             <ul className="queue-list">
-                                <li className={`up-next ${queueDetails.upNext.is_vip ? 'vip-entry' : ''}`}>
+                                <li 
+                                    className={`up-next ${upNext.is_vip ? 'vip-entry' : ''}`}
+                                    style={{
+                                        // DYNAMIC STYLING: Red border/bg if high risk, Orange (default) otherwise
+                                        borderLeft: isHighRisk ? '5px solid #ff3b30' : '5px solid var(--primary-orange)',
+                                        background: isHighRisk ? 'rgba(255, 59, 48, 0.05)' : 'var(--bg-dark)',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
                                     <div className="queue-item-info">
-                                        <strong>#{queueDetails.upNext.id} - {queueDetails.upNext.customer_name}</strong>
-                                        <DistanceBadge meters={queueDetails.upNext.current_distance_meters} />
-                                        {queueDetails.upNext.is_confirmed ? (
+                                        <strong>#{upNext.id} - {upNext.customer_name}</strong>
+                                        
+                                        {/* --- ⚠️ THE RISK BADGE (Only shows if > 500m) --- */}
+                                        {isHighRisk && (
+                                            <div style={{
+                                                display: 'inline-flex', 
+                                                alignItems: 'center', 
+                                                gap: '5px',
+                                                color: '#ff3b30', 
+                                                fontWeight: 'bold', 
+                                                fontSize: '0.8rem',
+                                                marginTop: '4px', 
+                                                background: 'rgba(255, 59, 48, 0.1)',
+                                                padding: '2px 6px', 
+                                                borderRadius: '4px',
+                                                border: '1px solid rgba(255, 59, 48, 0.3)'
+                                            }}>
+                                                ⚠️ FAR AWAY ({upNext.current_distance_meters}m)
+                                            </div>
+                                        )}
+                                        
+                                        {/* Show standard Green/Orange badge ONLY if they are safe */}
+                                        {!isHighRisk && <DistanceBadge meters={upNext.current_distance_meters} />}
+                                        
+                                        {/* Confirmation Status */}
+                                        {upNext.is_confirmed ? (
                                             <span className="badge-confirmed">✅ CONFIRMED</span>
                                         ) : (
                                             <span className="badge-waiting">⏳ Waiting for confirm...</span>
                                         )}
-                                        <PhotoDisplay entry={queueDetails.upNext} label="Up Next" />
+                                        
+                                        <PhotoDisplay entry={upNext} label="Up Next" />
                                     </div>
+                                    
+                                    {/* Chat Button */}
                                     <button 
-                                        onClick={() => openChat(queueDetails.upNext)} 
+                                        onClick={() => openChat(upNext)} 
                                         className="btn btn-icon" 
-                                        title="Chat"
-                                        disabled={!queueDetails.upNext.profiles?.id}
-                                        style={{position: 'relative'}}
+                                        title={upNext.profiles?.id ? "Chat" : "Guest"} 
+                                        disabled={!upNext.profiles?.id}
                                     >
                                         <IconChat />
-                                        {/* BADGE LOGIC */}
-                                        {queueDetails.upNext.unread_count > 0 && (
-                                            <span className="notification-badge">
-                                                {queueDetails.upNext.unread_count}
-                                            </span>
+                                        {upNext.profiles?.id && unreadMessages[upNext.profiles.id] && (
+                                            <span className="notification-badge"></span>
                                         )}
                                     </button>
                                 </li>
                             </ul>
-                        ) : (<p className="empty-text">Nobody Up Next</p>)}
+                        ) : (
+                            <p className="empty-text">Nobody Up Next</p>
+                        )}
 
                         <h3 className="queue-subtitle">Waiting</h3>
                         <ul className="queue-list">{queueDetails.waiting.length === 0 ? (<li className="empty-text">Waiting queue empty.</li>) : (queueDetails.waiting.map(c => (
