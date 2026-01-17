@@ -1049,6 +1049,10 @@ function BarberDashboard({ barberId, barberName, onCutComplete, session, onQueue
     const [isApptListOpen, setIsApptListOpen] = useState(false);
     const [barberAppointments, setBarberAppointments] = useState([]);
     const [loadingAppts, setLoadingAppts] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(() => {
+        const saved = localStorage.getItem('barberUnreadMessages');
+        return saved ? JSON.parse(saved) : {};
+    });
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
