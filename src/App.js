@@ -929,9 +929,10 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
     const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
     const carbonStatusMessage = (analytics.carbonSavedToday || 0) > 0 ? "✅ Daily Goal Reached!" : "⏳ Waiting for cuts...";
 
-    // --- DYNAMIC GRID STYLE (This maximizes space) ---
+    // --- 🟢 FIX: LAYOUT GRID STYLE ---
+    // Increased min-width to 220px to force a 2x2 grid on medium screens instead of 3x1 + 1 orphan.
     const dynamicGridStyle = {
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' // Items will stretch to fill width
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' 
     };
 
     return (
@@ -951,7 +952,6 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
                 {error && <p className="error-message">{error}</p>}
                 
                 <h3 className="analytics-subtitle">Today</h3>
-                {/* Applied dynamicGridStyle here */}
                 <div className="analytics-grid" style={dynamicGridStyle}>
                     {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
                     <div className="analytics-item"><span className="analytics-label">Cuts Today</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
@@ -960,7 +960,6 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
                 </div>
 
                 <h3 className="analytics-subtitle">Last 7 Days</h3>
-                {/* Applied dynamicGridStyle here */}
                 <div className="analytics-grid" style={dynamicGridStyle}>
                     {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
                     
@@ -983,7 +982,6 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
                 
                 <div className="carbon-footprint-section">
                     <h3 className="analytics-subtitle">🌱 Shop Carbon Savings</h3>
-                    {/* Carbon grid stays 50/50 as defined in CSS or inherited style */}
                     <div className="analytics-grid carbon-grid" style={dynamicGridStyle}>
                         <div className="analytics-item">
                             <span className="analytics-label">Today's Impact</span>
