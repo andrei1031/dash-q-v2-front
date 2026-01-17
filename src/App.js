@@ -931,6 +931,11 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
     const avgPriceToday = (analytics.totalCutsToday ?? 0) > 0 ? ((analytics.totalEarningsToday ?? 0) / analytics.totalCutsToday).toFixed(2) : '0.00';
     const carbonStatusMessage = (analytics.carbonSavedToday || 0) > 0 ? "✅ Daily Goal Reached!" : "⏳ Waiting for cuts...";
 
+    // --- DYNAMIC GRID STYLE (This maximizes space) ---
+    const dynamicGridStyle = {
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' // Items will stretch to fill width
+    };
+
     return (
         <div className="card">
             <div className="card-header">
@@ -947,23 +952,22 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
             <div className="card-body">
                 {error && <p className="error-message">{error}</p>}
                 
-                {/* --- SECTION 1: TODAY (Immediate Performance) --- */}
                 <h3 className="analytics-subtitle">Today</h3>
-                <div className="analytics-grid">
+                {/* Applied dynamicGridStyle here */}
+                <div className="analytics-grid" style={dynamicGridStyle}>
                     {showEarnings && <div className="analytics-item"><span className="analytics-label">Earnings</span><span className="analytics-value">₱{analytics.totalEarningsToday ?? 0}</span></div>}
                     <div className="analytics-item"><span className="analytics-label">Cuts Today</span><span className="analytics-value">{analytics.totalCutsToday ?? 0}</span></div>
                     {showEarnings && <div className="analytics-item"><span className="analytics-label">Avg Price</span><span className="analytics-value small">₱{avgPriceToday}</span></div>}
                     <div className="analytics-item"><span className="analytics-label">Current Queue</span><span className="analytics-value small">{analytics.currentQueueSize ?? 0}</span></div>
                 </div>
 
-                {/* --- SECTION 2: WEEKLY (Trends & Planning) --- */}
                 <h3 className="analytics-subtitle">Last 7 Days</h3>
-                <div className="analytics-grid">
+                {/* Applied dynamicGridStyle here */}
+                <div className="analytics-grid" style={dynamicGridStyle}>
                     {showEarnings && <div className="analytics-item"><span className="analytics-label">Total Earnings</span><span className="analytics-value">₱{analytics.totalEarningsWeek ?? 0}</span></div>}
                     
                     <div className="analytics-item"><span className="analytics-label">Total Cuts</span><span className="analytics-value">{analytics.totalCutsWeek ?? 0}</span></div>
                     
-                    {/* --- 🟢 RESTORED: BUSIEST DAY --- */}
                     <div className="analytics-item">
                         <span className="analytics-label">Busiest Day</span>
                         <span className="analytics-value small" style={{fontSize: '1.2rem'}}>
@@ -981,7 +985,8 @@ function AnalyticsDashboard({ barberId, refreshSignal }) {
                 
                 <div className="carbon-footprint-section">
                     <h3 className="analytics-subtitle">🌱 Shop Carbon Savings</h3>
-                    <div className="analytics-grid carbon-grid">
+                    {/* Carbon grid stays 50/50 as defined in CSS or inherited style */}
+                    <div className="analytics-grid carbon-grid" style={dynamicGridStyle}>
                         <div className="analytics-item">
                             <span className="analytics-label">Today's Impact</span>
                             <span className="analytics-value carbon">+{analytics.carbonSavedToday || 0}g</span>
