@@ -844,8 +844,6 @@ function AvailabilityToggle({ barberProfile, session, onAvailabilityChange }) {
             disabled={loading} 
             className={`btn ${isAvailable ? 'btn-danger' : 'btn-success'}`}
         >
-            {/* OLD: {loading ? <Spinner /> : (isAvailable ? 'Go Offline' : 'Go Online')} */}
-            {/* NEW: No spinner, just text */}
             {isAvailable ? 'Go Offline' : 'Go Online'}
         </button>
         {error && <p className="error-message small">{error}</p>}
