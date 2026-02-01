@@ -1954,8 +1954,8 @@ export const CustomerView = ({ session }) => {
                                             <h4>Chat with {currentBarberName}</h4>
 
                                             {/* --- REPORT BUTTON HERE --- */}
-                                            <button 
-                                                onClick={() => setReportModalOpen(true)} 
+                                            <button
+                                            onClick={() => setReportModalOpen(true)} 
                                                 className="btn btn-danger btn-icon" 
                                                 title="Report Issue / Help"
                                                 style={{padding: '2px', width: '24px', height: '24px'}} // Make it small

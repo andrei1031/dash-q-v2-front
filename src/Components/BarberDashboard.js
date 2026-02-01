@@ -35,6 +35,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [isApptListOpen, setIsApptListOpen] = useState(false);
     const [barberAppointments, setBarberAppointments] = useState([]);
     const [loadingAppts, setLoadingAppts] = useState(false);
+    const [pendingApptCount, setPendingApptCount] = useState(0);
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
@@ -43,7 +44,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setLoadingAppts(true);
         try {
             const res = await axios.get(`${API_URL}/appointments/barber/${barberId}`);
-            setBarberAppointments(res.data || []);
+            const data = res.data || [];
+            setBarberAppointments(data);
+            setPendingApptCount(data.filter(a => a.status === 'pending').length);
             setIsApptListOpen(true);
         } catch (err) {
             alert("Failed to load appointments.");
@@ -98,6 +101,18 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             });
         }
     };
+
+    const fetchAppointmentCount = useCallback(async () => {
+        if (!barberId) return;
+        try {
+            const res = await axios.get(`${API_URL}/appointments/barber/${barberId}`);
+            const appts = res.data || [];
+            const pending = appts.filter(a => a.status === 'pending').length;
+            setPendingApptCount(pending);
+        } catch (err) {
+            console.error("Failed to fetch appointment count", err);
+        }
+    }, [barberId]);
 
      // --- FIND THIS FUNCTION INSIDE BarberDashboard ---
     const fetchQueueDetails = useCallback(async () => {
@@ -248,6 +263,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         if (!barberId || !supabase?.channel) return;
         let dashboardRefreshInterval = null;
         fetchQueueDetails();
+        fetchAppointmentCount();
         const channel = supabase.channel(`barber_queue_${barberId}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${barberId}` }, (payload) => {
                 console.log('Barber dashboard received queue update (via Realtime):', payload);
@@ -270,6 +286,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         dashboardRefreshInterval = setInterval(() => { 
             console.log('Dashboard periodic refresh...'); 
             fetchQueueDetails(); 
+            fetchAppointmentCount();
             
             if (onQueueUpdate) onQueueUpdate(); 
         }, 15000);
@@ -279,7 +296,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             if (channel) supabase.removeChannel(channel);
             if (dashboardRefreshInterval) clearInterval(dashboardRefreshInterval);
         };
-    }, [barberId, fetchQueueDetails, onQueueUpdate]); // <-- Add setUnreadMessages here
+    }, [barberId, fetchQueueDetails, onQueueUpdate, fetchAppointmentCount]); // <-- Add setUnreadMessages here
 
     // --- Handlers ---
     const closeModal = () => {
@@ -688,10 +705,26 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             </div>
 
             <div className="card-footer" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
-                <button onClick={fetchBarberAppointments} className="btn btn-primary btn-icon-label" disabled={loadingAppts}>
+                <button onClick={fetchBarberAppointments} className="btn btn-primary btn-icon-label" disabled={loadingAppts} style={{position: 'relative'}}>
                     {/* OLD: {loadingAppts ? <Spinner /> : '📅 Bookings'} */}
                     {/* NEW: Static Text */}
                     📅 Bookings
+                    {pendingApptCount > 0 && (
+                        <span className="notification-badge" style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            right: '-8px',
+                            background: '#ff3b30',
+                            color: 'white',
+                            borderRadius: '50%',
+                            padding: '2px 6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            border: '2px solid var(--surface-color)'
+                        }}>
+                            {pendingApptCount}
+                        </span>
+                    )}
                 </button>
                 <button onClick={fetchQueueDetails} className="btn btn-secondary btn-icon-label">
                     <IconRefresh /> Refresh
