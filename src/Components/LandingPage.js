@@ -1,7 +1,7 @@
 import { IconChat, IconCheck, IconNext } from "./assets/Icon";
 import { ThemeToggleButton } from "./Partials/ThemeToggleButton";
 
-export const LandingPage = ({ onGetStarted, onLogin, onAdminClick }) => {
+export const LandingPage = ({ onGetStarted, onLogin, onAdminClick, onGuestClick, onBarberClick }) => {
     return (
         <div className="landing-container">
             <nav className="landing-nav">
@@ -24,10 +24,13 @@ export const LandingPage = ({ onGetStarted, onLogin, onAdminClick }) => {
                     Skip the long wait. Join the live queue from anywhere, book appointments, and get notified when it's your turn.
                 </p>
                 <div className="hero-buttons">
-                    <button onClick={onGetStarted} className="btn btn-primary btn-hero">
+                    <button onClick={onLogin} className="btn btn-primary btn-hero">
                         Get Started Now
                     </button>
-                    <button onClick={onLogin} className="btn btn-secondary btn-hero">
+                    <button onClick={() => {
+                        if (onBarberClick) onBarberClick();
+                        else console.warn("onBarberClick prop is missing");
+                    }} className="btn btn-secondary btn-hero">
                         Barber Login
                     </button>
                 </div>
@@ -54,7 +57,7 @@ export const LandingPage = ({ onGetStarted, onLogin, onAdminClick }) => {
             </section>
 
             <footer className="landing-footer">
-                <p>&copy; 2025 Dash-Q. University of the Cordilleras.</p>
+                <p>&copy; 2026 Dash-Q. University of the Cordilleras.</p>
                 <div style={{display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '10px', fontSize: '0.8rem'}}>
                     <span>Developed by Aquino, Galima & Saldivar</span>
                     <span>|</span>

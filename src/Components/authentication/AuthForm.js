@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_URL } from "../http-commons";
 import { supabase } from "../supabase";
@@ -7,7 +7,7 @@ import { IconEye, IconEyeOff } from "../assets/Icon";
 import { SignUpModal } from "../modals/SignUpModal";
 import { ForgotPassword } from "./ForgotPassword";
 
-export const AuthForm = () => {
+export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(true);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -20,8 +20,15 @@ export const AuthForm = () => {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-    const [selectedRole, setSelectedRole] = useState('customer');
+    const [selectedRole, setSelectedRole] = useState(initialRole || 'customer');
     const [showPassword, setShowPassword] = useState(false);
+    const [showGuestModal, setShowGuestModal] = useState(false);
+
+    useEffect(() => {
+        if (initialRole) {
+            setSelectedRole(initialRole);
+        }
+    }, [initialRole]);
 
     const handleAuth = async (e) => {
         e.preventDefault(); setLoading(true); setMessage('');
@@ -110,6 +117,42 @@ export const AuthForm = () => {
         }
     };
 
+    
+
+    const handleGuestContinue = async () => {
+         try {
+            const res = await fetch("http://localhost:3001/api/auth/guest", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            }
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+            console.error("Guest login failed:", data);
+            alert(data.error || "Guest login failed");
+            return;
+            }
+
+            console.log("Guest login success:", data);
+            
+            if (onGuestLogin) {
+                onGuestLogin(data);
+            }
+
+            // Save token for later requests
+            //localStorage.setItem("token", data.token);
+            //localStorage.setItem("user", JSON.stringify(data.user));
+
+
+            return data;
+        } catch (err) {
+            console.error("Error calling guest endpoint:", err);
+        }
+    };
+
     return (
         <div className="card auth-card">
             {/* --- Welcome Modal (Only shows on Sign Up) --- */}
@@ -118,6 +161,54 @@ export const AuthForm = () => {
                 setIsWelcomeModalOpen={setIsWelcomeModalOpen} 
                 authView={authView}
             />
+            {/* --- GUEST CONFIRMATION MODAL --- */}
+            {showGuestModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-body">
+                            <h2>Continue as Guest?</h2>
+                            
+                            <div style={{background: 'rgba(255, 149, 0, 0.1)', borderLeft: '4px solid var(--primary-orange)', padding: '10px', marginBottom: '15px', textAlign: 'left'}}>
+                                <p style={{fontSize: '0.9rem', margin: 0}}>
+                                    <strong>Note:</strong> Guest mode is recommended for one-time customers only.
+                                </p>
+                            </div>
+
+                            <p style={{marginBottom: '10px', textAlign: 'left'}}>
+                                By continuing as a guest, you will <strong>miss out</strong> on:
+                            </p>
+                            <ul style={{textAlign: 'left', paddingLeft: '20px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px'}}>
+                                <li>Tracking your haircut history</li>
+                                <li>Earning loyalty points & rewards</li>
+                                <li>Receiving email notifications for your turn</li>
+                            </ul>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                onClick={() => setShowGuestModal(false)}
+                                className="btn btn-secondary"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleGuestContinue}
+                                className="btn btn-primary"
+                            >
+                                I'll use Guest Mode
+                            </button>
+                        </div>
+                        <div style={{padding: '0 20px 20px'}}>
+                             <button 
+                                onClick={() => { setShowGuestModal(false); setAuthView('signup'); }}
+                                className="btn btn-link btn-full-width"
+                                style={{fontSize: '0.9rem'}}
+                            >
+                                Wait, I want to Sign Up instead
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {authView === 'forgotPassword' ? (
                 <ForgotPassword 
@@ -200,6 +291,20 @@ export const AuthForm = () => {
                         <button type="submit" disabled={loading} className="btn btn-primary btn-full-width">
                             {loading ? 'Please wait...' : (authView === 'login' ? 'Login' : 'Sign Up')}
                         </button>
+                        {/* --- GUEST MODE SECTION (Only in Login View & Customer Role) --- */}
+                        {authView === 'login' && selectedRole === 'customer' && (
+                            <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid var(--border-color)', textAlign: 'center'}}>
+                                <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '10px'}}>Just visiting for today?</p>
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowGuestModal(true)}
+                                    className="btn btn-link"
+                                    style={{fontSize: '0.9rem', fontWeight: '600'}}
+                                >
+                                    Continue as Guest
+                                </button>
+                            </div>
+                        )}
                     </form>
                     <div className="card-footer">
                         {/* FIX: improved message coloring logic */}

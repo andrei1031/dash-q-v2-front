@@ -13,8 +13,11 @@ import axios from "axios";
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
-    const [customerName] = useState(() => session.user?.user_metadata?.full_name || '');
-    const [customerEmail] = useState(() => session.user?.email || '');
+    
+    const isGuest = !session;
+    const [guestName, setGuestName] = useState('');
+    const [guestEmail, setGuestEmail] = useState('');
+    
     const [message, setMessage] = useState('');
     const [myQueueEntryId, setMyQueueEntryId] = useState(() => localStorage.getItem('myQueueEntryId') || null);
     const [joinedBarberId, setJoinedBarberId] = useState(() => localStorage.getItem('joinedBarberId') || null);
@@ -86,6 +89,9 @@ export const CustomerView = ({ session }) => {
     const [isMyReportsOpen, setIsMyReportsOpen] = useState(false);
     const [viewProduct, setViewProduct] = useState(null);
 
+    const customerName = isGuest ? guestName : (session?.user?.user_metadata?.full_name || '');
+    const customerEmail = isGuest ? guestEmail : (session?.user?.email || '');
+
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
         setIsLoading(true);
@@ -145,7 +151,7 @@ export const CustomerView = ({ session }) => {
             setIsLoading(true);
             try {
                 await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, {
-                    data: { userId: session.user.id }
+                    data: { userId: session?.user?.id || null }
                 });
                 setMessage("You left the queue.");
             }
@@ -349,7 +355,7 @@ export const CustomerView = ({ session }) => {
 
         try {
             const fileExtension = selectedFile.name.split('.').pop();
-            const filePath = `${session.user.id}/${targetQueueId || 'new'}-${Date.now()}.${fileExtension}`;
+            const filePath = `${session?.user?.id || 'guest'}/${targetQueueId || 'new'}-${Date.now()}.${fileExtension}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('haircut_references')
@@ -431,7 +437,7 @@ export const CustomerView = ({ session }) => {
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
-                user_id: session.user.id,
+                user_id: session?.user?.id || null,
                 is_vip: isVIPToggled,
                 head_count: headCount,
             });
@@ -503,7 +509,7 @@ export const CustomerView = ({ session }) => {
             await axios.post(`${API_URL}/appointments/book`, {
                 customer_name: customerName,
                 customer_email: customerEmail,
-                user_id: session.user.id,
+                user_id: session?.user?.id,
                 barber_id: selectedBarberId,
                 service_id: selectedServiceId,
                 scheduled_time: selectedSlot
@@ -648,7 +654,7 @@ export const CustomerView = ({ session }) => {
             
             // OPTION B: The "Hack" Way (Leave & Rejoin using existing endpoints)
             // 1. Leave current queue
-            await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, { data: { userId: session.user.id } }); //
+            await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); //
             
             // 2. Join new barber (Re-using your join logic)
             // Note: You'd need to refactor handleJoinQueue to accept params, or just manually call axios.post('/api/queue'...) here
@@ -657,7 +663,7 @@ export const CustomerView = ({ session }) => {
                 customer_email: customerEmail,
                 barber_id: freeBarber.id,
                 service_id: selectedServiceId || 1, // You might need to save their service ID in localstorage to preserve it
-                user_id: session.user.id,
+                user_id: session?.user?.id || null,
                 is_vip: false // Reset VIP on transfer?
             });
 
@@ -737,7 +743,7 @@ export const CustomerView = ({ session }) => {
         const ARRIVAL_DISTANCE = 30;  // Meters to trigger "Green Light"
         const WALKING_SPEED_MPM = 80; // Approx 80 meters per minute (average walking speed)
 
-        if (!myQueueEntryId || !('geolocation' in navigator)) return;
+        if (!myQueueEntryId || !('geolocation' in navigator) || isGuest) return;
 
         const onPositionUpdate = (position) => {
             const { latitude, longitude } = position.coords;
@@ -801,7 +807,7 @@ export const CustomerView = ({ session }) => {
         return () => {
             if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current);
         };
-    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, hasArrived]);
+    }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, hasArrived, isGuest]);
 
     useEffect(() => { // First Time Instructions
         const pendingFeedback = localStorage.getItem('pendingFeedback');
@@ -1405,7 +1411,7 @@ export const CustomerView = ({ session }) => {
             </div>
             
             {/* Add this inside CustomerView return, maybe above the tabs */}
-            {'Notification' in window && Notification.permission === 'default' && (
+            {'Notification' in window && Notification.permission === 'default' && !isGuest && (
                 <div className="message warning small" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <span>Enable notifications for "Up Next" alerts?</span>
                     <button 
@@ -1432,12 +1438,12 @@ export const CustomerView = ({ session }) => {
                 <button className={viewMode === 'join' ? 'active' : ''} onClick={() => setViewMode('join')} style={{ flex: '1 1 auto' }}>
                     Join Queue
                 </button>
-                <button className={viewMode === 'appointments' ? 'active' : ''} onClick={() => setViewMode('appointments')} style={{ flex: '1 1 auto' }}>
+                {!isGuest && <button className={viewMode === 'appointments' ? 'active' : ''} onClick={() => setViewMode('appointments')} style={{ flex: '1 1 auto' }}>
                     Appointments
-                </button>
-                <button className={viewMode === 'history' ? 'active' : ''} onClick={() => setViewMode('history')} style={{ flex: '1 1 auto' }}>
+                </button>}
+                {!isGuest && <button className={viewMode === 'history' ? 'active' : ''} onClick={() => setViewMode('history')} style={{ flex: '1 1 auto' }}>
                     My History
-                </button>
+                </button>}
             </div>
 
             {/* A. JOIN / BOOKING SECTION */}
@@ -1452,18 +1458,29 @@ export const CustomerView = ({ session }) => {
                         >
                             ⚡ Join Queue Now
                         </button>
-                        <button 
+                        {!isGuest && <button 
                             className={joinMode === 'later' ? 'active' : ''} 
                             onClick={() => setJoinMode('later')}
                             style={{flex: '1 1 auto', textAlign: 'center'}}
                         >
                             📅 Book Appointment
-                        </button>
+                        </button>}
                     </div>
 
                     {/* 2. SHARED INPUTS (Name, Email) */}
-                    <div className="form-group"><label>Your Name:</label><input type="text" value={customerName} required readOnly className="prefilled-input" /></div>
-                    <div className="form-group"><label>Your Email:</label><input type="email" value={customerEmail} readOnly className="prefilled-input" /></div>
+                    <div className="form-group">
+                        <label>Your Name:</label>
+                        <input 
+                            type="text" 
+                            value={customerName} 
+                            onChange={(e) => isGuest && setGuestName(e.target.value)}
+                            required 
+                            readOnly={!isGuest} 
+                            className={isGuest ? "form-control" : "prefilled-input"} 
+                            placeholder={isGuest ? "Enter your name" : ""}
+                        />
+                    </div>
+                    <div className="form-group"><label>Your Email:</label><input type="email" value={customerEmail} onChange={(e) => isGuest && setGuestEmail(e.target.value)} readOnly={!isGuest} className={isGuest ? "form-control" : "prefilled-input"} placeholder={isGuest ? "Optional" : ""} /></div>
 
                     {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                     {joinMode === 'now' && (
@@ -1939,7 +1956,7 @@ export const CustomerView = ({ session }) => {
                             {referenceImageUrl && referenceImageUrl !== myQueueEntry?.reference_image_url && <p className="success-message small">New photo uploaded.</p>}
                         </div>)}
                         <div className="chat-section">
-                            {!isChatOpen && myQueueEntryId && (<button onClick={() => {
+                            {!isChatOpen && myQueueEntryId && !isGuest && (<button onClick={() => {
                                 if (currentChatTargetBarberUserId) {
                                     setIsChatOpen(true);
                                     setHasUnreadFromBarber(false);
@@ -1947,7 +1964,7 @@ export const CustomerView = ({ session }) => {
                                 } else { console.error("Barber user ID missing."); setMessage("Cannot initiate chat."); }
                             }} className="btn btn-secondary btn-full-width btn-icon-label chat-toggle-button">
                                 <IconChat />Chat with Barber{hasUnreadFromBarber && (<span className="notification-badge"></span>)}</button>)}
-                            {isChatOpen && currentChatTargetBarberUserId && (
+                            {isChatOpen && currentChatTargetBarberUserId && !isGuest && (
                                 <div className="chat-window-container">
                                     <div className="chat-window-header">
                                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -2183,7 +2200,7 @@ export const CustomerView = ({ session }) => {
             <MyReportsModal 
                 isOpen={isMyReportsOpen} 
                 onClose={() => setIsMyReportsOpen(false)} 
-                userId={session.user.id} 
+                userId={session?.user?.id} 
             />
             {/* --- PRODUCT DETAIL MODAL (POPS OVER EVERYTHING) --- */}
             {viewProduct && (

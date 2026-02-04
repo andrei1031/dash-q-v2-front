@@ -7,13 +7,16 @@ export const CustomerAppLayout = ({ session }) => {
     return (
         <div className="app-layout customer-app-layout">
             <header className="app-header">
-                <h1>Welcome, {session.user?.user_metadata?.full_name || 'Customer'}!</h1>
+                <h1>Welcome, {session?.user?.user_metadata?.full_name || 'Guest'}!</h1>
                 <div className="header-actions">
                     <ThemeToggleButton />
                     <button 
-                        onClick={() => handleLogout(session.user.id)} 
+                        onClick={() => {
+                            if (!session) window.location.reload(); // Reload to exit guest mode
+                            else handleLogout(session.user.id);
+                        }} 
                         className="btn btn-icon" 
-                        title="Logout"
+                        title={session ? "Logout" : "Exit Guest Mode"}
                     >
                         <IconLogout />
                     </button>
