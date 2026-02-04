@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -83,6 +83,24 @@ function App() {
     // --- NEW STATE: Controls Landing Page visibility ---
     const [showLanding, setShowLanding] = useState(true); 
     const [showAdminLogin, setShowAdminLogin] = useState(false);
+    const isGuestRef = useRef(false);
+
+    const handleGuestLogin = (guestData) => {
+        isGuestRef.current = true;
+        const guestSession = {
+            access_token: guestData?.token || 'guest-token',
+            user: {
+                id: guestData?.user?.id || 'guest-user',
+                email: 'Guest',
+                user_metadata: { full_name: 'Guest' },
+                is_guest: true
+            }
+        };
+        localStorage.setItem('guestSession', JSON.stringify(guestSession));
+        setSession(guestSession);
+        setUserRole('customer');
+        setShowLanding(false);
+    };
 
     // --- Helper to Check Role ---
     const checkUserRole = useCallback(async (user) => {
@@ -122,12 +140,11 @@ function App() {
     }, []);
 
     // --- Auth Listener ---
-    // --- REPLACE YOUR EXISTING useEffect IN App() WITH THIS ---
     useEffect(() => {
         const initSession = async () => {
-            // 1. TOKEN RECOVERY (Make it Token Based)
-            // Explicitly check for an existing session in local storage to prevent flicker
+            // 1. Check Supabase Session
             const { data: { session: existingSession } } = await supabase.auth.getSession();
+            
             if (existingSession) {
                 setSession(existingSession);
                 checkUserRole(existingSession.user);
@@ -237,7 +254,7 @@ function App() {
                 
                 {/* Centered Content */}
                 <div className="auth-content">
-                    <AuthForm />
+                    <AuthForm onGuestLogin={handleGuestLogin} />
                     {/* Discrete Admin Link at the bottom */}
                     <div style={{marginTop: '30px', textAlign: 'center'}}>
                         <button 
