@@ -437,7 +437,7 @@ export const CustomerView = ({ session }) => {
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
-                user_id: session?.user?.id || null,
+                user_id: customerName === 'Guest' ? '77e8c6a6-e2d7-418c-95ba-02e3c88922bb' : session?.user?.id || null,
                 is_vip: isVIPToggled,
                 head_count: headCount,
             });

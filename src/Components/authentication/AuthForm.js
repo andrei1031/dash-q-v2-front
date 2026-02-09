@@ -23,6 +23,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [selectedRole, setSelectedRole] = useState(initialRole || 'customer');
     const [showPassword, setShowPassword] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (initialRole) {
@@ -120,6 +121,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     
 
     const handleGuestContinue = async () => {
+        setIsLoading(true);
          try {
             const res = await fetch(`${API_URL}/auth/guest`, {
             method: "POST",
@@ -158,6 +160,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
 
             return data;
         } catch (err) {
+            setIsLoading(false);
             console.error("Error calling guest endpoint:", err);
             // Fallback for testing if backend is unreachable
             if (onGuestLogin) {

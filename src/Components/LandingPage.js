@@ -27,10 +27,7 @@ export const LandingPage = ({ onGetStarted, onLogin, onAdminClick, onGuestClick,
                     <button onClick={onLogin} className="btn btn-primary btn-hero">
                         Get Started Now
                     </button>
-                    <button onClick={() => {
-                        if (onBarberClick) onBarberClick();
-                        else console.warn("onBarberClick prop is missing");
-                    }} className="btn btn-secondary btn-hero">
+                    <button onClick={() => onLogin('barber')} className="btn btn-secondary btn-hero">
                         Barber Login
                     </button>
                 </div>
