@@ -23,7 +23,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [selectedRole, setSelectedRole] = useState(initialRole || 'customer');
     const [showPassword, setShowPassword] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [setIsLoading] = useState(false);
 
     useEffect(() => {
         if (initialRole) {
