@@ -87,15 +87,24 @@ function App() {
 
     const handleGuestLogin = (guestData) => {
         isGuestRef.current = true;
+
+        // 1. GENERATE UNIQUE ID
+        // If we don't have a unique ID from the server, we create one using the current time.
+        // This ensures Guest A is "guest-173..." and Guest B is "guest-174..."
+        const uniqueGuestId = (guestData?.user?.id && guestData.user.id !== 'guest-fallback')
+            ? guestData.user.id 
+            : `guest-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
         const guestSession = {
             access_token: guestData?.token || 'guest-token',
             user: {
-                id: guestData?.user?.id || 'guest-user',
+                id: uniqueGuestId, // <--- THIS IS THE KEY FIX
                 email: 'Guest',
                 user_metadata: { full_name: 'Guest' },
                 is_guest: true
             }
         };
+        
         localStorage.setItem('guestSession', JSON.stringify(guestSession));
         setSession(guestSession);
         setUserRole('customer');
