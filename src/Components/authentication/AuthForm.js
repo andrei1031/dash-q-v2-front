@@ -23,7 +23,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [selectedRole, setSelectedRole] = useState(initialRole || 'customer');
     const [showPassword, setShowPassword] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
-    const [setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (initialRole) {
@@ -121,53 +121,55 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     
 
     const handleGuestContinue = async () => {
-        setIsLoading(true);
-         try {
-            const res = await fetch(`${API_URL}/auth/guest`, {
+    setIsLoading(true);
+    try {
+        const res = await fetch(`${API_URL}/auth/guest`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             }
-            });
+        });
 
-            const data = await res.json();
+        const data = await res.json();
 
-            if (!res.ok) {
+        if (!res.ok) {
             console.error("Guest login failed:", data);
-            
-            // Fallback: If backend fails (e.g. 500 error), allow entry for UI testing
-            if (onGuestLogin) {
+
+            // Fallback: Check if onGuestLogin is actually a function
+            if (onGuestLogin && typeof onGuestLogin === 'function') {
                 console.warn("Backend error, using fallback guest session.");
                 onGuestLogin({ user: { id: 'guest-fallback' }, token: 'guest-token' });
                 return;
             }
             alert(data.error || "Guest login failed");
             return;
-            }
-
-            console.log("Guest login success:", data);
-            
-            if (onGuestLogin) {
-                onGuestLogin(data);
-            } else {
-                console.error("CRITICAL: onGuestLogin prop is missing! You must pass 'handleGuestLogin' to <AuthForm /> in your App.js.");
-            }
-
-            // Save token for later requests
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("user", JSON.stringify(data.user));
-
-
-            return data;
-        } catch (err) {
-            setIsLoading(false);
-            console.error("Error calling guest endpoint:", err);
-            // Fallback for testing if backend is unreachable
-            if (onGuestLogin) {
-                onGuestLogin({ user: { id: 'guest-fallback' }, token: 'guest-token' });
-            }
         }
-    };
+
+        console.log("Guest login success:", data);
+
+        // Success: Check if onGuestLogin is actually a function
+        if (onGuestLogin && typeof onGuestLogin === 'function') {
+            onGuestLogin(data);
+        } else {
+            console.error("CRITICAL: onGuestLogin prop is missing or not a function!", typeof onGuestLogin);
+        }
+
+        // Save token for later requests
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        return data;
+
+    } catch (err) {
+        setIsLoading(false);
+        console.error("Error calling guest endpoint:", err);
+        
+        // Catch Block Fallback: Check if onGuestLogin is actually a function
+        if (onGuestLogin && typeof onGuestLogin === 'function') {
+            onGuestLogin({ user: { id: 'guest-fallback' }, token: 'guest-token' });
+        }
+    }
+};
 
     return (
         <div className="card auth-card">
@@ -209,8 +211,9 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                             <button 
                                 onClick={handleGuestContinue}
                                 className="btn btn-primary"
+                                disabled={isLoading}
                             >
-                                I'll use Guest Mode
+                                {isLoading ? "Entering..." : "I'll use Guest Mode"} 
                             </button>
                         </div>
                         <div style={{padding: '0 20px 20px'}}>

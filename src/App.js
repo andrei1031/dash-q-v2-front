@@ -238,7 +238,6 @@ function App() {
                 />
             );
         }
-
         // 6. Login/Signup Form (Unified Design)
         return (
             <div className="auth-page-container">
