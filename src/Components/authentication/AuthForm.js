@@ -188,7 +188,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                             
                             <div style={{background: 'rgba(255, 149, 0, 0.1)', borderLeft: '4px solid var(--primary-orange)', padding: '10px', marginBottom: '15px', textAlign: 'left'}}>
                                 <p style={{fontSize: '0.9rem', margin: 0}}>
-                                    <strong>Note:</strong> Guest mode is recommended for one-time customers only.
+                                    <strong>Note:</strong> Guest mode is recommended for one-time customers only and it’s not optimized there’s a tendency to lose your position if you refresh the page.
                                 </p>
                             </div>
 
@@ -199,6 +199,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                                 <li>Tracking your haircut history</li>
                                 <li>Earning loyalty points & rewards</li>
                                 <li>Receiving email notifications for your turn</li>
+                                <li>Sending desired haircut image directly to Barbers</li>
                             </ul>
                         </div>
                         <div className="modal-footer">

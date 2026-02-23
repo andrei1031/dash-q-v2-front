@@ -462,7 +462,7 @@ export const CustomerView = ({ session }) => {
             // Check if 'details' actually exists before trying to read it
             const existing = error.response.data.details;
             
-            if (existing && existing.id) {
+            if (existing && existing.id && existing.barber_id) {
                 // Scenario A: User is already in queue (Recovery)
                 setMessage(`⚠️ Found active booking! Recovering your spot (ID: #${existing.id})...`);
                 
@@ -717,6 +717,39 @@ export const CustomerView = ({ session }) => {
         restoreSession();
     }, [session, myQueueEntryId, fetchPublicQueue]);
     
+    useEffect(() => {
+        const restoreGuestSession = async () => {
+            if (isGuest && !myQueueEntryId) {
+                const storedGuestId = localStorage.getItem('guestId');
+                if (storedGuestId) {
+                    try {
+                        const response = await axios.post(`${API_URL}/guest_login`, { guestId: storedGuestId });
+                        if (response.data && response.data.activeQueueEntry) {
+                            const entry = response.data.activeQueueEntry;
+                            console.log("[Guest Recovery] Restored guest session:", entry);
+                            
+                            localStorage.setItem('myQueueEntryId', entry.id.toString());
+                            localStorage.setItem('joinedBarberId', entry.barber_id.toString());
+                            
+                            setMyQueueEntryId(entry.id.toString());
+                            setJoinedBarberId(entry.barber_id.toString());
+                            setReferenceImageUrl(entry.reference_image_url || '');
+                            setIsChatOpen(true);
+                            
+                            if (entry.customer_name) setGuestName(entry.customer_name);
+                            if (entry.customer_email) setGuestEmail(entry.customer_email);
+
+                            fetchPublicQueue(entry.barber_id.toString());
+                        }
+                    } catch (err) {
+                        console.error("[Guest Recovery] Failed:", err);
+                    }
+                }
+            }
+        };
+        restoreGuestSession();
+    }, [isGuest, myQueueEntryId, fetchPublicQueue]);
+
     useEffect(() => {
         if (joinMode === 'later' && selectedBarberId && selectedServiceId && selectedDate) {
             setAvailableSlots([]); // Clear old slots while loading
