@@ -23,6 +23,7 @@ export const AdminAppLayout = ({ session }) => {
     const [users, setUsers] = useState([]);
     const [services, setServices] = useState([]);
     const [isEditingService, setIsEditingService] = useState(null);
+    const [vipPrice, setVipPrice] = useState(100);
 
     const fetchLiveShop = useCallback(async () => {
         try {
@@ -66,6 +67,31 @@ export const AdminAppLayout = ({ session }) => {
         } catch (e) { alert("Restore failed."); }
     };
 
+    const fetchVipPrice = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/settings/vip-price`);
+            setVipPrice(res.data.vip_price || 100);
+        } catch (e) {
+            console.error("Failed to fetch VIP price:", e);
+        }
+    }, []);
+
+    const handleUpdateVipPrice = async (e) => {
+        e.preventDefault();
+        const newPrice = parseFloat(e.target.vipPriceInput.value);
+        if (isNaN(newPrice) || newPrice < 0) {
+            alert("Please enter a valid price.");
+            return;
+        }
+        try {
+            await axios.put(`${API_URL}/settings`, { key: 'vip_price', value: newPrice });
+            setVipPrice(newPrice);
+            alert(`VIP Price updated to ₱${newPrice}!`);
+        } catch (err) {
+            alert("Failed to update VIP price: " + (err.response?.data?.error || err.message));
+        }
+    };
+
     // --- EFFECTS ---
     useEffect(() => {
         // Refresh live data every 5 seconds
@@ -76,8 +102,11 @@ export const AdminAppLayout = ({ session }) => {
         }
         if (activeTab === 'stats') fetchAdvancedStats();
         if (activeTab === 'users') fetchUsers();
-        if (activeTab === 'menu') fetchServices();
-    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices]);
+        if (activeTab === 'menu') {
+            fetchServices();
+            fetchVipPrice();
+        }
+    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice]);
 
     
     // --- ACTIONS ---
@@ -318,6 +347,31 @@ export const AdminAppLayout = ({ session }) => {
                         </li>
                     ))}
                 </ul>
+
+                {/* --- VIP PRICE SETTING --- */}
+                <div style={{marginTop:'30px', paddingTop:'20px', borderTop:'2px solid var(--primary-orange)'}}>
+                    <h3 style={{color:'var(--primary-orange)', marginTop:0}}>👑 VIP Priority Setting</h3>
+                    <p style={{fontSize:'0.9rem', color:'var(--text-secondary)', marginBottom:'15px'}}>
+                        Set the price for VIP Priority service. This affects the "Up Next" button in customer dashboard.
+                    </p>
+                    <form onSubmit={handleUpdateVipPrice} style={{display:'flex', gap:'10px', alignItems:'end', flexWrap:'wrap'}}>
+                        <div className="form-group" style={{marginBottom:0}}>
+                            <label>VIP Price (₱)</label>
+                            <input 
+                                name="vipPriceInput" 
+                                type="number" 
+                                defaultValue={vipPrice} 
+                                required 
+                                min="0" 
+                                style={{width:'120px'}}
+                            />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Update VIP Price</button>
+                    </form>
+                    <p style={{marginTop:'10px', fontSize:'0.85rem', color:'var(--success-color)'}}>
+                        Current VIP Price: <strong>₱{vipPrice}</strong>
+                    </p>
+                </div>
             </div>
         </div>
     );

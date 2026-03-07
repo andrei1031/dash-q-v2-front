@@ -58,6 +58,7 @@ export const CustomerView = ({ session }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isVIPToggled, setIsVIPToggled] = useState(false);
     const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
+    const [vipPrice, setVipPrice] = useState(100);
     const lastUploadTime = useRef(0);
 
     const [feedbackText, setFeedbackText] = useState('');
@@ -868,6 +869,19 @@ export const CustomerView = ({ session }) => {
         fetchServices();
     }, []);
 
+    // Fetch VIP price on mount
+    useEffect(() => {
+        const fetchVipPrice = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings/vip-price`);
+                setVipPrice(response.data.vip_price || 100);
+            } catch (error) {
+                console.error('Failed to fetch VIP price:', error);
+            }
+        };
+        fetchVipPrice();
+    }, []);
+
     useEffect(() => { // Fetch Available Barbers
         const loadBarbers = async () => {
             try { const response = await axios.get(`${API_URL}/barbers`); setBarbers(response.data || []); }
@@ -1428,16 +1442,16 @@ export const CustomerView = ({ session }) => {
                             You are booking for <strong>{headCount} person(s)</strong>.
                         </p>
                         <p>
-                            VIP priority incurs an additional <strong>₱100 per head</strong> fee.
+                            VIP priority incurs an additional <strong>₱{vipPrice} per head</strong> fee.
                         </p>
                         <div style={{background:'rgba(255, 149, 0, 0.1)', padding:'10px', borderRadius:'8px', marginTop:'10px'}}>
-                            <strong>Total VIP Surcharge: ₱{100 * headCount}</strong>
+                            <strong>Total VIP Surcharge: ₱{vipPrice * headCount}</strong>
                         </div>
                     </div>
                     <div className="modal-footer">
                         <button onClick={cancelVIP} className="btn btn-secondary">Cancel VIP</button>
                         <button onClick={confirmVIP} disabled={!selectedServiceId} className="btn btn-primary">
-                            Confirm (+₱{100 * headCount})
+                            Confirm (+₱{vipPrice * headCount})
                         </button>
                     </div>
                 </div>
@@ -1570,7 +1584,7 @@ export const CustomerView = ({ session }) => {
                                     <label>Service Priority:</label>
                                     <div className="priority-toggle-control">
                                         <button type="button" className={`priority-option ${!isVIPToggled ? 'active' : ''}`} onClick={() => setIsVIPToggled(false)}>No Priority</button>
-                                        <button type="button" className={`priority-option ${isVIPToggled ? 'active vip' : ''}`} onClick={() => handleVIPToggle({ target: { checked: true } })} disabled={isVIPToggled}>VIP Priority (+₱100)</button>
+                                        <button type="button" className={`priority-option ${isVIPToggled ? 'active vip' : ''}`} onClick={() => handleVIPToggle({ target: { checked: true } })} disabled={isVIPToggled}>VIP Priority (+₱{vipPrice})</button>
                                     </div>
                                     {isVIPToggled && (<p className="success-message small">VIP Priority is active. You will be placed Up Next.</p>)}
                                 </div>
@@ -1724,13 +1738,13 @@ export const CustomerView = ({ session }) => {
                                     </div>
                                     <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
                                         <span>Appointment Fee:</span>
-                                        <strong>+ ₱100.00</strong>
+                                        <strong>+ ₱{vipPrice}.00</strong>
                                     </div>
                                     <hr style={{borderColor: 'rgba(255, 149, 0, 0.3)', margin: '5px 0'}} />
                                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem'}}>
                                         <strong>Total Estimate:</strong>
                                         <strong>
-                                            ₱{(parseFloat(services.find(s => s.id.toString() === selectedServiceId)?.price_php || 0) + 100).toFixed(2)}
+                                            ₱{(parseFloat(services.find(s => s.id.toString() === selectedServiceId)?.price_php || 0) + vipPrice).toFixed(2)}
                                         </strong>
                                     </div>
                                     <p style={{margin: '8px 0 0 0', fontSize: '0.75rem', opacity: 0.8}}>
