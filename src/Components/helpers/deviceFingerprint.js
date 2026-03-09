@@ -5,12 +5,18 @@
 
 export const getDeviceFingerprint = () => {
     // Create a fingerprint based on available browser properties
+    const screenInfo = typeof window !== 'undefined' && window.screen ? {
+        width: window.screen.width,
+        height: window.screen.height,
+        colorDepth: window.screen.colorDepth
+    } : { width: 0, height: 0, colorDepth: 0 };
+    
     const fingerprintData = [
         navigator.userAgent,
         navigator.language,
-        screen.width,
-        screen.height,
-        screen.colorDepth,
+        screenInfo.width,
+        screenInfo.height,
+        screenInfo.colorDepth,
         new Date().getTimezoneOffset(),
         navigator.hardwareConcurrency || '',
         navigator.deviceMemory || '',
