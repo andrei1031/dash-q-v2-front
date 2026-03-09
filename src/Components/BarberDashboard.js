@@ -36,6 +36,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [barberAppointments, setBarberAppointments] = useState([]);
     const [loadingAppts, setLoadingAppts] = useState(false);
     const [pendingApptCount, setPendingApptCount] = useState(0);
+    const [vipPrice, setVipPrice] = useState(100); // Fetch dynamic VIP price
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
@@ -261,6 +262,18 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     // UseEffect for initial load and realtime subscription
     useEffect(() => {
         if (!barberId || !supabase?.channel) return;
+        
+        // Fetch VIP price on mount
+        const fetchVipPrice = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings/vip-price`);
+                setVipPrice(response.data.vip_price || 100);
+            } catch (error) {
+                console.error('Failed to fetch VIP price:', error);
+            }
+        };
+        fetchVipPrice();
+        
         let dashboardRefreshInterval = null;
         fetchQueueDetails();
         fetchAppointmentCount();
@@ -352,9 +365,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         // 1. Calculate Base Service Total (Price x Heads)
         const baseTotal = servicePrice * heads;
         
-        // 2. Calculate VIP Charge (100 x Heads)
+        // 2. Calculate VIP Charge (Dynamic Price x Heads)
         const isVIP = entry.is_vip === true;
-        const vipCharge = isVIP ? (100 * heads) : 0; // <--- CHANGED HERE
+        const vipCharge = isVIP ? (vipPrice * heads) : 0; // <--- CHANGED HERE to use dynamic vipPrice
         
         // 3. Total before tip
         const subtotalDue = baseTotal + vipCharge;
@@ -785,9 +798,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                     {modalState.data.is_vip && (
                                         <>
                                             <div style={{display:'flex', justifyContent:'space-between', color:'var(--primary-orange)'}}>
-                                                <span>VIP Fee (₱100 x {modalState.data.head_count || 1}):</span>
+                                                <span>VIP Fee (₱{vipPrice} x {modalState.data.head_count || 1}):</span>
                                                 {/* SHOW MULTIPLIED VIP FEE */}
-                                                <span>+ ₱{(100 * (modalState.data.head_count || 1)).toFixed(2)}</span>
+                                                <span>+ ₱{(vipPrice * (modalState.data.head_count || 1)).toFixed(2)}</span>
                                             </div>
                                         </>
                                     )}
@@ -800,7 +813,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         <span style={{color: 'var(--success-color)'}}>
                                             ₱{(
                                                 ((parseFloat(modalState.data.services?.price_php || 0)) * (modalState.data.head_count || 1)) + 
-                                                (modalState.data.is_vip ? (100 * (modalState.data.head_count || 1)) : 0) // <--- CHANGED HERE
+                                                (modalState.data.is_vip ? (vipPrice * (modalState.data.head_count || 1)) : 0) // <--- CHANGED HERE
                                             ).toFixed(2)}
                                         </span>
                                     </div>
