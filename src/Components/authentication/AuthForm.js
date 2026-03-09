@@ -40,7 +40,17 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
             if (authView === 'login') {
                 if (!username || !password) throw new Error("Username/password required.");
                 if (selectedRole === 'barber' && !pin) throw new Error("Barber PIN required.");
-                const response = await axios.post(`${API_URL}/login/username`, { username: username.trim(), password, role: selectedRole, pin: selectedRole === 'barber' ? pin : undefined });
+                
+                // Get device fingerprint for blocking check
+                const deviceFingerprint = getDeviceFingerprint();
+                
+                const response = await axios.post(`${API_URL}/login/username`, { 
+                    username: username.trim(), 
+                    password, 
+                    role: selectedRole, 
+                    pin: selectedRole === 'barber' ? pin : undefined,
+                    deviceFingerprint: deviceFingerprint
+                });
                 if (response.data.user?.email && supabase?.auth) {
                     const { error } = await supabase.auth.signInWithPassword({ email: response.data.user.email, password });
                     if (error) throw error;
