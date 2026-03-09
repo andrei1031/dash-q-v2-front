@@ -180,7 +180,7 @@ export const AdminAppLayout = ({ session }) => {
         if (activeTab === 'customers') {
             fetchCustomers(customerPage, customerSearch);
         }
-    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice, fetchCustomers, customerPage, analyticsPeriod]);
+    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice, fetchCustomers, customerPage, customerSearch, analyticsPeriod]);
 
     
     // --- ACTIONS ---
