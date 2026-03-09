@@ -15,16 +15,15 @@ export const DeviceManagement = ({ session }) => {
 
     useEffect(() => {
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [blockedRes, guestsRes] = await Promise.all([
-                axios.get(`${API_URL}/admin/blocked-devices`),
-                fetchRecentGuests()
-            ]);
+            const blockedRes = await axios.get(`${API_URL}/admin/blocked-devices`);
             setBlockedDevices(blockedRes.data || []);
+            await fetchRecentGuests();
         } catch (error) {
             console.error("Error fetching data:", error);
             setMessage("Failed to load data.");
