@@ -70,12 +70,6 @@ export const DeviceManagement = ({ session }) => {
         }
     };
 
-    const openBlockModal = (device) => {
-        setBlockingDevice(device);
-        setShowBlockModal(true);
-        setBlockReason("");
-    };
-
     const getDeviceInfo = (device) => {
         // Extract readable info from fingerprint
         const fp = device.device_fingerprint || "";
