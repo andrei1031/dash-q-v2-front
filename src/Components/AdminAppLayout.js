@@ -49,11 +49,25 @@ export const AdminAppLayout = ({ session }) => {
 
     const fetchAdvancedStats = useCallback(async () => {
         setIsLoadingAnalytics(true);
+        setAdvancedStats(null); // Reset stats to trigger loading state
         try { 
+            console.log("Fetching analytics with period:", analyticsPeriod);
             const res = await axios.get(`${API_URL}/admin/analytics/filtered?period=${analyticsPeriod}`); 
+            console.log("Analytics response:", res.data);
             setAdvancedStats(res.data); 
         } catch (e) {
             console.error("Failed to fetch analytics:", e);
+            // Set empty stats to avoid "Crunching numbers" forever
+            setAdvancedStats({ 
+                totals: { revenue: 0, cuts: 0, period: analyticsPeriod },
+                dailyTrend: [],
+                barberStats: [],
+                period_label: analyticsPeriod === 'daily' ? 'Today' : 
+                              analyticsPeriod === 'weekly' ? 'Last 7 Days' : 
+                              analyticsPeriod === 'monthly' ? 'Last 30 Days' : 
+                              analyticsPeriod === 'yearly' ? 'Last 12 Months' : 'All Time',
+                error: e.response?.data?.error || e.message
+            });
         } finally {
             setIsLoadingAnalytics(false);
         }
@@ -62,11 +76,18 @@ export const AdminAppLayout = ({ session }) => {
     const fetchCustomers = useCallback(async (page = 1, search = '') => {
         setIsLoadingCustomers(true);
         try {
+            console.log("Fetching customers - page:", page, "search:", search);
             const res = await axios.get(`${API_URL}/admin/customers?page=${page}&limit=20&search=${encodeURIComponent(search)}`);
+            console.log("Customers response:", res.data);
             setCustomers(res.data.customers || []);
             setCustomerTotalPages(res.data.pagination?.totalPages || 1);
         } catch (e) {
             console.error("Failed to fetch customers:", e);
+            // Set empty customers to avoid infinite loading
+            setCustomers([]);
+            setCustomerTotalPages(1);
+            // Optionally alert the user
+            // alert("Could not load customers. Please try again.");
         } finally {
             setIsLoadingCustomers(false);
         }
@@ -432,7 +453,36 @@ export const AdminAppLayout = ({ session }) => {
     // --- SUPER DETAILED ANALYTICS VIEW (RESPONSIVE FIX) ---
     const StatsView = () => {
         if (isLoadingAnalytics) return <div className="loading-fullscreen"><span>Crunching numbers...</span></div>;
-        if (!advancedStats) return <div className="loading-fullscreen"><span>Crunching numbers...</span></div>;
+        
+        // Handle empty or error state
+        if (!advancedStats || (!advancedStats.totals && !advancedStats.error)) {
+            return (
+                <div className="loading-fullscreen">
+                    <span>No analytics data available yet.</span>
+                    <p style={{color: 'var(--text-secondary)', marginTop: '10px'}}>
+                        Complete some services to see analytics!
+                    </p>
+                    <button onClick={() => fetchAdvancedStats()} className="btn btn-primary" style={{marginTop: '15px'}}>
+                        <IconRefresh /> Retry
+                    </button>
+                </div>
+            );
+        }
+        
+        // Show error state if there was an error
+        if (advancedStats.error) {
+            return (
+                <div className="loading-fullscreen">
+                    <span style={{color: 'var(--error-color)'}}>Error loading analytics</span>
+                    <p style={{color: 'var(--text-secondary)', marginTop: '10px'}}>
+                        {advancedStats.error}
+                    </p>
+                    <button onClick={() => fetchAdvancedStats()} className="btn btn-primary" style={{marginTop: '15px'}}>
+                        <IconRefresh /> Try Again
+                    </button>
+                </div>
+            );
+        }
         
         // --- SAFEGUARDS ---
         const totals = advancedStats.totals || { revenue: 0, cuts: 0, period: 'all' };
@@ -643,6 +693,7 @@ export const AdminAppLayout = ({ session }) => {
                             placeholder="Search by name or email..." 
                             value={customerSearch}
                             onChange={(e) => setCustomerSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && fetchCustomers(1, customerSearch)}
                             style={{padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-dark)', color: 'var(--text-primary)', minWidth: '250px'}}
                         />
                         <button onClick={() => {setCustomerPage(1); fetchCustomers(1, customerSearch);}} className="btn btn-secondary">
@@ -701,7 +752,22 @@ export const AdminAppLayout = ({ session }) => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" style={{padding:'20px', textAlign:'center'}}>No customers found.</td>
+                                        <td colSpan="5" style={{padding:'20px', textAlign:'center'}}>
+                                            {customerSearch ? (
+                                                <div>
+                                                    <p>No customers found matching "{customerSearch}"</p>
+                                                    <button 
+                                                        onClick={() => {setCustomerSearch(''); fetchCustomers(1, '');}} 
+                                                        className="btn btn-secondary"
+                                                        style={{marginTop: '10px'}}
+                                                    >
+                                                        Clear Search
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <p>No customers in the database yet.</p>
+                                            )}
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
