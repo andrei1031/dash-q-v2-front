@@ -15,7 +15,7 @@ export const CustomerView = ({ session }) => {
     const [selectedBarberId, setSelectedBarberId] = useState('');
     
     const isGuest = !session;
-    const [guestName, setGuestName] = useState('');
+    const [guestName, setGuestName] = useState(() => session?.user?.nickname || session?.user?.user_metadata?.full_name || '');
     const [guestEmail, setGuestEmail] = useState('');
     
     const [message, setMessage] = useState('');
@@ -1505,13 +1505,14 @@ export const CustomerView = ({ session }) => {
                         >
                             ⚡ Join Queue Now
                         </button>
-                        {!isGuest && <button 
-                            className={joinMode === 'later' ? 'active' : ''} 
-                            onClick={() => setJoinMode('later')}
-                            style={{flex: '1 1 auto', textAlign: 'center'}}
-                        >
-                            📅 Book Appointment
-                        </button>}
+                            {/* Book Appointment tab is hidden for guests */}
+                            {!isGuest && <button 
+                                className={joinMode === 'later' ? 'active' : ''} 
+                                onClick={() => setJoinMode('later')}
+                                style={{flex: '1 1 auto', textAlign: 'center'}}
+                            >
+                                📅 Book Appointment
+                            </button>}
                     </div>
 
                     {/* 2. SHARED INPUTS (Name, Email) */}
@@ -1578,8 +1579,8 @@ export const CustomerView = ({ session }) => {
                                     )}
                                 </div>
                             </div>
-                            {/* VIP Toggle */}
-                            {selectedServiceId && (
+                            {/* VIP Toggle - Hidden for guests */}
+                            {selectedServiceId && !isGuest && (
                                 <div className="form-group vip-toggle-group">
                                     <label>Service Priority:</label>
                                     <div className="priority-toggle-control">

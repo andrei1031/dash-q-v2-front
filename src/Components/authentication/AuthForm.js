@@ -23,6 +23,8 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [selectedRole, setSelectedRole] = useState(initialRole || 'customer');
     const [showPassword, setShowPassword] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
+    const [showGuestNicknameModal, setShowGuestNicknameModal] = useState(false);
+    const [guestNickname, setGuestNickname] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -118,58 +120,72 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
         }
     };
 
-    
+    const handleGuestNicknameSubmit = () => {
+        if (guestNickname && guestNickname.trim().length >= 2) {
+            setShowGuestNicknameModal(false);
+            setShowGuestModal(true);
+        } else {
+            setMessage("Please enter at least 2 characters.");
+        }
+    };
 
     const handleGuestContinue = async () => {
-    setIsLoading(true);
-    try {
-        const res = await fetch(`${API_URL}/auth/guest`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
+        setIsLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/auth/guest`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ nickname: guestNickname.trim() })
+            });
 
-        const data = await res.json();
+            const data = await res.json();
 
-        if (!res.ok) {
-            console.error("Guest login failed:", data);
+            if (!res.ok) {
+                console.error("Guest login failed:", data);
 
-            // Fallback: Check if onGuestLogin is actually a function
-            if (onGuestLogin && typeof onGuestLogin === 'function') {
-                console.warn("Backend error, using fallback guest session.");
-                onGuestLogin({ user: { id: 'guest-fallback' }, token: 'guest-token' });
+                // Fallback: Check if onGuestLogin is actually a function
+                if (onGuestLogin && typeof onGuestLogin === 'function') {
+                    console.warn("Backend error, using fallback guest session.");
+                    onGuestLogin({ user: { id: 'guest-fallback', user_metadata: { full_name: guestNickname } }, token: 'guest-token' });
+                    return;
+                }
+                alert(data.error || "Guest login failed");
                 return;
             }
-            alert(data.error || "Guest login failed");
-            return;
+
+            console.log("Guest login success:", data);
+
+            // Success: Check if onGuestLogin is actually a function
+            if (onGuestLogin && typeof onGuestLogin === 'function') {
+                onGuestLogin(data);
+            } else {
+                console.error("CRITICAL: onGuestLogin prop is missing or not a function!", typeof onGuestLogin);
+            }
+
+            // Save token for later requests
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+
+            return data;
+
+        } catch (err) {
+            setIsLoading(false);
+            console.error("Error calling guest endpoint:", err);
+            
+            // Catch Block Fallback: Check if onGuestLogin is actually a function
+            if (onGuestLogin && typeof onGuestLogin === 'function') {
+                onGuestLogin({ user: { id: 'guest-fallback', user_metadata: { full_name: guestNickname } }, token: 'guest-token' });
+            }
         }
+    };
 
-        console.log("Guest login success:", data);
-
-        // Success: Check if onGuestLogin is actually a function
-        if (onGuestLogin && typeof onGuestLogin === 'function') {
-            onGuestLogin(data);
-        } else {
-            console.error("CRITICAL: onGuestLogin prop is missing or not a function!", typeof onGuestLogin);
-        }
-
-        // Save token for later requests
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        return data;
-
-    } catch (err) {
-        setIsLoading(false);
-        console.error("Error calling guest endpoint:", err);
-        
-        // Catch Block Fallback: Check if onGuestLogin is actually a function
-        if (onGuestLogin && typeof onGuestLogin === 'function') {
-            onGuestLogin({ user: { id: 'guest-fallback' }, token: 'guest-token' });
-        }
-    }
-};
+    const openGuestFlow = () => {
+        // First show nickname modal
+        setGuestNickname('');
+        setShowGuestNicknameModal(true);
+    };
 
     return (
         <div className="card auth-card">
@@ -179,16 +195,63 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                 setIsWelcomeModalOpen={setIsWelcomeModalOpen} 
                 authView={authView}
             />
+            
+            {/* --- GUEST NICKNAME MODAL --- */}
+            {showGuestNicknameModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-body">
+                            <h2>Enter Your Nickname</h2>
+                            <p style={{marginBottom: '15px', textAlign: 'left'}}>
+                                Please enter a nickname to identify you in the queue.
+                            </p>
+                            <div className="form-group">
+                                <label>Nickname:</label>
+                                <input 
+                                    type="text" 
+                                    value={guestNickname} 
+                                    onChange={(e) => setGuestNickname(e.target.value)}
+                                    placeholder="Enter your nickname"
+                                    autoFocus
+                                    minLength="2"
+                                    maxLength="20"
+                                />
+                                <small style={{display: 'block', marginTop: '5px', color: 'var(--text-secondary)'}}>
+                                    This name will be shown in the queue.
+                                </small>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                onClick={() => setShowGuestNicknameModal(false)}
+                                className="btn btn-secondary"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleGuestNicknameSubmit}
+                                className="btn btn-primary"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* --- GUEST CONFIRMATION MODAL --- */}
             {showGuestModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-body">
                             <h2>Continue as Guest?</h2>
+                            <p style={{marginBottom: '10px', textAlign: 'left'}}>
+                                You are joining as: <strong>{guestNickname}</strong>
+                            </p>
                             
                             <div style={{background: 'rgba(255, 149, 0, 0.1)', borderLeft: '4px solid var(--primary-orange)', padding: '10px', marginBottom: '15px', textAlign: 'left'}}>
                                 <p style={{fontSize: '0.9rem', margin: 0}}>
-                                    <strong>Note:</strong> Guest mode is recommended for one-time customers only and it’s not optimized there’s a tendency to lose your position if you refresh the page.
+                                    <strong>Note:</strong> Guest mode is recommended for one-time customers only. Your position may be lost if you refresh the page.
                                 </p>
                             </div>
 
@@ -317,7 +380,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                                 <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '10px'}}>Just visiting for today?</p>
                                 <button 
                                     type="button"
-                                    onClick={() => setShowGuestModal(true)}
+                                    onClick={openGuestFlow}
                                     className="btn btn-link"
                                     style={{fontSize: '0.9rem', fontWeight: '600'}}
                                 >
@@ -344,3 +407,4 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
         </div>
     )
 }
+

@@ -88,6 +88,9 @@ function App() {
     const handleGuestLogin = (guestData) => {
     isGuestRef.current = true;
 
+    // Use the nickname from guestData if available, otherwise generate a default
+    const guestNickname = guestData?.user?.nickname || guestData?.user?.user_metadata?.full_name || 'Guest';
+
     // 🔴 FIX: Always generate a UNIQUE ID using Date.now()
     // This ensures every guest is treated as a different person (guest-123, guest-124, etc.)
     const uniqueId = `guest-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -97,8 +100,9 @@ function App() {
         user: {
             id: uniqueId, // <--- This is the key change!
             email: 'Guest',
-            user_metadata: { full_name: 'Guest' },
-            is_guest: true
+            user_metadata: { full_name: guestNickname },
+            is_guest: true,
+            nickname: guestNickname
         }
     };
 
