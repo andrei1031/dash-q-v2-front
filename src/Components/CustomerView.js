@@ -14,7 +14,7 @@ export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
     
-    const isGuest = !session;
+    const isGuest = session && session.user && session.user.is_guest === true;
     const [guestName, setGuestName] = useState(() => session?.user?.nickname || session?.user?.user_metadata?.full_name || '');
     const [guestEmail, setGuestEmail] = useState('');
     
@@ -1591,17 +1591,19 @@ export const CustomerView = ({ session }) => {
                                 </div>
                             )}
                             
-                            {/* Photo Upload */}
-                            <div className="form-group photo-upload-group">
-                                <label>Desired Haircut Photo (Optional):</label>
-                                <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload" className="file-upload-input" />
-                                <label htmlFor="file-upload" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
-                                <button type="button" onClick={() => handleUploadPhoto(null)} disabled={!selectedFile || isUploading || referenceImageUrl} className="btn btn-secondary btn-icon-label">
-                                    <IconUpload />
-                                    {isUploading ? 'Uploading...' : (referenceImageUrl ? 'Photo Attached' : 'Upload Photo')}
-                                </button>
-                                {referenceImageUrl && <p className="success-message small">Photo ready. <a href={referenceImageUrl} target="_blank" rel="noopener noreferrer">View Photo</a></p>}
-                            </div>
+                            {/* Photo Upload - Hidden for guests */}
+                            {!isGuest && selectedServiceId && (
+                                <div className="form-group photo-upload-group">
+                                    <label>Desired Haircut Photo (Optional):</label>
+                                    <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload" className="file-upload-input" />
+                                    <label htmlFor="file-upload" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
+                                    <button type="button" onClick={() => handleUploadPhoto(null)} disabled={!selectedFile || isUploading || referenceImageUrl} className="btn btn-secondary btn-icon-label">
+                                        <IconUpload />
+                                        {isUploading ? 'Uploading...' : (referenceImageUrl ? 'Photo Attached' : 'Upload Photo')}
+                                    </button>
+                                    {referenceImageUrl && <p className="success-message small">Photo ready. <a href={referenceImageUrl} target="_blank" rel="noopener noreferrer">View Photo</a></p>}
+                                </div>
+                            )}
 
                             {/* Barber Selection */}
                             <div className="form-group">
@@ -1673,8 +1675,8 @@ export const CustomerView = ({ session }) => {
                         </form>
                     )}
 
-                    {/* --- OPTION B: BOOK LATER FORM (New Logic) --- */}
-                    {joinMode === 'later' && (
+                    {/* --- OPTION B: BOOK LATER FORM (Hidden for guests) --- */}
+                    {joinMode === 'later' && !isGuest && (
                         <form onSubmit={handleBooking}>
                             <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
 
@@ -1992,7 +1994,7 @@ export const CustomerView = ({ session }) => {
                         ))}
                     </ul>
                     <div className="live-queue-actions">
-                        {isQueueUpdateAllowed && (<div className="form-group photo-upload-group live-update-group">
+                        {isQueueUpdateAllowed && !isGuest && (<div className="form-group photo-upload-group live-update-group">
                             <label>Update Haircut Photo:</label>
                             <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload-update" className="file-upload-input" />
                             <label htmlFor="file-upload-update" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
@@ -2070,8 +2072,8 @@ export const CustomerView = ({ session }) => {
                 </div>
             )}
 
-            {/* C. HISTORY VIEW */}
-            {viewMode === 'history' && (
+            {/* C. HISTORY VIEW - Hidden for guests */}
+            {viewMode === 'history' && !isGuest && (
                 <div className="card-body history-view">
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
                         <h2 style={{margin: 0}}>My Past Services</h2>
@@ -2159,8 +2161,8 @@ export const CustomerView = ({ session }) => {
                     )}
                 </div>
             )}
-            {/* D. APPOINTMENTS VIEW */}
-            {viewMode === 'appointments' && (
+            {/* D. APPOINTMENTS VIEW - Hidden for guests */}
+            {viewMode === 'appointments' && !isGuest && (
                 <div className="card-body">
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
                         <h2 style={{margin:0}}>My Bookings</h2>
