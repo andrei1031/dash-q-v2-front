@@ -6,7 +6,7 @@ import { ThemeToggleButton } from "../Partials/ThemeToggleButton";
 import { IconEye, IconEyeOff } from "../assets/Icon";
 import { SignUpModal } from "../modals/SignUpModal";
 import { ForgotPassword } from "./ForgotPassword";
-import { getDeviceFingerprint } from "./helpers/deviceFingerprint";
+import { getDeviceFingerprint } from "../helpers/deviceFingerprint";
 
 export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(true);
