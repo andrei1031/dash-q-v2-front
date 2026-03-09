@@ -4,7 +4,7 @@ import { API_URL } from "./http-commons";
 import { Bar } from "react-chartjs-2";
 import { ThemeToggleButton } from "./Partials/ThemeToggleButton";
 import { handleLogout } from "../App";
-import { IconLogout } from "./assets/Icon";
+import { IconLogout, IconRefresh, IconDownload, IconSearch } from "./assets/Icon";
 import { BookingsView } from "./admin/BookingsView";
 import { ReportsView } from "./admin/ReportsView";
 import { OmniChatView } from "./admin/OmniChatView";
@@ -13,7 +13,7 @@ import axios from "axios";
 
 export const AdminAppLayout = ({ session }) => {
     // Added 'staff' to tabs
-    const [activeTab, setActiveTab] = useState('live'); // 'live', 'stats', 'users', 'menu', 'staff'
+    const [activeTab, setActiveTab] = useState('live'); // 'live', 'stats', 'users', 'menu', 'staff', 'customers'
     
     // Data States
     const [allQueues, setAllQueues] = useState([]);
@@ -24,6 +24,17 @@ export const AdminAppLayout = ({ session }) => {
     const [services, setServices] = useState([]);
     const [isEditingService, setIsEditingService] = useState(null);
     const [vipPrice, setVipPrice] = useState(100);
+
+    // Analytics Filter States
+    const [analyticsPeriod, setAnalyticsPeriod] = useState('all');
+    const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+
+    // Customer Database States
+    const [customers, setCustomers] = useState([]);
+    const [customerPage, setCustomerPage] = useState(1);
+    const [customerTotalPages, setCustomerTotalPages] = useState(1);
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
 
     const fetchLiveShop = useCallback(async () => {
         try {
@@ -37,8 +48,47 @@ export const AdminAppLayout = ({ session }) => {
     }, []);
 
     const fetchAdvancedStats = useCallback(async () => {
-        try { const res = await axios.get(`${API_URL}/admin/analytics/advanced`); setAdvancedStats(res.data); } catch (e) {}
+        setIsLoadingAnalytics(true);
+        try { 
+            const res = await axios.get(`${API_URL}/admin/analytics/filtered?period=${analyticsPeriod}`); 
+            setAdvancedStats(res.data); 
+        } catch (e) {
+            console.error("Failed to fetch analytics:", e);
+        } finally {
+            setIsLoadingAnalytics(false);
+        }
+    }, [analyticsPeriod]);
+
+    const fetchCustomers = useCallback(async (page = 1, search = '') => {
+        setIsLoadingCustomers(true);
+        try {
+            const res = await axios.get(`${API_URL}/admin/customers?page=${page}&limit=20&search=${encodeURIComponent(search)}`);
+            setCustomers(res.data.customers || []);
+            setCustomerTotalPages(res.data.pagination?.totalPages || 1);
+        } catch (e) {
+            console.error("Failed to fetch customers:", e);
+        } finally {
+            setIsLoadingCustomers(false);
+        }
     }, []);
+
+    const handleExportCSV = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/admin/analytics/export?period=${analyticsPeriod}`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `analytics_${analyticsPeriod}_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (e) {
+            console.error("Failed to export CSV:", e);
+            alert("Failed to export CSV");
+        }
+    };
 
     const fetchUsers = useCallback(async () => {
         try { 
@@ -106,7 +156,10 @@ export const AdminAppLayout = ({ session }) => {
             fetchServices();
             fetchVipPrice();
         }
-    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice]);
+        if (activeTab === 'customers') {
+            fetchCustomers(customerPage, customerSearch);
+        }
+    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice, fetchCustomers, customerPage, customerSearch, analyticsPeriod]);
 
     
     // --- ACTIONS ---
@@ -378,12 +431,14 @@ export const AdminAppLayout = ({ session }) => {
 
     // --- SUPER DETAILED ANALYTICS VIEW (RESPONSIVE FIX) ---
     const StatsView = () => {
+        if (isLoadingAnalytics) return <div className="loading-fullscreen"><span>Crunching numbers...</span></div>;
         if (!advancedStats) return <div className="loading-fullscreen"><span>Crunching numbers...</span></div>;
         
         // --- SAFEGUARDS ---
-        const totals = advancedStats.totals || { revenue: 0, cuts: 0 };
+        const totals = advancedStats.totals || { revenue: 0, cuts: 0, period: 'all' };
         const dailyTrend = advancedStats.dailyTrend || [];
         const barberStats = advancedStats.barberStats || [];
+        const periodLabel = advancedStats.period_label || 'All Time';
 
         // 1. Prepare Chart Data
         const trendData = {
@@ -401,7 +456,7 @@ export const AdminAppLayout = ({ session }) => {
             labels: barberStats.map(b => b.full_name),
             datasets: [{
                 label: 'Total Revenue (₱)',
-                data: barberStats.map(b => b.total_revenue),
+                data: barberStats.map(b => b.revenue),
                 backgroundColor: [
                     'rgba(255, 99, 132, 0.7)',
                     'rgba(54, 162, 235, 0.7)',
@@ -412,14 +467,38 @@ export const AdminAppLayout = ({ session }) => {
                 borderWidth: 1
             }]
         };
-        const topBarber = barberStats.length > 0 ? barberStats[0] : { full_name: 'No Data', total_revenue: 0 };
+        const topBarber = barberStats.length > 0 ? barberStats[0] : { full_name: 'No Data', revenue: 0 };
 
         return (
             <div className="stats-container">
+                {/* --- FILTER CONTROLS --- */}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <label style={{fontWeight: 'bold'}}>Period:</label>
+                        <select 
+                            value={analyticsPeriod} 
+                            onChange={(e) => setAnalyticsPeriod(e.target.value)}
+                            style={{padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-dark)', color: 'var(--text-primary)'}}
+                        >
+                            <option value="all">All Time</option>
+                            <option value="daily">Today</option>
+                            <option value="weekly">Last 7 Days</option>
+                            <option value="monthly">Last 30 Days</option>
+                            <option value="yearly">Last 12 Months</option>
+                        </select>
+                        <button onClick={() => fetchAdvancedStats()} className="btn btn-secondary" style={{padding: '8px'}}>
+                            <IconRefresh />
+                        </button>
+                    </div>
+                    <button onClick={handleExportCSV} className="btn btn-primary">
+                        <IconDownload /> Export CSV
+                    </button>
+                </div>
+
                 {/* --- ROW 1: KPI CARDS --- */}
                 <div className="analytics-grid" style={{marginBottom: '20px'}}>
                     <div className="analytics-item">
-                        <span className="analytics-label">Total Shop Revenue</span>
+                        <span className="analytics-label">Total Shop Revenue ({periodLabel})</span>
                         <span className="analytics-value" style={{color: 'var(--success-color)'}}>
                             ₱{parseInt(totals.revenue || 0).toLocaleString()}
                         </span>
@@ -434,7 +513,7 @@ export const AdminAppLayout = ({ session }) => {
                             {topBarber.full_name}
                         </span>
                         <small style={{color: 'var(--text-secondary)'}}>
-                            Earned ₱{(topBarber.total_revenue || 0).toLocaleString()}
+                            Earned ₱{(topBarber.revenue || 0).toLocaleString()}
                         </small>
                     </div>
                 </div>
@@ -549,6 +628,89 @@ export const AdminAppLayout = ({ session }) => {
             </div>
         </div>
     );
+
+    const CustomersView = () => (
+        <div className="card">
+            <div className="card-header">
+                <h2>Customer Database</h2>
+            </div>
+            <div className="card-body">
+                {/* Search and Pagination Controls */}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <input 
+                            type="text" 
+                            placeholder="Search by name or email..." 
+                            value={customerSearch}
+                            onChange={(e) => setCustomerSearch(e.target.value)}
+                            style={{padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-dark)', color: 'var(--text-primary)', minWidth: '250px'}}
+                        />
+                        <button onClick={() => {setCustomerPage(1); fetchCustomers(1, customerSearch);}} className="btn btn-secondary">
+                            <IconSearch />
+                        </button>
+                    </div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <button 
+                            onClick={() => setCustomerPage(p => Math.max(1, p - 1))} 
+                            disabled={customerPage === 1}
+                            className="btn btn-secondary"
+                        >
+                            Previous
+                        </button>
+                        <span>Page {customerPage} of {customerTotalPages}</span>
+                        <button 
+                            onClick={() => setCustomerPage(p => Math.min(customerTotalPages, p + 1))} 
+                            disabled={customerPage >= customerTotalPages}
+                            className="btn btn-secondary"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+
+                {isLoadingCustomers ? (
+                    <div className="loading-fullscreen"><span>Loading customers...</span></div>
+                ) : (
+                    <div style={{overflowX: 'auto'}}>
+                        <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
+                            <thead>
+                                <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
+                                    <th style={{padding:'10px'}}>Name</th>
+                                    <th style={{padding:'10px'}}>Email</th>
+                                    <th style={{padding:'10px'}}>Joined</th>
+                                    <th style={{padding:'10px', textAlign: 'center'}}>Visits</th>
+                                    <th style={{padding:'10px', textAlign: 'right'}}>Total Spent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {customers.length > 0 ? (
+                                    customers.map(c => (
+                                        <tr key={c.id} style={{borderBottom:'1px solid var(--border-color)'}}>
+                                            <td style={{padding:'10px', fontWeight: '600'}}>{c.full_name}</td>
+                                            <td style={{padding:'10px'}}>{c.email || 'N/A'}</td>
+                                            <td style={{padding:'10px'}}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}</td>
+                                            <td style={{padding:'10px', textAlign: 'center'}}>
+                                                <span style={{background: 'rgba(255, 149, 0, 0.1)', color: 'var(--primary-orange)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold'}}>
+                                                    {c.visits || 0}
+                                                </span>
+                                            </td>
+                                            <td style={{padding:'10px', textAlign: 'right', fontWeight: 'bold', color: 'var(--success-color)'}}>
+                                                ₱{(c.totalSpent || 0).toLocaleString()}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" style={{padding:'20px', textAlign:'center'}}>No customers found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
     
     return (
         <div className="app-layout admin-layout">
@@ -575,6 +737,7 @@ export const AdminAppLayout = ({ session }) => {
                 <button className={activeTab === 'omni' ? 'active' : ''} onClick={() => setActiveTab('omni')}>💬 Omni-Chat</button>
                 <button className={activeTab === 'bookings' ? 'active' : ''} onClick={() => setActiveTab('bookings')}>📅 Bookings</button>
                 <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>👥 Users</button>
+                <button className={activeTab === 'customers' ? 'active' : ''} onClick={() => setActiveTab('customers')}>👤 Customers</button>
                 <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>🚨 Reports</button>
             </div>
 
@@ -587,6 +750,7 @@ export const AdminAppLayout = ({ session }) => {
                     {activeTab === 'omni' && <OmniChatView />}
                     {activeTab === 'bookings' && <BookingsView />}
                     {activeTab === 'users' && <UsersView />}
+                    {activeTab === 'customers' && <CustomersView />}
                     
                     {/* --- ADD THIS LINE --- */}
                     {activeTab === 'reports' && <ReportsView />}
