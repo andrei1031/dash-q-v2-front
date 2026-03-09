@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getDistanceInMeters, getTomorrowDate, isIOsDevice, NEXT_UP_TITLE, playSound, startBlinking, stopBlinking, stopSound, TURN_TITLE } from "./helpers/utils";
+import { getDeviceFingerprint } from "./helpers/deviceFingerprint";
 import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { messageNotificationSound, queueNotificationSound } from "../App";
@@ -433,8 +434,7 @@ export const CustomerView = ({ session }) => {
         setIsLoading(true); setMessage('Joining queue...');
         
         // Get device fingerprint
-        const deviceFingerprint = localStorage.getItem('deviceFingerprint') || 
-            (await import('../helpers/deviceFingerprint')).then(m => m.getDeviceFingerprint());
+        const deviceFingerprint = localStorage.getItem('deviceFingerprint') || getDeviceFingerprint();
 
         try {
             const response = await axios.post(`${API_URL}/queue`, {
@@ -446,7 +446,7 @@ export const CustomerView = ({ session }) => {
                 user_id: isGuest ? localStorage.getItem('guestId') || '77e8c6a6-e2d7-418c-95ba-02e3c88922bb' : session?.user?.id || null,
                 is_vip: isVIPToggled,
                 head_count: headCount,
-                deviceFingerprint: typeof deviceFingerprint === 'string' ? deviceFingerprint : null
+                deviceFingerprint: deviceFingerprint || null
             });
             const newEntry = response.data;
             if (newEntry && newEntry.id) {
