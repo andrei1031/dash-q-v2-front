@@ -8,12 +8,13 @@ import { IconLogout, IconRefresh, IconDownload, IconSearch } from "./assets/Icon
 import { BookingsView } from "./admin/BookingsView";
 import { ReportsView } from "./admin/ReportsView";
 import { OmniChatView } from "./admin/OmniChatView";
+import { DeviceManagement } from "./admin/DeviceManagement";
 
 import axios from "axios";
 
 export const AdminAppLayout = ({ session }) => {
-    // Added 'staff' to tabs
-    const [activeTab, setActiveTab] = useState('live'); // 'live', 'stats', 'users', 'menu', 'staff', 'customers'
+    // Added 'staff'   to tabs
+    const [activeTab, setActiveTab] = useState('live'); // 'live', 'stats', 'users', 'menu', 'staff', 'customers', 'devices'
     
     // Data States
     const [allQueues, setAllQueues] = useState([]);
@@ -805,6 +806,7 @@ export const AdminAppLayout = ({ session }) => {
                 <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>👥 Users</button>
                 <button className={activeTab === 'customers' ? 'active' : ''} onClick={() => setActiveTab('customers')}>👤 Customers</button>
                 <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>🚨 Reports</button>
+                <button className={activeTab === 'devices' ? 'active' : ''} onClick={() => setActiveTab('devices')}>📱 Devices</button>
             </div>
 
             <main className="main-content">
@@ -820,6 +822,7 @@ export const AdminAppLayout = ({ session }) => {
                     
                     {/* --- ADD THIS LINE --- */}
                     {activeTab === 'reports' && <ReportsView />}
+                    {activeTab === 'devices' && <DeviceManagement session={session} />}
                 </div>
             </main>
         </div>

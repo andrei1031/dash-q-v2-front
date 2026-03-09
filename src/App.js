@@ -91,14 +91,14 @@ function App() {
     // Use the nickname from guestData if available, otherwise generate a default
     const guestNickname = guestData?.user?.nickname || guestData?.user?.user_metadata?.full_name || 'Guest';
 
-    // 🔴 FIX: Always generate a UNIQUE ID using Date.now()
-    // This ensures every guest is treated as a different person (guest-123, guest-124, etc.)
-    const uniqueId = `guest-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // Get the guestId from the token response (not generate a new one!)
+    // This ensures session persistence across refreshes
+    const guestId = guestData?.user?.id || localStorage.getItem('guestId') || `guest-${Date.now()}`;
 
     const guestSession = {
         access_token: guestData?.token || 'guest-token',
         user: {
-            id: uniqueId, // <--- This is the key change!
+            id: guestId, // Use the persistent guestId from backend
             email: 'Guest',
             user_metadata: { full_name: guestNickname },
             is_guest: true,
@@ -108,6 +108,10 @@ function App() {
 
         // Save this specific guest's session
         localStorage.setItem('guestSession', JSON.stringify(guestSession));
+        localStorage.setItem('guestId', guestId); // Ensure guestId is persisted
+        localStorage.setItem('token', guestData?.token || 'guest-token');
+        localStorage.setItem('user', JSON.stringify(guestSession.user));
+        
         setSession(guestSession);
         setUserRole('customer');
         setShowLanding(false);
@@ -159,10 +163,74 @@ function App() {
             if (existingSession) {
                 setSession(existingSession);
                 checkUserRole(existingSession.user);
+            } else {
+                // 2. Check for existing guest session in localStorage
+                const storedGuestSession = localStorage.getItem('guestSession');
+                const storedToken = localStorage.getItem('token');
+                const storedGuestId = localStorage.getItem('guestId');
+                const storedDeviceFingerprint = localStorage.getItem('deviceFingerprint');
+                
+                if (storedGuestSession && storedToken && storedGuestId) {
+                    try {
+                        const guestData = JSON.parse(storedGuestSession);
+                        
+                        // Verify token is still valid by calling guest_login with existing guestId
+                        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/guest`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ 
+                                guestId: storedGuestId,
+                                nickname: guestData?.user?.nickname || 'Guest',
+                                deviceFingerprint: storedDeviceFingerprint
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log("[Guest Session] Recovered successfully");
+                            
+                            // Update session with new token
+                            const recoveredSession = {
+                                access_token: data.token,
+                                user: data.user
+                            };
+                            
+                            localStorage.setItem('guestSession', JSON.stringify(recoveredSession));
+                            localStorage.setItem('token', data.token);
+                            localStorage.setItem('user', JSON.stringify(data.user));
+                            
+                            setSession(recoveredSession);
+                            setUserRole('customer');
+                            isGuestRef.current = true;
+                        } else if (response.status === 403) {
+                            // Device is blocked, clear session
+                            console.log("[Guest Session] Device is blocked");
+                            localStorage.removeItem('guestSession');
+                            localStorage.removeItem('guestId');
+                            localStorage.removeItem('deviceFingerprint');
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('user');
+                        } else {
+                            // Token expired or invalid, use stored session temporarily
+                            console.log("[Guest Session] Using stored session");
+                            setSession(guestData);
+                            setUserRole('customer');
+                            isGuestRef.current = true;
+                        }
+                    } catch (error) {
+                        console.error("[Guest Session] Recovery error:", error);
+                        // Use stored session on network error
+                        if (storedGuestSession) {
+                            setSession(JSON.parse(storedGuestSession));
+                            setUserRole('customer');
+                            isGuestRef.current = true;
+                        }
+                    }
+                }
             }
             setLoadingRole(false);
 
-            // 2. SAFER NOTIFICATION CHECK (Prevents Mobile Crash)
+            // 3. SAFER NOTIFICATION CHECK (Prevents Mobile Crash)
             // Only run if the browser actually supports it
             if ('Notification' in window && 'serviceWorker' in navigator && existingSession?.user?.id) {
                 if (Notification.permission === 'granted') {

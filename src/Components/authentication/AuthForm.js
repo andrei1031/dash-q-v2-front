@@ -6,6 +6,7 @@ import { ThemeToggleButton } from "../Partials/ThemeToggleButton";
 import { IconEye, IconEyeOff } from "../assets/Icon";
 import { SignUpModal } from "../modals/SignUpModal";
 import { ForgotPassword } from "./ForgotPassword";
+import { getDeviceFingerprint } from "../helpers/deviceFingerprint";
 
 export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(true);
@@ -132,18 +133,34 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const handleGuestContinue = async () => {
         setIsLoading(true);
         try {
+            // Get device fingerprint
+            const deviceFingerprint = getDeviceFingerprint();
+            
+            // Get existing guestId from localStorage if available
+            const existingGuestId = localStorage.getItem('guestId');
+            
             const res = await fetch(`${API_URL}/auth/guest`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ nickname: guestNickname.trim() })
+                body: JSON.stringify({ 
+                    nickname: guestNickname.trim(),
+                    guestId: existingGuestId,
+                    deviceFingerprint: deviceFingerprint
+                })
             });
 
             const data = await res.json();
 
             if (!res.ok) {
                 console.error("Guest login failed:", data);
+                
+                // Check if device is blocked
+                if (res.status === 403) {
+                    alert(data.error || "This device has been blocked from the system.");
+                    return;
+                }
 
                 // Fallback: Check if onGuestLogin is actually a function
                 if (onGuestLogin && typeof onGuestLogin === 'function') {
@@ -156,6 +173,10 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
             }
 
             console.log("Guest login success:", data);
+
+            // Save guestId and deviceFingerprint for session persistence
+            localStorage.setItem('guestId', data.user.id);
+            localStorage.setItem('deviceFingerprint', deviceFingerprint);
 
             // Success: Check if onGuestLogin is actually a function
             if (onGuestLogin && typeof onGuestLogin === 'function') {

@@ -431,6 +431,11 @@ export const CustomerView = ({ session }) => {
         if (selectedFile && !referenceImageUrl) { setMessage('Please click "Upload Photo" first!'); return; }
 
         setIsLoading(true); setMessage('Joining queue...');
+        
+        // Get device fingerprint
+        const deviceFingerprint = localStorage.getItem('deviceFingerprint') || 
+            (await import('../helpers/deviceFingerprint')).then(m => m.getDeviceFingerprint());
+
         try {
             const response = await axios.post(`${API_URL}/queue`, {
                 customer_name: customerName,
@@ -438,9 +443,10 @@ export const CustomerView = ({ session }) => {
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
-                user_id: isGuest ? '77e8c6a6-e2d7-418c-95ba-02e3c88922bb' : session?.user?.id || null,
+                user_id: isGuest ? localStorage.getItem('guestId') || '77e8c6a6-e2d7-418c-95ba-02e3c88922bb' : session?.user?.id || null,
                 is_vip: isVIPToggled,
                 head_count: headCount,
+                deviceFingerprint: typeof deviceFingerprint === 'string' ? deviceFingerprint : null
             });
             const newEntry = response.data;
             if (newEntry && newEntry.id) {
