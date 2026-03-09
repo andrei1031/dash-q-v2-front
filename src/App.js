@@ -350,7 +350,7 @@ function App() {
                         fontSize: '0.85rem', 
                         opacity: 0.7
                     }}>
-                        Dash-Q &copy; 2025
+                        Dash-Q &copy; 2026
                     </p>
                 </div>
             </div>
