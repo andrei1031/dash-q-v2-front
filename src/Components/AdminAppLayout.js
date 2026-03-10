@@ -39,6 +39,7 @@ export const AdminAppLayout = ({ session }) => {
     const [customerTotalPages, setCustomerTotalPages] = useState(1);
     const [customerSearch, setCustomerSearch] = useState('');
     const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+    const [isRecalculating, setIsRecalculating] = useState(false);
 
     const fetchLiveShop = useCallback(async () => {
         try {
@@ -164,6 +165,23 @@ export const AdminAppLayout = ({ session }) => {
             alert(`VIP Price updated to ₱${newPrice}!`);
         } catch (err) {
             alert("Failed to update VIP price: " + (err.response?.data?.error || err.message));
+        }
+    };
+
+    // Recalculate Loyalty Data
+    const handleRecalculateLoyalty = async () => {
+        if (!window.confirm("This will recalculate all customer loyalty data from historical records. Continue?")) return;
+        
+        setIsRecalculating(true);
+        try {
+            const res = await axios.post(`${API_URL}/admin/recalculate-loyalty`, { userId: session.user.id });
+            alert(res.data.message);
+            // Refresh customer list
+            fetchCustomers(customerPage, customerSearch);
+        } catch (err) {
+            alert("Failed to recalculate: " + (err.response?.data?.error || err.message));
+        } finally {
+            setIsRecalculating(false);
         }
     };
 
@@ -696,8 +714,16 @@ export const AdminAppLayout = ({ session }) => {
 
     const CustomersView = () => (
         <div className="card">
-            <div className="card-header">
+            <div className="card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 <h2>Customer Database</h2>
+                <button 
+                    onClick={handleRecalculateLoyalty} 
+                    disabled={isRecalculating}
+                    className="btn btn-primary"
+                    style={{fontSize: '0.8rem'}}
+                >
+                    {isRecalculating ? 'Recalculating...' : '🔄 Recalculate Loyalty'}
+                </button>
             </div>
             <div className="card-body">
                 {/* Search and Pagination Controls */}
