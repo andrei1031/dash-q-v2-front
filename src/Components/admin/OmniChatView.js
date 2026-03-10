@@ -13,16 +13,31 @@ export const OmniChatView = ({ session }) => {
     const [selectedChat, setSelectedChat] = useState(null);
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [replyText, setReplyText] = useState("");
+
+    // Check if session is valid
+    if (!session || !session.user) {
+        return (
+            <div className="admin-chat-layout" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh' }}>
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <p>Please log in to access chat</p>
+                </div>
+            </div>
+        );
+    }
 
     // 1. Fetch list of chats (Initial Load)
     const fetchChats = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const res = await axios.get(`${API_URL}/admin/active-chats`);
-            setActiveChats(res.data);
+            setActiveChats(res.data || []);
         } catch (e) { 
-            console.error(e); 
+            console.error("Error fetching chats:", e);
+            setError("Failed to load chats. Please try again.");
+            setActiveChats([]); 
         } finally { 
             setLoading(false); 
         }
@@ -162,6 +177,17 @@ export const OmniChatView = ({ session }) => {
                 </div>
                 <div className="card-body" style={{ overflowY: 'auto', padding: '10px' }}>
                     {loading && <p style={{padding:'10px', textAlign:'center', color:'var(--text-secondary)'}}>Loading chats...</p>}
+                    {error && (
+                        <div style={{padding:'10px', textAlign:'center', color:'var(--error-color)', marginBottom:'10px'}}>
+                            {error}
+                            <button onClick={fetchChats} style={{marginLeft:'10px', background:'none', border:'none', color:'var(--primary-orange)', cursor:'pointer', textDecoration:'underline'}}>
+                                Retry
+                            </button>
+                        </div>
+                    )}
+                    {!loading && !error && activeChats.length === 0 && (
+                        <p style={{padding:'10px', textAlign:'center', color:'var(--text-secondary)'}}>No active chats</p>
+                    )}
                     {activeChats.map(chat => (
                         <div 
                             key={chat.id} 
