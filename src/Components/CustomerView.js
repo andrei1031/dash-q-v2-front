@@ -438,29 +438,53 @@ export const CustomerView = ({ session }) => {
 
         // Determine the correct endpoint based on user type
         const isGuestUser = isGuest;
-        const endpoint = isGuestUser ? `${API_URL}/guest/join` : `${API_URL}/queue`;
+        console.log("[JoinQueue] isGuest:", isGuestUser, "session:", session);
+        
+        // Build request data based on user type
+        const requestData = isGuestUser ? {
+            name: customerName,
+            barberId: selectedBarberId,
+            serviceId: selectedServiceId,
+            headCount: headCount,
+            referenceImageUrl: referenceImageUrl || null,
+            guestId: localStorage.getItem('guestId') || null,
+            deviceFingerprint: deviceFingerprint || null
+        } : {
+            customer_name: customerName,
+            customer_email: customerEmail,
+            barber_id: selectedBarberId,
+            reference_image_url: referenceImageUrl || null,
+            service_id: selectedServiceId,
+            user_id: session?.user?.id || null,
+            is_vip: isVIPToggled,
+            head_count: headCount,
+            deviceFingerprint: deviceFingerprint || null
+        };
+
+        // Try guest endpoint first, fallback to regular queue
+        let endpoint = isGuestUser ? `${API_URL}/guest/join` : `${API_URL}/queue`;
+        console.log("[JoinQueue] Using endpoint:", endpoint);
 
         try {
-            const response = await axios.post(endpoint, isGuestUser ? {
-                name: customerName,
-                barberId: selectedBarberId,
-                serviceId: selectedServiceId,
-                headCount: headCount,
-                referenceImageUrl: referenceImageUrl || null,
-                guestId: localStorage.getItem('guestId') || null,
-                deviceFingerprint: deviceFingerprint || null
-            } : {
-                customer_name: customerName,
-                customer_email: customerEmail,
-                barber_id: selectedBarberId,
-                reference_image_url: referenceImageUrl || null,
-                service_id: selectedServiceId,
-                user_id: session?.user?.id || null,
-                is_vip: isVIPToggled,
-                head_count: headCount,
-                deviceFingerprint: deviceFingerprint || null
-            });
-            const newEntry = response.data.data || response.data;
+            let response;
+            let newEntry;
+            
+            try {
+                response = await axios.post(endpoint, requestData);
+                newEntry = response.data.data || response.data;
+            } catch (initialError) {
+                // If guest endpoint returns 404, try regular queue as fallback
+                if (isGuestUser && initialError.response && initialError.response.status === 404) {
+                    console.log("[JoinQueue] Guest endpoint not found (404), trying regular queue...");
+                    endpoint = `${API_URL}/queue`;
+                    response = await axios.post(endpoint, requestData);
+                    newEntry = response.data;
+                } else {
+                    // Re-throw if it's not a 404
+                    throw initialError;
+                }
+            }
+            
             if (newEntry && newEntry.id) {
                 setMessage(`Success! You are #${newEntry.id} in the queue.`);
                 localStorage.setItem('myQueueEntryId', newEntry.id.toString());
@@ -475,6 +499,10 @@ export const CustomerView = ({ session }) => {
             } else { throw new Error("Invalid response from server."); }
         } catch (error) {
         console.error('Failed to join queue:', error);
+        
+        // Show more detailed error for debugging
+        const errorMessage = error.response?.data?.error || error.message;
+        console.log("[JoinQueue] Error details:", error.response?.status, errorMessage);
         
         // --- START: HANDLE 409 CONFLICT (AUTO-RECOVER) ---
         if (error.response && error.response.status === 409) {
