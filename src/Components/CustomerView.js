@@ -1780,7 +1780,7 @@ export const CustomerView = ({ session }) => {
                                                 onClick={() => setSelectedSlot(slot)}
                                                 style={{fontSize: '0.8rem', padding: '8px'}}
                                             >
-                                                {new Date(slot).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                {new Date(slot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}
                                             </button>
                                         )) : (
                                             <p className="empty-text" style={{gridColumn: '1/-1'}}>No slots available for this date.</p>
