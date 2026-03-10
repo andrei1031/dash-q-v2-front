@@ -433,8 +433,12 @@ export const CustomerView = ({ session }) => {
 
         setIsLoading(true); setMessage('Joining queue...');
         
-        // Get device fingerprint
-        const deviceFingerprint = localStorage.getItem('deviceFingerprint') || getDeviceFingerprint();
+        // Get device fingerprint (generate if not exists and save to localStorage)
+        let deviceFingerprint = localStorage.getItem('deviceFingerprint');
+        if (!deviceFingerprint) {
+            deviceFingerprint = getDeviceFingerprint();
+            localStorage.setItem('deviceFingerprint', deviceFingerprint);
+        }
 
         // Determine the correct endpoint based on user type
         const isGuestUser = isGuest;

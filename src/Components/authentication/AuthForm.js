@@ -41,10 +41,14 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                 if (!username || !password) throw new Error("Username/password required.");
                 if (selectedRole === 'barber' && !pin) throw new Error("Barber PIN required.");
                 
-                // Get device fingerprint for blocking check
-                const deviceFingerprint = getDeviceFingerprint();
+                // Get device fingerprint for blocking check (generate if not exists and save)
+                let deviceFingerprint = localStorage.getItem('deviceFingerprint');
+                if (!deviceFingerprint) {
+                    deviceFingerprint = getDeviceFingerprint();
+                    localStorage.setItem('deviceFingerprint', deviceFingerprint);
+                }
                 
-                const response = await axios.post(`${API_URL}/login/username`, { 
+                const response = await axios.post(`${API_URL}/login/username`, {
                     username: username.trim(), 
                     password, 
                     role: selectedRole, 
@@ -143,8 +147,12 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
     const handleGuestContinue = async () => {
         setIsLoading(true);
         try {
-            // Get device fingerprint
-            const deviceFingerprint = getDeviceFingerprint();
+            // Get device fingerprint (generate if not exists and save to localStorage)
+            let deviceFingerprint = localStorage.getItem('deviceFingerprint');
+            if (!deviceFingerprint) {
+                deviceFingerprint = getDeviceFingerprint();
+                localStorage.setItem('deviceFingerprint', deviceFingerprint);
+            }
             
             // Get existing guestId from localStorage if available
             const existingGuestId = localStorage.getItem('guestId');
@@ -184,9 +192,8 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
 
             console.log("Guest login success:", data);
 
-            // Save guestId and deviceFingerprint for session persistence
+            // Save guestId for session persistence
             localStorage.setItem('guestId', data.user.id);
-            localStorage.setItem('deviceFingerprint', deviceFingerprint);
 
             // Success: Check if onGuestLogin is actually a function
             if (onGuestLogin && typeof onGuestLogin === 'function') {
