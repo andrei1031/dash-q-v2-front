@@ -2296,7 +2296,10 @@ export const CustomerView = ({ session }) => {
                         <ul className="queue-list">
                             {myAppointments.map((appt) => {
                                 const dateObj = new Date(appt.scheduled_time);
-                                const isPast = dateObj < new Date();
+                                // Use Philippines timezone for display
+                                const isPast = dateObj < new Date(new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
+                                const displayDate = dateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
+                                const displayTime = dateObj.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
                                 // Determine Badge Color
                                 let statusColor = 'var(--text-secondary)';
                                 let statusBg = 'rgba(0,0,0,0.05)';
@@ -2330,7 +2333,7 @@ export const CustomerView = ({ session }) => {
                                     }}>
                                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                                             <strong style={{fontSize:'1.1rem'}}>
-                                                {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
+                                                {displayDate}
                                             </strong>
                                             <span style={{
                                                 color: statusColor, 
@@ -2346,7 +2349,7 @@ export const CustomerView = ({ session }) => {
                                         </div>
                                         
                                         <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.95rem'}}>
-                                            <span>🕒 {dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                            <span>🕒 {displayTime}</span>
                                             <span>✂️ {appt.services?.name || 'Service'}</span>
                                         </div>
                                         

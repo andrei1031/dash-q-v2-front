@@ -771,7 +771,6 @@ export const AdminAppLayout = ({ session }) => {
                                     <th style={{padding:'10px'}}>Email</th>
                                     <th style={{padding:'10px'}}>Joined</th>
                                     <th style={{padding:'10px', textAlign: 'center'}}>Visits</th>
-                                    <th style={{padding:'10px', textAlign: 'right'}}>Total Spent</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -786,14 +785,11 @@ export const AdminAppLayout = ({ session }) => {
                                                     {c.visits || 0}
                                                 </span>
                                             </td>
-                                            <td style={{padding:'10px', textAlign: 'right', fontWeight: 'bold', color: 'var(--success-color)'}}>
-                                                ₱{(c.totalSpent || 0).toLocaleString()}
-                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" style={{padding:'20px', textAlign:'center'}}>
+                                        <td colSpan="4" style={{padding:'20px', textAlign:'center'}}>
                                             {customerSearch ? (
                                                 <div>
                                                     <p>No customers found matching "{customerSearch}"</p>

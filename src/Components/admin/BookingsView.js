@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { API_URL } from "../http-commons";
 import { IconRefresh } from "../assets/Icon";
 
-export const BookingsView = () => {
+const BookingsView = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -20,6 +20,27 @@ export const BookingsView = () => {
     };
 
     useEffect(() => { fetchBookings(); }, []);
+
+    // Helper function to format time in Philippines timezone
+    const formatPhilippinesTime = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-PH', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            timeZone: 'Asia/Manila'
+        });
+    };
+
+    // Helper function to format date in Philippines timezone
+    const formatPhilippinesDate = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-PH', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'Asia/Manila'
+        });
+    };
 
     const handleAdminReject = async (apptId, customerName) => {
         const reason = prompt(`Reason for rejecting ${customerName}'s appointment?`);
@@ -50,8 +71,10 @@ export const BookingsView = () => {
                 ) : (
                     <ul className="queue-list">
                         {bookings.map((appt) => {
+                            // Use Philippines timezone for "isToday" check
                             const dateObj = new Date(appt.scheduled_time);
-                            const isToday = new Date().toDateString() === dateObj.toDateString();
+                            const todayPH = new Date(new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
+                            const isToday = dateObj.toDateString() === todayPH.toDateString();
 
                             return (
                                 <li key={appt.id} style={{
@@ -75,10 +98,10 @@ export const BookingsView = () => {
                                                 </span>
                                             )}
                                             <strong style={{fontSize:'1.1rem', color: isToday ? 'var(--primary-orange)' : 'var(--text-primary)'}}>
-                                                {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
+                                                {formatPhilippinesDate(appt.scheduled_time)}
                                             </strong>
                                             <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>
-                                                {dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                {formatPhilippinesTime(appt.scheduled_time)}
                                             </span>
                                         </div>
                                         <div style={{fontSize:'0.95rem'}}>
