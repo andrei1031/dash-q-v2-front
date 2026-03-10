@@ -436,19 +436,31 @@ export const CustomerView = ({ session }) => {
         // Get device fingerprint
         const deviceFingerprint = localStorage.getItem('deviceFingerprint') || getDeviceFingerprint();
 
+        // Determine the correct endpoint based on user type
+        const isGuestUser = isGuest;
+        const endpoint = isGuestUser ? `${API_URL}/guest/join` : `${API_URL}/queue`;
+
         try {
-            const response = await axios.post(`${API_URL}/queue`, {
+            const response = await axios.post(endpoint, isGuestUser ? {
+                name: customerName,
+                barberId: selectedBarberId,
+                serviceId: selectedServiceId,
+                headCount: headCount,
+                referenceImageUrl: referenceImageUrl || null,
+                guestId: localStorage.getItem('guestId') || null,
+                deviceFingerprint: deviceFingerprint || null
+            } : {
                 customer_name: customerName,
                 customer_email: customerEmail,
                 barber_id: selectedBarberId,
                 reference_image_url: referenceImageUrl || null,
                 service_id: selectedServiceId,
-                user_id: isGuest ? localStorage.getItem('guestId') || '77e8c6a6-e2d7-418c-95ba-02e3c88922bb' : session?.user?.id || null,
+                user_id: session?.user?.id || null,
                 is_vip: isVIPToggled,
                 head_count: headCount,
                 deviceFingerprint: deviceFingerprint || null
             });
-            const newEntry = response.data;
+            const newEntry = response.data.data || response.data;
             if (newEntry && newEntry.id) {
                 setMessage(`Success! You are #${newEntry.id} in the queue.`);
                 localStorage.setItem('myQueueEntryId', newEntry.id.toString());
