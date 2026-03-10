@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "./supabase";
 import { API_URL } from "./http-commons";
 import { Bar } from "react-chartjs-2";
@@ -15,6 +15,9 @@ import axios from "axios";
 export const AdminAppLayout = ({ session }) => {
     // Added 'staff'   to tabs
     const [activeTab, setActiveTab] = useState('live'); // 'live', 'stats', 'users', 'menu', 'staff', 'customers', 'devices'
+    
+    // Ref for scrolling to service form when editing
+    const serviceFormRef = useRef(null);
     
     // Data States
     const [allQueues, setAllQueues] = useState([]);
@@ -182,6 +185,13 @@ export const AdminAppLayout = ({ session }) => {
             fetchCustomers(customerPage, customerSearch);
         }
     }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice, fetchCustomers, customerPage, customerSearch, analyticsPeriod]);
+
+    // Scroll to service form when editing starts
+    useEffect(() => {
+        if (isEditingService && serviceFormRef.current) {
+            serviceFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [isEditingService]);
 
     
     // --- ACTIONS ---
@@ -390,7 +400,11 @@ export const AdminAppLayout = ({ session }) => {
                 <h2>{isEditingService ? 'Edit Service' : 'Add New Service'}</h2>
             </div>
             <div className="card-body">
-                <form onSubmit={handleSaveService} style={{display:'grid', gap:'10px', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', marginBottom:'20px', paddingBottom:'20px', borderBottom:'1px solid var(--border-color)'}}>
+                <form 
+                    ref={serviceFormRef}
+                    onSubmit={handleSaveService} 
+                    style={{display:'grid', gap:'10px', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', marginBottom:'20px', paddingBottom:'20px', borderBottom:'1px solid var(--border-color)'}}
+                >
                     <div className="form-group"><label>Service Name</label><input name="serviceName" defaultValue={isEditingService?.name || ''} required placeholder="e.g. Haircut" /></div>
                     <div className="form-group"><label>Duration (mins)</label><input name="serviceDuration" type="number" defaultValue={isEditingService?.duration_minutes || 30} required min="5" /></div>
                     <div className="form-group"><label>Price (₱)</label><input name="servicePrice" type="number" defaultValue={isEditingService?.price_php || 150} required min="0" /></div>

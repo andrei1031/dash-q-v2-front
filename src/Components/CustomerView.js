@@ -1922,7 +1922,7 @@ export const CustomerView = ({ session }) => {
                         <div className="serving-item now-serving"><span>Now Serving</span><strong>{nowServing ? `Customer #${nowServing.id}` : '---'}</strong></div>
                         <div className="serving-item up-next"><span>Up Next</span><strong>{upNext ? `Customer #${upNext.id}` : '---'}</strong></div>
                     </div>
-                    {queueMessage && <p className="message error">{queueMessage}</p>}
+                    {queueMessage && <p className="message warning">{queueMessage}</p>}
                     <div className="ewt-container">
                         <div className="ewt-item"><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
                         <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>

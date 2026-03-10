@@ -79,6 +79,7 @@ function App() {
     const [barberProfile, setBarberProfile] = useState(null);
     const [loadingRole, setLoadingRole] = useState(true);
     const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+    const [authRole, setAuthRole] = useState(null); // Track selected role for AuthForm
     
     // --- NEW STATE: Controls Landing Page visibility ---
     const [showLanding, setShowLanding] = useState(true); 
@@ -312,7 +313,13 @@ function App() {
             return (
                 <LandingPage 
                     onGetStarted={() => setShowLanding(false)} 
-                    onLogin={() => setShowLanding(false)} 
+                    onLogin={(role) => {
+                        setShowLanding(false);
+                        // Pass the role to AuthForm if provided
+                        if (role) {
+                            setAuthRole(role);
+                        }
+                    }}
                     onAdminClick={() => { setShowLanding(false); setShowAdminLogin(true); }} // <--- Pass handler
                 />
             );
@@ -332,7 +339,7 @@ function App() {
                 
                 {/* Centered Content */}
                 <div className="auth-content">
-                    <AuthForm onGuestLogin={handleGuestLogin} />
+                    <AuthForm onGuestLogin={handleGuestLogin} initialRole={authRole} />
                     {/* Discrete Admin Link at the bottom */}
                     <div style={{marginTop: '30px', textAlign: 'center'}}>
                         <button 
