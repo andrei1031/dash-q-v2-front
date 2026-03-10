@@ -829,7 +829,7 @@ export const AdminAppLayout = ({ session }) => {
                     {activeTab === 'stats' && <StatsView />}
                     {activeTab === 'staff' && <StaffView />}
                     {activeTab === 'menu' && <MenuView />}
-                    {activeTab === 'omni' && <OmniChatView />}
+                    {activeTab === 'omni' && <OmniChatView session={session} />}
                     {activeTab === 'bookings' && <BookingsView />}
                     {activeTab === 'users' && <UsersView />}
                     {activeTab === 'customers' && <CustomersView />}
