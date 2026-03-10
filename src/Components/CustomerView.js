@@ -581,7 +581,7 @@ export const CustomerView = ({ session }) => {
                 scheduled_time: selectedSlot
             });
 
-            setMessage(`Success! Appointment confirmed for ${new Date(selectedSlot).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.`);
+            setMessage(`Success! Appointment confirmed for ${new Date(selectedSlot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}.`);
             
             // Optional: Reset form or switch to history view
             setSelectedSlot(null);
