@@ -439,6 +439,8 @@ export const CustomerView = ({ session }) => {
         // Determine the correct endpoint based on user type
         const isGuestUser = isGuest;
         console.log("[JoinQueue] isGuest:", isGuestUser, "session:", session);
+        console.log("[JoinQueue] session.user:", session?.user);
+        console.log("[JoinQueue] is_guest value:", session?.user?.is_guest);
         
         // Build request data based on user type
         const requestData = isGuestUser ? {
@@ -502,7 +504,7 @@ export const CustomerView = ({ session }) => {
         
         // Show more detailed error for debugging
         const errorMessage = error.response?.data?.error || error.message;
-        console.log("[JoinQueue] Error details:", error.response?.status, errorMessage);
+        console.log("[JoinQueue] Error details:", error.response?.status, errorMessage, error);
         
         // --- START: HANDLE 409 CONFLICT (AUTO-RECOVER) ---
         if (error.response && error.response.status === 409) {
