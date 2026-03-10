@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { API_URL } from "../http-commons";
 import { IconRefresh } from "../assets/Icon";
 
-const BookingsView = () => {
+export const BookingsView = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
 
