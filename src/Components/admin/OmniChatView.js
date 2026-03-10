@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../http-commons";
 import { supabase } from "../supabase";
 import { playSound } from "../helpers/utils";
@@ -16,7 +16,7 @@ export const OmniChatView = ({ session }) => {
     const [replyText, setReplyText] = useState("");
 
     // 1. Fetch list of chats (Initial Load)
-    const fetchChats = async () => {
+    const fetchChats = useCallback(async () => {
         setLoading(true);
         try {
             const res = await axios.get(`${API_URL}/admin/active-chats`);
@@ -26,9 +26,34 @@ export const OmniChatView = ({ session }) => {
         } finally { 
             setLoading(false); 
         }
-    };
+    }, []);
 
-    useEffect(() => { fetchChats(); }, []);
+    useEffect(() => { 
+        fetchChats(); 
+    }, [fetchChats]);
+
+    // 1B. REAL-TIME: Subscribe to chat list updates (for badge updates)
+    useEffect(() => {
+        const chatListChannel = supabase.channel('admin_chat_list_updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'chat_messages'
+                },
+                (payload) => {
+                    console.log("[Admin] Chat list update received:", payload);
+                    // Re-fetch the chat list to update unread counts
+                    fetchChats();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(chatListChannel);
+        };
+    }, [fetchChats]);
 
     // 2. Realtime Listener for the SELECTED chat (To see incoming messages while chatting)
     useEffect(() => {
@@ -62,7 +87,7 @@ export const OmniChatView = ({ session }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [selectedChat]);
+    }, [selectedChat, session.user.id]);
 
     // 3. Load specific conversation (History) & Mark as Read
     const loadConversation = async (chatEntry) => {
@@ -84,7 +109,8 @@ export const OmniChatView = ({ session }) => {
             console.error("Failed to mark as read", e);
         }
 
-        // C. Fetch Messages
+        // C. Fetch Messages - Load IMMEDIATELY
+        setMessages([]); // Clear previous messages first
         try {
             const { data } = await supabase
                 .from('chat_messages')
@@ -92,12 +118,16 @@ export const OmniChatView = ({ session }) => {
                 .eq('queue_entry_id', chatEntry.id)
                 .order('created_at', { ascending: true });
             
-            setMessages(data.map(m => ({
-                senderId: m.sender_id,
-                message: m.message,
-                created_at: m.created_at
-            })));
-        } catch (e) { console.error(e); }
+            if (data) {
+                setMessages(data.map(m => ({
+                    senderId: m.sender_id,
+                    message: m.message,
+                    created_at: m.created_at
+                })));
+            }
+        } catch (e) { 
+            console.error("Error loading conversation:", e); 
+        }
     };
     // 4. Handle Admin Reply
     const handleAdminReply = async (e) => {
@@ -115,7 +145,11 @@ export const OmniChatView = ({ session }) => {
                 message: replyText
             });
             setReplyText("");
-        } catch(e) { alert("Failed to send."); }
+        } catch(e) { 
+            // Remove optimistic message on failure
+            setMessages(prev => prev.slice(0, -1));
+            alert("Failed to send."); 
+        }
     };
 
     return (
@@ -189,7 +223,11 @@ export const OmniChatView = ({ session }) => {
                                             borderRadius: '12px',
                                             background: isAdminMsg ? '#ff3b30' : (isCustomer ? '#333' : 'var(--primary-orange)'),
                                             color: isAdminMsg ? 'white' : (isCustomer ? 'white' : 'black'),
-                                            fontSize: '0.9rem'
+                                            fontSize: '0.9rem',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            overflowWrap: 'break-word',
+                                            lineHeight: '1.4'
                                         }}>
                                             {msg.message}
                                         </div>

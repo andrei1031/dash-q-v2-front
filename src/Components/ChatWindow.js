@@ -26,9 +26,19 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
                     const isMe = msg.senderId === currentUser_id;
                     return (
                         <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
-                            <div 
+                        <div 
                                 className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
-                                style={{ whiteSpace: 'pre-line', wordBreak: 'break-word', maxWidth: '85%', padding: '10px 14px', borderRadius: '18px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
+                                style={{ 
+                                    whiteSpace: 'pre-wrap', 
+                                    wordBreak: 'break-word', 
+                                    overflowWrap: 'break-word',
+                                    maxWidth: '85%', 
+                                    padding: '10px 14px', 
+                                    borderRadius: '18px', 
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                    wordSpacing: 'normal',
+                                    lineHeight: '1.4'
+                                }}
                             >
                                 {msg.message}
                             </div>

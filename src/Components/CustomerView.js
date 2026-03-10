@@ -2060,6 +2060,8 @@ export const CustomerView = ({ session }) => {
                         <div className="chat-section">
                             {!isChatOpen && myQueueEntryId && !isGuest && (<button onClick={() => {
                                 if (currentChatTargetBarberUserId) {
+                                    // FIX: Fetch chat history immediately when opening chat
+                                    fetchChatHistory(myQueueEntryId);
                                     setIsChatOpen(true);
                                     setHasUnreadFromBarber(false);
                                     axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
