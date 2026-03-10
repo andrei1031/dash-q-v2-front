@@ -55,19 +55,57 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                     pin: selectedRole === 'barber' ? pin : undefined,
                     deviceFingerprint: deviceFingerprint
                 });
-                if (response.data.user?.email && supabase?.auth) {
-                    const { error } = await supabase.auth.signInWithPassword({ email: response.data.user.email, password });
-                    if (error) throw error;
-                } else { throw new Error("Login failed: Invalid server response."); }
+                
+                // Safely extract user data to avoid circular references
+                if (response.data?.user?.email && supabase?.auth) {
+                    const { error } = await supabase.auth.signInWithPassword({ 
+                        email: response.data.user.email, 
+                        password 
+                    });
+                    if (error) {
+                        // Handle specific error messages
+                        throw new Error(error.message || "Login failed");
+                    }
+                } else { 
+                    throw new Error("Login failed: Invalid server response."); 
+                }
             } else { // This is now just for 'signup'
                 if (!email.trim() || !fullName.trim()) throw new Error("Email/Full Name required.");
                 if (selectedRole === 'barber' && !barberCode.trim()) throw new Error("Barber Code required.");
-                const response = await axios.post(`${API_URL}/signup/username`, { username: username.trim(), email: email.trim(), password, fullName: fullName.trim(), role: selectedRole, barberCode: selectedRole === 'barber' ? barberCode.trim() : undefined });
+                const response = await axios.post(`${API_URL}/signup/username`, { 
+                    username: username.trim(), 
+                    email: email.trim(), 
+                    password, 
+                    fullName: fullName.trim(), 
+                    role: selectedRole, 
+                    barberCode: selectedRole === 'barber' ? barberCode.trim() : undefined 
+                });
                 setMessage(response.data.message || 'Account created! You can now log in.');
                 setAuthView('login');
                 setUsername(''); setEmail(''); setPassword(''); setFullName(''); setBarberCode(''); setPin(''); setSelectedRole('customer');
             }
-        } catch (error) { console.error('Auth error:', error); setMessage(`Authentication failed: ${error.response?.data?.error || error.message || 'Unexpected error.'}`); }
+        } catch (error) { 
+            console.error('Auth error:', error); 
+            // Safely extract error message to avoid JSON.stringify cyclic reference errors
+            let errorMessage = 'An unexpected error occurred.';
+            
+            if (error.response?.data?.error) {
+                // Server returned a specific error message
+                errorMessage = error.response.data.error;
+            } else if (error.message) {
+                // Standard error message
+                errorMessage = error.message;
+            } else if (error.toString && typeof error.toString === 'function') {
+                // Fallback to toString, but sanitize it
+                const errorStr = error.toString();
+                // Avoid showing cyclic reference errors to users
+                if (!errorStr.includes('cyclic') && !errorStr.includes('serializ')) {
+                    errorMessage = errorStr;
+                }
+            }
+            
+            setMessage(`Authentication failed: ${errorMessage}`); 
+        }
         finally { setLoading(false); }
     };
     const handleForgotPassword = async (e) => {

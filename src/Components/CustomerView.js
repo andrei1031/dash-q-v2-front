@@ -67,6 +67,7 @@ export const CustomerView = ({ session }) => {
     const [barberFeedback, setBarberFeedback] = useState([]);
     const [viewMode, setViewMode] = useState('join'); // 'join' or 'history'
     const [loyaltyHistory, setLoyaltyHistory] = useState([]);
+    const [loyaltyData, setLoyaltyData] = useState(null); // Store loyalty stats (total_spent, tier, etc.)
 
     const nowServing = liveQueue.find(entry => entry.status === 'In Progress');
     const upNext = liveQueue.find(entry => entry.status === 'Up Next');
@@ -111,7 +112,19 @@ export const CustomerView = ({ session }) => {
         if (!userId) return;
         try {
             const response = await axios.get(`${API_URL}/customer/history/${userId}`);
-            setLoyaltyHistory(response.data || []);
+            // Handle new response format with both history and loyalty data
+            const data = response.data;
+            if (data && data.history) {
+                setLoyaltyHistory(data.history);
+                // Also store loyalty data for display
+                if (data.loyalty) {
+                    setLoyaltyData(data.loyalty);
+                    console.log('Customer loyalty data:', data.loyalty);
+                }
+            } else {
+                // Fallback for old format (array of history items)
+                setLoyaltyHistory(data || []);
+            }
         } catch (error) {
             console.error('Failed to fetch loyalty history:', error);
         }
@@ -2129,6 +2142,58 @@ export const CustomerView = ({ session }) => {
             {/* C. HISTORY VIEW - Hidden for guests */}
             {viewMode === 'history' && !isGuest && (
                 <div className="card-body history-view">
+                    {/* Loyalty Stats Summary */}
+                    {loyaltyData && (
+                        <div style={{
+                            marginBottom: '20px',
+                            padding: '15px',
+                            background: 'linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 149, 0, 0.05))',
+                            borderRadius: '12px',
+                            border: '1px solid var(--primary-orange)'
+                        }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                                <h3 style={{margin: 0, color: 'var(--primary-orange)', fontSize: '1.1rem'}}>🎉 Your Loyalty Stats</h3>
+                                <span style={{
+                                    background: 'var(--primary-orange)',
+                                    color: '#000',
+                                    padding: '4px 10px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 'bold',
+                                    textTransform: 'uppercase'
+                                }}>
+                                    {loyaltyData.current_tier || 'bronze'}
+                                </span>
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                <div style={{textAlign: 'center'}}>
+                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Total Spent</span>
+                                    <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                                        ₱{(parseFloat(loyaltyData.total_spent) || 0).toFixed(2)}
+                                    </span>
+                                </div>
+                                <div style={{textAlign: 'center'}}>
+                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Total Visits</span>
+                                    <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                                        {loyaltyData.total_visits || 0}
+                                    </span>
+                                </div>
+                                <div style={{textAlign: 'center'}}>
+                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Points</span>
+                                    <span style={{display: 'block', fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-orange)'}}>
+                                        {loyaltyData.total_points || 0}
+                                    </span>
+                                </div>
+                                <div style={{textAlign: 'center'}}>
+                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Lifetime Points</span>
+                                    <span style={{display: 'block', fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                                        {loyaltyData.lifetime_points || 0}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
                         <h2 style={{margin: 0}}>My Past Services</h2>
                         <button 
