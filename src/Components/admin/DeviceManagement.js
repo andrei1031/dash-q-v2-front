@@ -34,11 +34,11 @@ export const DeviceManagement = ({ session }) => {
 
     const fetchRecentGuests = async () => {
         try {
-            // Fetch recent guest queue entries (last 50)
+            // Fetch recent queue entries that have device fingerprint (these are guest or device-tracked users)
             const { data, error } = await supabase
                 .from('queue_entries')
-                .select('id, customer_name, device_fingerprint, barber_id, status, created_at')
-                .eq('is_guest', true)
+                .select('id, customer_name, device_fingerprint, barber_id, status, created_at, user_id')
+                .not('device_fingerprint', 'is', null)
                 .order('created_at', { ascending: false })
                 .limit(50);
             
