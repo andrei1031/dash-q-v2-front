@@ -41,6 +41,11 @@ export const AdminAppLayout = ({ session }) => {
     const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
     const [isRecalculating, setIsRecalculating] = useState(false);
 
+    // Users Pagination States
+    const [userPage, setUserPage] = useState(1);
+    const [userTotalPages, setUserTotalPages] = useState(1);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
     const fetchLiveShop = useCallback(async () => {
         try {
             const [qRes, bRes] = await Promise.all([
@@ -116,16 +121,21 @@ export const AdminAppLayout = ({ session }) => {
         }
     };
 
-    const fetchUsers = useCallback(async () => {
+    const fetchUsers = useCallback(async (page = userPage) => {
+        setIsLoadingUsers(true);
         try { 
-            const res = await axios.get(`${API_URL}/admin/users`); 
-            setUsers(res.data); 
+            const res = await axios.get(`${API_URL}/admin/users?page=${page}&limit=20`); 
+            setUsers(res.data.users || []);
+            setUserTotalPages(res.data.pagination?.totalPages || 1);
+            setUserPage(page); // Sync page state
         } catch (e) { 
             console.error("Failed to fetch users:", e);
-            // Optional: Alert the admin so they know it failed
-            // alert("Could not load user list. Check console for details.");
+            setUsers([]);
+            setUserTotalPages(1);
+        } finally {
+            setIsLoadingUsers(false);
         }
-    }, []);
+    }, [userPage]);
 
     const fetchServices = useCallback(async () => {
         try { 
@@ -202,7 +212,7 @@ export const AdminAppLayout = ({ session }) => {
         if (activeTab === 'customers') {
             fetchCustomers(customerPage, customerSearch);
         }
-    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice, fetchCustomers, customerPage, customerSearch, analyticsPeriod]);
+    }, [activeTab, fetchLiveShop, fetchAdvancedStats, fetchUsers, fetchServices, fetchVipPrice, fetchCustomers, customerPage, customerSearch, analyticsPeriod, userPage]);
 
     // Scroll to service form when editing starts
     useEffect(() => {
@@ -259,7 +269,7 @@ export const AdminAppLayout = ({ session }) => {
         try {
             await axios.delete(`${API_URL}/admin/users/${targetId}`, { data: { userId: session.user.id } });
             alert("User deleted.");
-            fetchUsers();
+            fetchUsers(userPage);
         } catch (e) { alert("Delete failed: " + (e.response?.data?.error || e.message)); }
     };
 
