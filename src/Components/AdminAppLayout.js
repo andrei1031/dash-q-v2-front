@@ -39,7 +39,7 @@ export const AdminAppLayout = ({ session }) => {
     const [customerTotalPages, setCustomerTotalPages] = useState(1);
     const [customerSearch, setCustomerSearch] = useState('');
     const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-    const [isRecalculating, setIsRecalculating] = useState(false);
+
 
     // Users Pagination States
     const [userPage, setUserPage] = useState(1);
@@ -178,22 +178,7 @@ export const AdminAppLayout = ({ session }) => {
         }
     };
 
-    // Recalculate Loyalty Data
-    const handleRecalculateLoyalty = async () => {
-        if (!window.confirm("This will recalculate all customer loyalty data from historical records. Continue?")) return;
-        
-        setIsRecalculating(true);
-        try {
-            const res = await axios.post(`${API_URL}/admin/recalculate-loyalty`, { userId: session.user.id });
-            alert(res.data.message);
-            // Refresh customer list
-            fetchCustomers(customerPage, customerSearch);
-        } catch (err) {
-            alert("Failed to recalculate: " + (err.response?.data?.error || err.message));
-        } finally {
-            setIsRecalculating(false);
-        }
-    };
+
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -760,14 +745,7 @@ export const AdminAppLayout = ({ session }) => {
         <div className="card">
             <div className="card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 <h2>Customer Database</h2>
-                <button 
-                    onClick={handleRecalculateLoyalty} 
-                    disabled={isRecalculating}
-                    className="btn btn-primary"
-                    style={{fontSize: '0.8rem'}}
-                >
-                    {isRecalculating ? 'Recalculating...' : '🔄 Recalculate Loyalty'}
-                </button>
+
             </div>
             <div className="card-body">
                 {/* Search and Pagination Controls */}
@@ -814,7 +792,7 @@ export const AdminAppLayout = ({ session }) => {
                                     <th style={{padding:'10px'}}>Name</th>
                                     <th style={{padding:'10px'}}>Email</th>
                                     <th style={{padding:'10px'}}>Joined</th>
-                                    <th style={{padding:'10px', textAlign: 'center'}}>Visits</th>
+
                                 </tr>
                             </thead>
                             <tbody>
@@ -824,16 +802,13 @@ export const AdminAppLayout = ({ session }) => {
                                             <td style={{padding:'10px', fontWeight: '600'}}>{c.full_name}</td>
                                             <td style={{padding:'10px'}}>{c.email || 'N/A'}</td>
                                             <td style={{padding:'10px'}}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}</td>
-                                            <td style={{padding:'10px', textAlign: 'center'}}>
-                                                <span style={{background: 'rgba(255, 149, 0, 0.1)', color: 'var(--primary-orange)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold'}}>
-                                                    {c.visits || 0}
-                                                </span>
-                                            </td>
+
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="4" style={{padding:'20px', textAlign:'center'}}>
+                                        <td colSpan="3" style={{padding:'20px', textAlign:'center'}}>
+
                                             {customerSearch ? (
                                                 <div>
                                                     <p>No customers found matching "{customerSearch}"</p>
