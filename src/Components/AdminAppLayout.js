@@ -704,55 +704,53 @@ export const AdminAppLayout = ({ session }) => {
         <div className="card">
             <div className="card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 <h2>Users</h2>
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                    <button 
+                        onClick={() => setUserPage(p => Math.max(1, p - 1))} 
+                        disabled={userPage === 1}
+                        className="btn btn-secondary"
+                    >
+                        Previous
+                    </button>
+                    <span>Page {userPage} of {userTotalPages}</span>
+                    <button 
+                        onClick={() => setUserPage(p => Math.min(userTotalPages, p + 1))} 
+                        disabled={userPage >= userTotalPages}
+                        className="btn btn-secondary"
+                    >
+                        Next
+                    </button>
+                </div>
             </div>
             <div className="card-body">
                 {isLoadingUsers ? (
                     <div className="loading-fullscreen"><span>Loading users...</span></div>
                 ) : (
-                    <>
-                        <div style={{overflowX: 'auto', marginBottom: '20px'}}>
-                            <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
-                                <thead>
-                                    <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
-                                        <th style={{padding:'10px'}}>Name</th><th style={{padding:'10px'}}>Role</th><th style={{padding:'10px'}}>Action</th>
+                    <div style={{overflowX: 'auto'}}>
+                        <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
+                            <thead>
+                                <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
+                                    <th style={{padding:'10px'}}>Name</th><th style={{padding:'10px'}}>Role</th><th style={{padding:'10px'}}>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.length > 0 ? (
+                                    users.map(u => (
+                                        <tr key={u.id} style={{borderBottom:'1px solid var(--border-color)'}}>
+                                            <td style={{padding:'10px'}}>{u.full_name}</td><td style={{padding:'10px'}}>{u.role}</td>
+                                            <td style={{padding:'10px'}}>{u.role !== 'admin' && <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger" style={{fontSize:'0.8rem'}}>Delete</button>}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="3" style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}>
+                                            No users found.
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {users.length > 0 ? (
-                                        users.map(u => (
-                                            <tr key={u.id} style={{borderBottom:'1px solid var(--border-color)'}}>
-                                                <td style={{padding:'10px'}}>{u.full_name}</td><td style={{padding:'10px'}}>{u.role}</td>
-                                                <td style={{padding:'10px'}}>{u.role !== 'admin' && <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger" style={{fontSize:'0.8rem'}}>Delete</button>}</td>
-                                        </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="3" style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}>
-                                                No users found.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}>
-                            <button 
-                                onClick={() => setUserPage(p => Math.max(1, p - 1))} 
-                                disabled={userPage === 1}
-                                className="btn btn-secondary"
-                            >
-                                Previous
-                            </button>
-                            <span style={{fontWeight: 'bold'}}>Page {userPage} of {userTotalPages}</span>
-                            <button 
-                                onClick={() => setUserPage(p => Math.min(userTotalPages, p + 1))} 
-                                disabled={userPage >= userTotalPages}
-                                className="btn btn-secondary"
-                            >
-                                Next
-                            </button>
-                        </div>
-                    </>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>
