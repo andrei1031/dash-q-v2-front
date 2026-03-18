@@ -441,7 +441,7 @@ export const AdminAppLayout = ({ session }) => {
                         {isEditingService && <button type="button" onClick={() => setIsEditingService(null)} className="btn btn-secondary">Cancel</button>}
                     </div>
                 </form>
-                <h3 style={{marginTop:0}}>Current Menu</h3>
+                <h3 style={{marginTop:0}}>Current Services</h3>
                 <ul className="queue-list">
                     {services.map(s => (
                         <li key={s.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', opacity: s.is_active ? 1 : 0.5}}>
@@ -702,22 +702,58 @@ export const AdminAppLayout = ({ session }) => {
 
     const UsersView = () => (
         <div className="card">
-            <div className="card-body" style={{overflowX: 'auto'}}>
-                <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
-                    <thead>
-                        <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
-                            <th style={{padding:'10px'}}>Name</th><th style={{padding:'10px'}}>Role</th><th style={{padding:'10px'}}>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {users.map(u => (
-                            <tr key={u.id} style={{borderBottom:'1px solid var(--border-color)'}}>
-                                <td style={{padding:'10px'}}>{u.full_name}</td><td style={{padding:'10px'}}>{u.role}</td>
-                                <td style={{padding:'10px'}}>{u.role !== 'admin' && <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger" style={{fontSize:'0.8rem'}}>Delete</button>}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <div className="card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <h2>Users</h2>
+            </div>
+            <div className="card-body">
+                {isLoadingUsers ? (
+                    <div className="loading-fullscreen"><span>Loading users...</span></div>
+                ) : (
+                    <>
+                        <div style={{overflowX: 'auto', marginBottom: '20px'}}>
+                            <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
+                                <thead>
+                                    <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
+                                        <th style={{padding:'10px'}}>Name</th><th style={{padding:'10px'}}>Role</th><th style={{padding:'10px'}}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.length > 0 ? (
+                                        users.map(u => (
+                                            <tr key={u.id} style={{borderBottom:'1px solid var(--border-color)'}}>
+                                                <td style={{padding:'10px'}}>{u.full_name}</td><td style={{padding:'10px'}}>{u.role}</td>
+                                                <td style={{padding:'10px'}}>{u.role !== 'admin' && <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger" style={{fontSize:'0.8rem'}}>Delete</button>}</td>
+                                        </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="3" style={{padding:'20px', textAlign:'center', color:'var(--text-secondary)'}}>
+                                                No users found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}>
+                            <button 
+                                onClick={() => setUserPage(p => Math.max(1, p - 1))} 
+                                disabled={userPage === 1}
+                                className="btn btn-secondary"
+                            >
+                                Previous
+                            </button>
+                            <span style={{fontWeight: 'bold'}}>Page {userPage} of {userTotalPages}</span>
+                            <button 
+                                onClick={() => setUserPage(p => Math.min(userTotalPages, p + 1))} 
+                                disabled={userPage >= userTotalPages}
+                                className="btn btn-secondary"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
