@@ -855,7 +855,7 @@ export const AdminAppLayout = ({ session }) => {
                 <button className={activeTab === 'live' ? 'active' : ''} onClick={() => setActiveTab('live')}>⚡ Live Shop</button>
                 <button className={activeTab === 'stats' ? 'active' : ''} onClick={() => setActiveTab('stats')}>📊 Analytics</button>
                 <button className={activeTab === 'staff' ? 'active' : ''} onClick={() => setActiveTab('staff')}>💈 Staff</button>
-                <button className={activeTab === 'menu' ? 'active' : ''} onClick={() => setActiveTab('menu')}>✂️ Menu</button>
+                <button className={activeTab === 'menu' ? 'active' : ''} onClick={() => setActiveTab('menu')}>✂️ Service</button>
                 <button className={activeTab === 'omni' ? 'active' : ''} onClick={() => setActiveTab('omni')}>💬 Omni-Chat</button>
                 <button className={activeTab === 'bookings' ? 'active' : ''} onClick={() => setActiveTab('bookings')}>📅 Bookings</button>
                 <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>👥 Users</button>

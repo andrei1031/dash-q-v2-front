@@ -15,7 +15,8 @@ export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
     
-    const isGuest = session && session.user && session.user.is_guest === true;
+const isGuest = session && session.user && session.user.is_guest === true;
+console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
     const [guestName, setGuestName] = useState(() => session?.user?.nickname || session?.user?.user_metadata?.full_name || '');
     const [guestEmail, setGuestEmail] = useState('');
     
@@ -76,7 +77,7 @@ export const CustomerView = ({ session }) => {
     const currentChatTargetBarberUserId = targetBarber?.user_id;
 
     const myQueueEntry = liveQueue.find(e => e.id.toString() === myQueueEntryId);
-    const isQueueUpdateAllowed = myQueueEntry && (myQueueEntry.status === 'Waiting' || myQueueEntry.status === 'Up Next');
+// const isQueueUpdateAllowed = myQueueEntry && (myQueueEntry.status === 'Waiting' || myQueueEntry.status === 'Up Next');
     const [customerRating, setCustomerRating] = useState(0);
     const [joinMode, setJoinMode] = useState('now'); // 'now' or 'later'
 
@@ -1657,9 +1658,10 @@ export const CustomerView = ({ session }) => {
                             )}
                             
                             {/* Photo Upload - Hidden for guests */}
-                            {!isGuest && selectedServiceId && (
+{!isGuest && (
                                 <div className="form-group photo-upload-group">
                                     <label>Desired Haircut Photo (Optional):</label>
+                                    <p className="message small">Upload anytime before joining or after. Optional but helpful for barbers!</p>
                                     <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload" className="file-upload-input" />
                                     <label htmlFor="file-upload" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
                                     <button type="button" onClick={() => handleUploadPhoto(null)} disabled={!selectedFile || isUploading || referenceImageUrl} className="btn btn-secondary btn-icon-label">
@@ -2059,8 +2061,9 @@ export const CustomerView = ({ session }) => {
                         ))}
                     </ul>
                     <div className="live-queue-actions">
-                        {isQueueUpdateAllowed && !isGuest && (<div className="form-group photo-upload-group live-update-group">
-                            <label>Update Haircut Photo:</label>
+{!isGuest && myQueueEntryId && (<div className="form-group photo-upload-group live-update-group">
+                            <label>Update Haircut Photo ({myQueueEntry?.daily_number || '#' + myQueueEntryId}):</label>
+                            <p className="message small">Already in queue? Update your photo anytime.</p>
                             <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload-update" className="file-upload-input" />
                             <label htmlFor="file-upload-update" className="btn btn-secondary btn-icon-label file-upload-label"><IconUpload />{selectedFile ? selectedFile.name : 'Choose a file...'}</label>
                             <button type="button" onClick={() => handleUploadPhoto(myQueueEntryId)} disabled={!selectedFile || isUploading} className="btn btn-secondary btn-icon-label">
