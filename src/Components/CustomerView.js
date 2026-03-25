@@ -1594,9 +1594,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             placeholder={isGuest ? "Enter your name" : ""}
                         />
                     </div>
-                    <div className="form-group">
-                      <input type="email" value={customerEmail} onChange={(e) => isGuest && setGuestEmail(e.target.value)} readOnly={!isGuest} className={isGuest ? "form-control" : "prefilled-input"} placeholder={isGuest ? "Optional Email" : ""} />
-                    </div>
+
 
                     {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                     {joinMode === 'now' && (
