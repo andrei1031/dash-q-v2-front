@@ -249,8 +249,7 @@ export const AdminAppLayout = ({ session }) => {
         }
     };
 
-    const handleHardDeleteService = async (id) => {
-        if (!window.confirm("⚠️ PERMANENT DELETE - Cannot be undone or restored!\\n\\nType 'PERMANENT' to confirm:")) return;
+
         const confirmText = prompt("Type 'PERMANENT' to permanently delete this service:");
         if (confirmText !== 'PERMANENT') return;
         try {
