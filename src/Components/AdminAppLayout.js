@@ -451,10 +451,7 @@ export const AdminAppLayout = ({ session }) => {
                                     </>
                                 )}
                             </div>
-                        </li>
                     )}
-                        </li>
-                    ))}
                 </ul>
 
                 {/* --- VIP PRICE SETTING --- */}
