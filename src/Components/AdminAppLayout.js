@@ -456,7 +456,7 @@ export const AdminAppLayout = ({ session }) => {
                                     <>
                                         <button onClick={() => setIsEditingService(s)} className="btn btn-secondary" style={{padding:'5px 10px'}}>Edit</button>
                                         <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}} title="Archive (soft delete)">Archive</button>
-                                        <button onClick={() => handleHardDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px', background:'var(--error-color)', borderColor:'var(--error-color)'}} title="Permanent delete (irreversible)">💀 Hard Del</button>
+Delete
                                     </>
                                 ) : (
                                     <button onClick={() => handleRestoreService(s.id)} className="btn btn-success" style={{padding:'5px 10px'}}>Restore</button>
