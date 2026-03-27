@@ -298,7 +298,7 @@ export const AdminAppLayout = ({ session }) => {
     // [App.js] - Inside AdminAppLayout -> LiveShopView
 
     const LiveShopView = () => (
-        <div className="live-shop-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px'}}>
+        <div className="live-shop-grid">
             {barbers.filter(b => b.is_active).map(barber => {
                 const barberQueue = allQueues.filter(q => q.barber_id === barber.id);
                 const inChair = barberQueue.find(q => q.status === 'In Progress');
@@ -306,19 +306,19 @@ export const AdminAppLayout = ({ session }) => {
                 const upNext = barberQueue.find(q => q.status === 'Up Next');
 
                 return (
-                    <div key={barber.id} className="card" style={{border: transferMode ? '2px dashed var(--primary-orange)' : '1px solid var(--border-color)'}}>
-                        <div className="card-header" style={{padding:'10px', justifyContent: 'space-between'}}>
-                            <div>
-                                <h3 style={{fontSize:'1rem', margin:0}}>{barber.full_name}</h3>
-                                <small style={{color: barber.is_available ? 'var(--success-color)' : 'var(--text-secondary)'}}>
+                    <div key={barber.id} className="card transfer-mode-card" style={transferMode ? {border: '2px dashed var(--primary-orange)'} : {}}>
+                        <div className="card-header card-header-compact">
+                            <div className="barber-info">
+                                <h3 className="barber-name">{barber.full_name}</h3>
+                                <small className={`status-indicator ${barber.is_available ? 'online' : 'offline'}`}>
                                     ● {barber.is_available ? 'Online' : 'Offline'}
                                 </small>
                             </div>
                             {transferMode && transferMode.currentBarberId !== barber.id && (
-                                <button onClick={() => handleTransfer(barber.id)} className="btn btn-primary" style={{fontSize:'0.8rem', padding:'4px 8px'}}>Select</button>
+                                <button onClick={() => handleTransfer(barber.id)} className="btn btn-primary btn-small" title="Select">
+                                    Select
+                                </button>
                             )}
-                            
-                            {/* --- FEATURE 1: FORCE NEXT BUTTON --- */}
                             {!transferMode && !inChair && (waiting.length > 0 || upNext) && (
                                 <button 
                                     onClick={async () => {
@@ -329,11 +329,10 @@ export const AdminAppLayout = ({ session }) => {
                                             fetchLiveShop();
                                         } catch(e) { alert(e.response?.data?.error || "Failed."); }
                                     }} 
-                                    className="btn btn-primary" 
-                                    style={{fontSize:'0.75rem', padding:'4px 8px'}}
+                                    className="btn btn-primary btn-small" 
                                     title="Force Call Next"
                                 >
-                                    Force Next ⏩
+                                    ⏩ Force Next
                                 </button>
                             )}
                         </div>
@@ -374,30 +373,31 @@ export const AdminAppLayout = ({ session }) => {
 
     const StaffView = () => (
         <div className="card">
-            <div className="card-header"><h2>Staff Management</h2></div>
-            <div className="card-body" style={{overflowX: 'auto'}}>
-                <table style={{width:'100%', borderCollapse:'collapse', color:'var(--text-primary)', minWidth: '600px'}}>
+            <div className="card-header">
+                <h2>Staff Management</h2>
+            </div>
+            <div className="card-body">
+                <table className="responsive-table" data-labels="name,status,action">
                     <thead>
-                        <tr style={{textAlign:'left', borderBottom:'1px solid var(--border-color)'}}>
-                            <th style={{padding:'10px'}}>Barber Name</th>
-                            <th style={{padding:'10px'}}>Status</th>
-                            <th style={{padding:'10px'}}>Action</th>
+                        <tr>
+                            <th data-label="name">Barber Name</th>
+                            <th data-label="status">Status</th>
+                            <th data-label="action">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {barbers.map(b => (
-                            <tr key={b.id} style={{borderBottom:'1px solid var(--border-color)', opacity: b.is_active ? 1 : 0.5}}>
-                                <td style={{padding:'10px'}}>{b.full_name}</td>
-                                <td style={{padding:'10px'}}>
-                                    {b.is_active ? <span style={{color:'var(--success-color)', fontWeight:'bold'}}>ACTIVE</span> : <span style={{color:'var(--error-color)', fontWeight:'bold'}}>BANNED/INACTIVE</span>}
+                            <tr key={b.id} className={b.is_active ? 'active-barber' : 'inactive-barber'}>
+                                <td data-label="name">{b.full_name}</td>
+                                <td data-label="status">
+                                    {b.is_active ? <span className="status-active">ACTIVE</span> : <span className="status-inactive">BANNED/INACTIVE</span>}
                                 </td>
-                                <td style={{padding:'10px'}}>
+                                <td data-label="action">
                                     <button 
                                         onClick={() => handleToggleBarberStatus(b.id, b.is_active)} 
-                                        className={b.is_active ? "btn btn-danger" : "btn btn-success"}
-                                        style={{fontSize:'0.8rem', padding: '5px 10px'}}
+                                        className={`btn ${b.is_active ? "btn-danger" : "btn-success"} btn-small`}
                                     >
-                                        {b.is_active ? 'Ban / Deactivate' : 'Unban & Activate'}
+                                        {b.is_active ? 'Deactivate' : 'Activate'}
                                     </button>
                                 </td>
                             </tr>
@@ -690,21 +690,21 @@ export const AdminAppLayout = ({ session }) => {
 
     const UsersView = () => (
         <div className="card">
-            <div className="card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div className="card-header card-header-pagination">
                 <h2>Users</h2>
-                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                <div className="pagination-controls">
                     <button 
                         onClick={() => setUserPage(p => Math.max(1, p - 1))} 
                         disabled={userPage === 1}
-                        className="btn btn-secondary"
+                        className="btn btn-secondary btn-small"
                     >
                         Previous
                     </button>
-                    <span>Page {userPage} of {userTotalPages}</span>
+                    <span className="page-info">Page {userPage} of {userTotalPages}</span>
                     <button 
                         onClick={() => setUserPage(p => Math.min(userTotalPages, p + 1))} 
                         disabled={userPage >= userTotalPages}
-                        className="btn btn-secondary"
+                        className="btn btn-secondary btn-small"
                     >
                         Next
                     </button>

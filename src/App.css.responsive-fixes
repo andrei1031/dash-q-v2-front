@@ -1,0 +1,134 @@
+/* RESPONSIVE FIXES ADDED - AdminAppLayout Support */
+
+/* Admin Staff Table Responsive */
+.status-active {
+  color: var(--success-color);
+  font-weight: bold;
+  background: rgba(52,199,89,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.status-inactive {
+  color: var(--error-color);
+  font-weight: bold;
+  background: rgba(255,59,48,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.active-barber { opacity: 1; }
+.inactive-barber { opacity: 0.6; }
+.responsive-table {
+  width: 100%;
+}
+
+.card-header-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(8px, 2vw, 12px);
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1.5vw, 10px);
+}
+.page-info {
+  white-space: nowrap;
+  font-weight: 500;
+  min-width: 100px;
+  text-align: center;
+  padding: 0 8px;
+}
+.btn-small {
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  min-height: 44px;
+}
+
+.transfer-mode-card {
+  border: 2px dashed var(--primary-orange) !important;
+}
+
+.barber-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.barber-name {
+  font-size: clamp(0.9rem, 3vw, 1.1rem);
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-indicator {
+  font-size: 0.8rem;
+}
+
+.status-indicator.online { 
+  color: var(--success-color); 
+}
+
+.status-indicator.offline { 
+  color: var(--text-secondary); 
+}
+
+.card-body-compact {
+  padding: clamp(10px, 2.5vw, 15px) !important;
+}
+
+.status-chair, .status-upnext, .status-empty {
+  padding: clamp(8px, 2vw, 12px);
+  border-radius: 6px;
+  margin-bottom: clamp(8px, 2vw, 12px);
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+}
+
+.status-chair { 
+  background: rgba(52,199,89,0.1); 
+  border: 1px solid var(--success-color);
+}
+
+.status-upnext { 
+  background: rgba(255,149,0,0.1); 
+  border: 1px solid var(--primary-orange); 
+}
+
+.status-empty { 
+  font-style: italic; 
+  color: var(--text-secondary); 
+  text-align: center;
+  opacity: 0.7;
+}
+
+.queue-list-compact { 
+  max-height: clamp(120px, 30vh, 180px); 
+  gap: clamp(4px, 1vw, 8px);
+}
+
+.queue-item { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: clamp(6px, 1.5vw, 8px); 
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  gap: clamp(6px, 1.5vw, 10px);
+}
+
+.queue-name { 
+  flex: 1; 
+  min-width: 0; 
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vip-badge { 
+  font-size: 0.75rem; 
+}
+
+.transfer-btn {
+  flex-shrink: 0;
+}

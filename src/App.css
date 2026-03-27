@@ -2,6 +2,7 @@
    MODERN FONT IMPORT (Inter)
    =================================================================== */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("./App.css.responsive-fixes");
 
 @font-face {
   font-family: 'Blanka';
@@ -193,14 +194,15 @@ a:hover {
 }
 
 .container {
-  /* FIX: Remove max-width for better responsiveness on larger screens */
-  max-width: 1400px;
-  width: 100%;
-  margin: 20px auto;
-  padding: 0 20px;
+  max-width: 100%;
+  width: 100vw;
+  margin: 15px auto;
+  padding: 0 clamp(10px, 4vw, 20px);
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: clamp(15px, 3vw, 25px);
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Barber dashboard gets 2 columns on larger screens */
@@ -267,8 +269,9 @@ a:hover {
 }
 
 .card-body {
-  padding: 20px 25px;
+  padding: clamp(15px, 4vw, 25px);
   flex-grow: 1;
+  overflow-x: auto; /* Tables scroll */
 }
 
 .card-footer {
@@ -421,23 +424,31 @@ button {
   cursor: pointer;
   font-family: inherit;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   border: none;
-  padding: 12px 16px; /* Slightly more padding for touch targets */
-  font-size: 0.95rem;
-  line-height: 1.3; /* Better spacing for multi-line text */
+  padding: clamp(10px, 2.5vw, 14px) clamp(16px, 4vw, 20px);
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
+  line-height: 1.4;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
 
-  max-width: 100%; /* Never wider than the screen */
-  white-space: normal; /* Allow text to wrap to next line */
-  height: auto; /* Allow button to grow taller if text wraps */
-  min-height: 44px; /* Minimum touch target size for mobile */
-  text-align: center; /* Center text if it wraps */
+  max-width: 100%;
+  white-space: normal;
+  min-height: 48px; /* Enhanced touch target */
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 480px) {
+  button {
+    padding: 12px 16px !important;
+    font-size: 0.9rem !important;
+    min-height: 52px !important;
+  }
 }
 
 button:disabled {
@@ -524,26 +535,29 @@ button:disabled {
 }
 
 /* Icon-only Button (Theme Toggle, Logout, Chat) */
-.btn-icon {
+.btn-icon, .btn-icon-small {
   background: none;
   border: 1px solid transparent;
   color: var(--text-secondary);
-  padding: 6px;
-  min-width: 36px;
-  min-height: 36px;
+  padding: clamp(8px, 2vw, 12px);
+  min-width: 48px;
+  min-height: 48px;
 
   position: relative;
-  /* NEW: Subtle lift on hover */
   transition: all 0.2s ease;
 }
-.btn-icon:hover:not(:disabled) {
+.btn-icon-small {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+}
+.btn-icon:hover:not(:disabled), .btn-icon-small:hover:not(:disabled) {
   background-color: var(--hover-bg-dark);
   color: var(--text-primary);
   border-color: var(--border-color);
-  /* NEW: Subtle lift on hover */
   transform: translateY(-1px);
 }
-.btn-icon .icon {
+.btn-icon .icon, .btn-icon-small .icon {
   width: 20px;
   height: 20px;
 }
@@ -648,16 +662,19 @@ button:disabled {
   color: var(--primary-orange);
 }
 
-/* --- Action Buttons --- */
+/* Responsive Action Buttons Container */
 .action-buttons-container {
   display: grid;
-  grid-template-columns: 1fr; /* Default to 1 column */
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: clamp(8px, 2vw, 12px);
   margin-bottom: 20px;
 }
-
-/* FIX: Two columns on medium/large screens */
-@media (min-width: 600px) {
+@media (min-width: 480px) {
+  .action-buttons-container {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+@media (min-width: 900px) {
   .action-buttons-container {
     grid-template-columns: 1fr 1fr;
   }
@@ -782,16 +799,9 @@ button:disabled {
 }
 .analytics-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: clamp(10px, 2vw, 15px);
   min-height: 75px;
-}
-
-/* FIX: 4-column grid on larger screens */
-@media (min-width: 600px) {
-  .analytics-grid:not(.carbon-grid) {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-  }
 }
 
 .analytics-item {
@@ -2302,9 +2312,35 @@ button .spinner {
   .card-body {
     overflow-x: auto; /* Allow tables to scroll horizontally */
   }
-  table {
-    min-width: 500px; /* Force minimum width to trigger scroll */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+th, td {
+  padding: clamp(8px, 2vw, 12px);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  th { display: none; }
+  td { 
+    display: block; 
+    border: 1px solid var(--border-color);
+    margin-bottom: 8px;
+    padding: 12px;
+    position: relative;
   }
+  td:before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+    display: block;
+  }
+}
 
   /* Tabs on mobile */
   .customer-view-tabs button {
@@ -2398,10 +2434,7 @@ button .spinner {
 }
 
 /* Force Next Button Specifics */
-.live-shop-grid .card-header {
-  flex-wrap: wrap; /* Allow header items to wrap on very small screens */
-  gap: 10px;
-}
+/* LiveShopGrid responsive already handled in responsive-fixes */
 /* 1. GLOBAL SAFETY (Prevents side scrolling) */
 body, html {
   max-width: 100vw;
