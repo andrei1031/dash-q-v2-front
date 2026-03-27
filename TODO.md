@@ -1,0 +1,1 @@
+- [x] Edit src/Components/AdminAppLayout.js to add Hard Delete button for archived services\n- [x] Test locally: `yarn build`
