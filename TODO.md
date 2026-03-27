@@ -1,10 +1,15 @@
-# TODO: Fix Frontend Service Hard Delete Error
+# Dash-Q Frontend Build Fix TODO
 
-Previous backend fix complete. Now fixing frontend:
+**Objective:** Fix Vercel build error - ESLint "Unexpected reserved word 'await'" in AdminAppLayout.js
 
-## Frontend Steps:
+## Steps (1/5 ✅ Completed Analysis & Plan Approval)
 
-- [ ] Step 1: Edit src/Components/AdminAppLayout.js handleHardDeleteService to verify service exists before API call
-- [ ] Step 2: Add optimistic update and better error handling
-- [ ] Step 3: Test delete flow
-- [ ] Complete task
+### ✅ 1. [DONE] Analyze error & confirm root cause (React 19 + react-scripts 5.0.1 compatibility)
+
+### ✅ 2. [DONE] Update package.json → react-scripts to 5.0.4\n### ✅ 3. [DONE] Run `yarn install`\n### 4. Test `yarn build` locally
+
+### 4. Test `yarn build` locally
+
+### 5. Commit & test Vercel deployment
+
+**Next Action:** Update package.json react-scripts version.
