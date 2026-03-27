@@ -240,11 +240,26 @@ export const AdminAppLayout = ({ session }) => {
     };
 
     const handleDeleteService = async (id) => {
-        if (!window.confirm("Are you sure? This will hide the service from the menu.")) return;
+        if (!window.confirm("Are you sure? This will hide the service from the menu (can be restored).")) return;
         try {
             await axios.delete(`${API_URL}/admin/services/${id}`, { data: { userId: session.user.id } });
             fetchServices(); // Refresh list
-        } catch (err) { alert("Delete failed."); }
+        } catch (err) { 
+            alert("Archive failed: " + (err.response?.data?.error || err.message)); 
+        }
+    };
+
+    const handleHardDeleteService = async (id) => {
+        if (!window.confirm("⚠️ PERMANENT DELETE - Cannot be undone or restored!\\n\\nType 'PERMANENT' to confirm:")) return;
+        const confirmText = prompt("Type 'PERMANENT' to permanently delete this service:");
+        if (confirmText !== 'PERMANENT') return;
+        try {
+            await axios.delete(`${API_URL}/admin/services/${id}/hard-delete`, { data: { userId: session.user.id } });
+            alert("Service permanently deleted.");
+            fetchServices();
+        } catch (err) { 
+            alert("Hard delete failed: " + (err.response?.data?.error || err.message)); 
+        }
     };
 
      // 2. User Management
@@ -440,7 +455,8 @@ export const AdminAppLayout = ({ session }) => {
                                 {s.is_active ? (
                                     <>
                                         <button onClick={() => setIsEditingService(s)} className="btn btn-secondary" style={{padding:'5px 10px'}}>Edit</button>
-                                        <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}}>Delete</button>
+                                        <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}} title="Archive (soft delete)">Archive</button>
+                                        <button onClick={() => handleHardDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px', background:'var(--error-color)', borderColor:'var(--error-color)'}} title="Permanent delete (irreversible)">💀 Hard Del</button>
                                     </>
                                 ) : (
                                     <button onClick={() => handleRestoreService(s.id)} className="btn btn-success" style={{padding:'5px 10px'}}>Restore</button>
