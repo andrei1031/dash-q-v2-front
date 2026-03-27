@@ -859,6 +859,7 @@ Delete
                     <button onClick={() => handleLogout(session.user.id)} className="btn btn-icon"><IconLogout /></button>
                 </div>
             </header>
+            
 
             {transferMode && (
                 <div style={{background:'var(--primary-orange)', color:'black', padding:'10px', textAlign:'center', fontWeight:'bold'}}>
