@@ -178,7 +178,63 @@ export const AdminAppLayout = ({ session }) => {
         }
     };
 
+    // Hard delete function - FIXED: async/await → Promises for ESLint compatibility
+    const handleHardDeleteService = (id) => {
+        const confirmText = prompt("Type 'PERMANENT' to permanently delete this service:");
+        if (confirmText !== 'PERMANENT') return;
+        axios.delete(`${API_URL}/admin/services/${id}/hard-delete`, { data: { userId: session.user.id } })
+            .then(() => {
+                alert("Service permanently deleted.");
+                fetchServices();
+            })
+            .catch(err => {
+                alert("Hard delete failed: " + (err.response?.data?.error || err.message));
+            });
+    };
 
+    // 2. User Management
+    const handleDeleteUser = async (targetId) => {
+        const confirmText = prompt("WARNING: This action cannot be undone.\nType 'DELETE' to permanently ban/delete this user account.");
+        if (confirmText !== 'DELETE') return;
+        try {
+            await axios.delete(`${API_URL}/admin/users/${targetId}`, { data: { userId: session.user.id } });
+            alert("User deleted.");
+            fetchUsers(userPage);
+        } catch (e) { alert("Delete failed: " + (e.response?.data?.error || e.message)); }
+    };
+
+    // 3. Staff Management (Toggle Active/Inactive)
+    const handleToggleBarberStatus = async (barberId, currentStatus) => {
+        const newStatus = !currentStatus;
+        const action = newStatus ? "ACTIVATE" : "DEACTIVATE";
+        if (!window.confirm(`Are you sure you want to ${action} this barber?`)) return;
+
+        try {
+            await axios.put(`${API_URL}/admin/barbers/${barberId}/status`, {
+                userId: session.user.id,
+                is_active: newStatus
+            });
+            fetchLiveShop(); // Refresh barber list
+        } catch (err) {
+            alert("Update failed: " + (err.response?.data?.error || err.message));
+        }
+    };
+
+    // 4. Transfer Logic
+    const handleTransfer = async (targetBarberId) => {
+        if (!transferMode) return;
+        if (window.confirm(`Transfer this customer to Barber #${targetBarberId}?`)) {
+            try {
+                await axios.put(`${API_URL}/admin/transfer`, {
+                    userId: session.user.id,
+                    queueId: transferMode.queueId,
+                    targetBarberId: targetBarberId
+                });
+                setTransferMode(null);
+                fetchLiveShop();
+            } catch (e) { alert("Transfer failed."); }
+        }
+    };
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -246,62 +302,6 @@ export const AdminAppLayout = ({ session }) => {
             fetchServices(); // Refresh list
         } catch (err) { 
             alert("Archive failed: " + (err.response?.data?.error || err.message)); 
-        }
-    };
-
-
-        const confirmText = prompt("Type 'PERMANENT' to permanently delete this service:");
-        if (confirmText !== 'PERMANENT') return;
-        try {
-            await axios.delete(`${API_URL}/admin/services/${id}/hard-delete`, { data: { userId: session.user.id } });
-            alert("Service permanently deleted.");
-            fetchServices();
-        } catch (err) { 
-            alert("Hard delete failed: " + (err.response?.data?.error || err.message)); 
-        }
-    };
-
-     // 2. User Management
-    const handleDeleteUser = async (targetId) => {
-        const confirmText = prompt("WARNING: This action cannot be undone.\nType 'DELETE' to permanently ban/delete this user account.");
-        if (confirmText !== 'DELETE') return;
-        try {
-            await axios.delete(`${API_URL}/admin/users/${targetId}`, { data: { userId: session.user.id } });
-            alert("User deleted.");
-            fetchUsers(userPage);
-        } catch (e) { alert("Delete failed: " + (e.response?.data?.error || e.message)); }
-    };
-
-    // 3. Staff Management (Toggle Active/Inactive)
-    const handleToggleBarberStatus = async (barberId, currentStatus) => {
-        const newStatus = !currentStatus;
-        const action = newStatus ? "ACTIVATE" : "DEACTIVATE";
-        if (!window.confirm(`Are you sure you want to ${action} this barber?`)) return;
-
-        try {
-            await axios.put(`${API_URL}/admin/barbers/${barberId}/status`, {
-                userId: session.user.id,
-                is_active: newStatus
-            });
-            fetchLiveShop(); // Refresh barber list
-        } catch (err) {
-            alert("Update failed: " + (err.response?.data?.error || err.message));
-        }
-    };
-
-    // 4. Transfer Logic
-    const handleTransfer = async (targetBarberId) => {
-        if (!transferMode) return;
-        if (window.confirm(`Transfer this customer to Barber #${targetBarberId}?`)) {
-            try {
-                await axios.put(`${API_URL}/admin/transfer`, {
-                    userId: session.user.id,
-                    queueId: transferMode.queueId,
-                    targetBarberId: targetBarberId
-                });
-                setTransferMode(null);
-                fetchLiveShop();
-            } catch (e) { alert("Transfer failed."); }
         }
     };
 
@@ -451,7 +451,7 @@ export const AdminAppLayout = ({ session }) => {
                                 <div style={{fontWeight:'bold', color:'var(--primary-orange)'}}>₱{s.price_php}</div>
                             </div>
                             <div style={{display:'flex', gap:'10px'}}>
-{s.is_active ? (
+                                {s.is_active ? (
                                     <>
                                         <button onClick={() => setIsEditingService(s)} className="btn btn-secondary" style={{padding:'5px 10px'}}>Edit</button>
                                         <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}} title="Archive (soft delete)">Archive</button>
@@ -616,7 +616,7 @@ export const AdminAppLayout = ({ session }) => {
                 {/* --- ROW 2: CHARTS (Responsive Grid) --- */}
                 <div style={{
                     display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', // Decreased min-width for mobile
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                     gap: '20px', 
                     marginBottom: '20px'
                 }}>
@@ -648,7 +648,6 @@ export const AdminAppLayout = ({ session }) => {
                     <div className="card-header">
                         <h2>Detailed Performance Matrix</h2>
                     </div>
-                    {/* FIX: Added overflowX auto here to allow table scrolling on mobile */}
                     <div className="card-body" style={{overflowX: 'auto'}}>
                         <table style={{width: '100%', borderCollapse: 'collapse', minWidth: '600px'}}>
                             <thead>
@@ -828,7 +827,7 @@ export const AdminAppLayout = ({ session }) => {
 
                                             {customerSearch ? (
                                                 <div>
-                                                    <p>No customers found matching "{customerSearch}"</p>
+                                                    <p>No customers found matching \"{customerSearch}\"</p>
                                                     <button 
                                                         onClick={() => {setCustomerSearch(''); fetchCustomers(1, '');}} 
                                                         className="btn btn-secondary"
