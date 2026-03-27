@@ -439,26 +439,26 @@ export const AdminAppLayout = ({ session }) => {
                                 <div style={{fontWeight:'bold', color:'var(--primary-orange)'}}>₱{s.price_php}</div>
                             </div>
                             <div style={{display:'flex', gap:'10px'}}>
-{s.is_active ? (
+                                {s.is_active ? (
                                     <>
                                         <button onClick={() => setIsEditingService(s)} className="btn btn-secondary" style={{padding:'5px 10px'}}>Edit</button>
                                         <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}} title="Archive (soft delete)">Archive</button>
                                     </>
-
                                 ) : (
                                     <>
                                         <button onClick={() => handleRestoreService(s.id)} className="btn btn-success" style={{padding:'5px 10px'}}>Restore</button>
                                     </>
                                 )}
                             </div>
-                    )}
+                        </li>
+                    ))}
                 </ul>
 
                 {/* --- VIP PRICE SETTING --- */}
                 <div style={{marginTop:'30px', paddingTop:'20px', borderTop:'2px solid var(--primary-orange)'}}>
                     <h3 style={{color:'var(--primary-orange)', marginTop:0}}>👑 VIP Priority Setting</h3>
                     <p style={{fontSize:'0.9rem', color:'var(--text-secondary)', marginBottom:'15px'}}>
-                        Set the price for VIP Priority service. This affects the "Up Next" button in customer dashboard.
+                        Set the price for VIP Priority service. This affects "Up Next" button in customer dashboard.
                     </p>
                     <form onSubmit={handleUpdateVipPrice} style={{display:'flex', gap:'10px', alignItems:'end', flexWrap:'wrap'}}>
                         <div className="form-group" style={{marginBottom:0}}>
