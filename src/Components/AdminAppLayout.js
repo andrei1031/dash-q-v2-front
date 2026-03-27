@@ -180,7 +180,14 @@ export const AdminAppLayout = ({ session }) => {
 
     // Hard delete function - FIXED: async/await → Promises for ESLint compatibility
     const handleHardDeleteService = (id) => {
-        const confirmText = prompt("Type 'PERMANENT' to permanently delete this service:");
+        console.log('=== DEBUG HARD DELETE ===');
+        console.log('Service ID:', id);
+        console.log('Full services list:', services);
+        const service = services.find(s => s.id === parseInt(id));
+        console.log('Service details:', service);
+        console.log('API_URL:', API_URL);
+        console.log('====================');
+        const confirmText = prompt("Type 'PERMANENT' to permanently delete service ID " + id + "?");
         if (confirmText !== 'PERMANENT') return;
         axios.delete(`${API_URL}/admin/services/${id}/hard-delete`, { data: { userId: session.user.id } })
             .then(() => {
@@ -188,6 +195,7 @@ export const AdminAppLayout = ({ session }) => {
                 fetchServices();
             })
             .catch(err => {
+                console.error('Hard delete error:', err.response?.data);
                 alert("Hard delete failed: " + (err.response?.data?.error || err.message));
             });
     };
