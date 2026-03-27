@@ -139,7 +139,7 @@ export const AdminAppLayout = ({ session }) => {
 
     const fetchServices = useCallback(async () => {
         try { 
-            // Use the ADMIN endpoint to get active AND archived services
+    // Get all services (active + archived) from admin endpoint
             const res = await axios.get(`${API_URL}/admin/services`); 
             setServices(res.data); 
         } catch (e) { console.error(e); }
@@ -178,27 +178,7 @@ export const AdminAppLayout = ({ session }) => {
         }
     };
 
-    // Hard delete function - FIXED: async/await → Promises for ESLint compatibility
-    const handleHardDeleteService = (id) => {
-        console.log('=== DEBUG HARD DELETE ===');
-        console.log('Service ID:', id);
-        console.log('Full services list:', services);
-        const service = services.find(s => s.id === parseInt(id));
-        console.log('Service details:', service);
-        console.log('API_URL:', API_URL);
-        console.log('====================');
-        const confirmText = prompt("Type 'PERMANENT' to permanently delete service ID " + id + "?");
-        if (confirmText !== 'PERMANENT') return;
-        axios.delete(`${API_URL}/admin/services/${id}/hard-delete`, { data: { userId: session.user.id } })
-            .then(() => {
-                alert("Service permanently deleted.");
-                fetchServices();
-            })
-            .catch(err => {
-                console.error('Hard delete error:', err.response?.data);
-                alert("Hard delete failed: " + (err.response?.data?.error || err.message));
-            });
-    };
+
 
     // 2. User Management
     const handleDeleteUser = async (targetId) => {
@@ -471,7 +451,8 @@ export const AdminAppLayout = ({ session }) => {
                                     </>
                                 )}
                             </div>
-                            </div>
+                        </li>
+                    )}
                         </li>
                     ))}
                 </ul>
