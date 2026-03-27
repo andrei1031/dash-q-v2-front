@@ -463,7 +463,8 @@ export const AdminAppLayout = ({ session }) => {
                                     <>
                                         <button onClick={() => setIsEditingService(s)} className="btn btn-secondary" style={{padding:'5px 10px'}}>Edit</button>
                                         <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}} title="Archive (soft delete)">Archive</button>
-                                        <button onClick={() => handleHardDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px', fontSize:'0.8rem'}} title="⚠️ PERMANENT DELETE - Cannot be undone!">Delete (Permanent)</button>
+                                        <button onClick={() => handleDeleteService(s.id)} className="btn btn-danger" style={{padding:'5px 10px'}} title="Archive (soft delete)">Archive</button>
+                                    
                                     </>
                                 ) : (
                                     <>
