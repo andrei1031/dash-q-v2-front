@@ -1159,11 +1159,16 @@ export const CustomerView = ({ session }) => {
                                     rating: customerRating,
                                     queue_id: myQueueEntryId
                                 }); 
+                                
+                                // 🟢 MOVE THESE INSIDE THE TRY BLOCK 🟢
+                                setFeedbackSubmitted(true);
+                                setMessage(''); 
+                                
                             } catch (err) { 
-                                setMessage('Failed to submit feedback.');
+                                console.error("Feedback error:", err);
+                                setMessage('Failed to submit feedback. ' + (err.response?.data?.error || ''));
+                                return; // 🛑 STOP HERE. Do not show success screen!
                             }
-                            setFeedbackSubmitted(true);
-                            setMessage(''); 
                         }}>
                             <div className="modal-body">
                                 <h2>Service Complete!</h2>
