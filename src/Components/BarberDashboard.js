@@ -1,14 +1,3 @@
-I see the problem! In the current layout, the `BarberDashboard.js` has a single `card-body` container. When you place the feedback list at the end of this container, it acts like a block element and takes up the remaining space, which can cause layout shifts (making it look like it's on the wrong side or breaking the flow).
-
-If you look at `CustomerView.js`, the feedback list is contained nicely because it sits inside a dedicated wrapper.
-
-To fix this and place it correctly on the left side (under the "Waiting" list), we need to ensure it sits directly in the main flow of the `card-body` below the other queue elements, rather than floating or wrapping weirdly.
-
-Here is the fully corrected code. I moved the `Recent Feedback` block to render immediately after the "Waiting" queue section, and ensured it matches the exact layout styling of the rest of the dashboard.
-
-### Replace your entire `src/Components/BarberDashboard.js` with this:
-
-```javascript
 import { useCallback, useEffect, useState } from "react";
 import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
