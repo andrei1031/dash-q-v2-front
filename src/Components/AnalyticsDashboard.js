@@ -36,7 +36,8 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
         try {
             // Fetch both stats and feedback at once
             const [analyticsRes, feedbackRes] = await Promise.all([
-                axios.get(`${API_URL}/barber/${barberId}/analytics`),
+                // Removed the extra /barber/ prefix to match your server.js setup
+                axios.get(`${API_URL}/analytics/${barberId}`),
                 axios.get(`${API_URL}/feedback/${barberId}`)
             ]);
             
