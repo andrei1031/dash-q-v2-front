@@ -25,9 +25,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [chatMessages, setChatMessages] = useState({});
     const [openChatCustomerId, setOpenChatCustomerId] = useState(null);
     const [openChatQueueId, setOpenChatQueueId] = useState(null);
-    
-    // 🟢 Feedback State
-    const [barberFeedback, setBarberFeedback] = useState([]);
 
     const [modalState, setModalState] = useState({ type: null, data: null });
     const [viewImageModalUrl, setViewImageModalUrl] = useState(null);
@@ -143,24 +140,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             console.error('[BarberDashboard] Queue fetch error:', err);
         }
     }, [barberId, openChatQueueId]); 
-
-    // 🟢 Fetch Feedback on Mount
-    useEffect(() => { 
-        if (barberId) { 
-            setBarberFeedback([]);
-            const fetchFeedback = async () => {
-                try {
-                    const response = await axios.get(`${API_URL}/feedback/${barberId}`);
-                    setBarberFeedback(response.data || []);
-                } catch (err) {
-                    console.error("Failed to fetch feedback", err);
-                }
-            };
-            fetchFeedback();
-        } else {
-            setBarberFeedback([]);
-        }
-    }, [barberId]);
 
     useEffect(() => {
         if (!openChatQueueId) return;
@@ -557,7 +536,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         style={{position: 'relative'}}
                                     >
                                         <IconChat />
-                                        {/* BADGE LOGIC */}
                                         {queueDetails.inProgress.unread_count > 0 && (
                                             <span className="notification-badge">
                                                 {queueDetails.inProgress.unread_count}
@@ -574,7 +552,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                 <li 
                                     className={`up-next ${upNext.is_vip ? 'vip-entry' : ''}`}
                                     style={{
-                                        // DYNAMIC STYLING: Red border/bg if high risk, Orange (default) otherwise
                                         borderLeft: isHighRisk ? '5px solid #ff3b30' : '5px solid var(--primary-orange)',
                                         background: isHighRisk ? 'rgba(255, 59, 48, 0.05)' : 'var(--bg-dark)',
                                         transition: 'all 0.3s ease'
@@ -583,7 +560,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                     <div className="queue-item-info">
                                         <strong>#{upNext.id} - {upNext.customer_name}</strong>
                                         
-                                        {/* --- ⚠️ THE RISK BADGE (Only shows if > 500m) --- */}
                                         {isHighRisk && (
                                             <div style={{
                                                 display: 'inline-flex', 
@@ -604,7 +580,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         
                                         {!isHighRisk && <DistanceBadge meters={upNext.current_distance_meters} />}
                                         
-                                        {/* Confirmation Status */}
                                         {upNext.is_confirmed ? (
                                             <span className="badge-confirmed">✅ CONFIRMED</span>
                                         ) : (
@@ -614,7 +589,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         <PhotoDisplay entry={upNext} label="Up Next" />
                                     </div>
                                     
-                                    {/* Chat Button */}
                                     <button 
                                         onClick={() => openChat(upNext)} 
                                         className="btn btn-icon" 
@@ -647,7 +621,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                     <DistanceBadge meters={c.current_distance_meters} />
                                     {c.reference_image_url && <PhotoDisplay entry={c} label="Waiting" />}
                                 </div>
-                                {/* REPLACE the Chat Button in "Waiting" loop with this: */}
                                 <button 
                                     onClick={() => openChat(c)} 
                                     className="btn btn-icon" 
@@ -656,7 +629,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                     style={{position: 'relative'}}
                                 >
                                     <IconChat />
-                                    {/* BADGE LOGIC */}
                                     {c.unread_count > 0 && (
                                         <span className="notification-badge">
                                             {c.unread_count}
@@ -666,16 +638,14 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                             </li>
                         )))}</ul>
 
-                        {/* REPLACEMENT FOR CHAT SECTION */}
                         {openChatCustomerId && (
                             <div className="barber-chat-container">
-                                {/* Header with Report Button */}
                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', borderBottom:'1px solid var(--border-color)', background:'var(--surface-color)'}}>
                                     <h4 style={{margin:0}}>Chat with Customer</h4>
                                     <button 
                                         onClick={() => {
-                                            setReportTargetId(openChatCustomerId); // <--- Uses reportTargetId
-                                            setIsReportModalOpen(true);            // <--- Uses isReportModalOpen
+                                            setReportTargetId(openChatCustomerId); 
+                                            setIsReportModalOpen(true);            
                                         }}
                                         className="btn btn-danger btn-icon" 
                                         title="Report Customer"
@@ -696,42 +666,12 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                 <button onClick={closeChat} className="btn btn-secondary btn-full-width">Close Chat</button>
                             </div>
                         )}
-
-                        {/* 🟢 THIS REMAINS IN THE MAIN FLOW - ALIGNED LEFT 🟢 */}
-                        {barberFeedback.length > 0 && (
-                            <div className="feedback-list-container customer-feedback" style={{marginTop: '20px'}}>
-                                <h3 className="feedback-subtitle">Recent Feedback</h3>
-                                <ul className="feedback-list">
-                                    {barberFeedback.map((item, index) => (
-                                        <li key={index} className="feedback-item">
-                                            <div className="feedback-header">
-                                                <span className="feedback-score" style={{fontSize: '1.2rem', lineHeight: '1'}}>
-                                                    <span style={{color: '#FFD700'}}>
-                                                        {'★'.repeat(Math.round(Math.max(0, Math.min(5, item.score || 0))))}
-                                                    </span>
-                                                    <span style={{color: 'var(--text-secondary)'}}>
-                                                        {'☆'.repeat(5 - Math.round(Math.max(0, Math.min(5, item.score || 0))))}
-                                                    </span>
-                                                </span>
-                                                <span className="feedback-customer">
-                                                    {item.customer_name || 'Customer'}
-                                                </span>
-                                            </div>
-                                            {item.comments && <p className="feedback-comment">"{item.comments}"</p>}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
                     </>
                 )}
             </div>
 
             <div className="card-footer" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                 <button onClick={fetchBarberAppointments} className="btn btn-primary btn-icon-label" disabled={loadingAppts} style={{position: 'relative'}}>
-                    {/* OLD: {loadingAppts ? <Spinner /> : '📅 Bookings'} */}
-                    {/* NEW: Static Text */}
                     📅 Bookings
                     {pendingApptCount > 0 && (
                         <span className="notification-badge" style={{
@@ -800,7 +740,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                 <p className="modal-form-details">
                                     <strong>Customer:</strong> {modalState.data.customer_name} (#{modalState.data.id})<br/>
                                     
-                                    {/* --- NEW: GROUP DISPLAY --- */}
                                     <strong>Heads:</strong> {modalState.data.head_count || 1}<br/> 
                                     
                                     <strong>Service:</strong> {modalState.data.services?.name || 'Service'} 
@@ -810,7 +749,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         <>
                                             <div style={{display:'flex', justifyContent:'space-between', color:'var(--primary-orange)'}}>
                                                 <span>VIP Fee (₱{vipPrice} x {modalState.data.head_count || 1}):</span>
-                                                {/* SHOW MULTIPLIED VIP FEE */}
                                                 <span>+ ₱{(vipPrice * (modalState.data.head_count || 1)).toFixed(2)}</span>
                                             </div>
                                         </>
@@ -818,13 +756,12 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
 
                                     <hr style={{borderColor:'var(--border-color)', margin:'10px 0'}} />
 
-                                    {/* Total Due Calculation */}
                                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', fontSize: '1.2rem', fontWeight:'bold'}}>
                                         <span>Total Due:</span>
                                         <span style={{color: 'var(--success-color)'}}>
                                             ₱{(
                                                 ((parseFloat(modalState.data.services?.price_php || 0)) * (modalState.data.head_count || 1)) + 
-                                                (modalState.data.is_vip ? (vipPrice * (modalState.data.head_count || 1)) : 0) // <--- CHANGED HERE
+                                                (modalState.data.is_vip ? (vipPrice * (modalState.data.head_count || 1)) : 0) 
                                             ).toFixed(2)}
                                         </span>
                                     </div>
@@ -860,7 +797,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             <div className="modal-overlay" onClick={() => setViewImageModalUrl(null)}>
                 <div 
                     className="modal-content image-modal-content" 
-                    onClick={(e) => e.stopPropagation()} /* Prevents modal from closing when clicking the image */
+                    onClick={(e) => e.stopPropagation()} 
                 >
                     <img 
                         src={viewImageModalUrl} 
@@ -879,7 +816,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             </div>
         )}
 
-        {/* --- Loyalty Loading Modal --- */}
         {modalState.type === 'loyaltyLoading' && (
             <div className="modal-overlay">
                 <div className="modal-content">
@@ -896,7 +832,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             </div>
         )}
 
-        {/* --- Loyalty Result Modal --- */}
         {modalState.type === 'loyaltyResult' && modalState.data && (
             <div className="modal-overlay">
                 <div className="modal-content">
@@ -937,7 +872,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         )}
                                         <span 
                                             className="status-badge" 
-                                            style={{ margin: '0 10px' }} // Add some spacing
+                                            style={{ margin: '0 10px' }} 
                                         >
                                             {entry.status}
                                         </span>
@@ -960,10 +895,10 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             </div>
         )}
             <ReportModal 
-                isOpen={isReportModalOpen}          // <--- Uses isReportModalOpen
+                isOpen={isReportModalOpen}          
                 onClose={() => setIsReportModalOpen(false)}
                 reporterId={session.user.id}
-                reportedId={reportTargetId}         // <--- Uses reportTargetId
+                reportedId={reportTargetId}         
                 userRole="barber"
             />
             {isApptListOpen && (
@@ -980,6 +915,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                             ) : (
                                 <ul className="queue-list">
                                     {barberAppointments.map((appt) => {
+                                        
                                         // 🟢 THE FIX IS HERE 🟢
                                         const safeDateString = appt.scheduled_time ? appt.scheduled_time.split('T')[0] : '';
                                         const dateObj = new Date(safeDateString + 'T00:00:00');
@@ -994,7 +930,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                             display: 'flex', 
                                             flexDirection: 'column', 
                                             gap: '10px',
-                                            borderLeft: appt.status === 'pending' ? '4px solid #FFD700' : (isToday ? '4px solid var(--primary-orange)' : '4px solid var(--text-secondary)'), // Yellow for pending
+                                            borderLeft: appt.status === 'pending' ? '4px solid #FFD700' : (isToday ? '4px solid var(--primary-orange)' : '4px solid var(--text-secondary)'), 
                                             opacity: appt.is_converted_to_queue ? 0.6 : 1,
                                             padding: '10px',
                                             marginBottom: '10px',
@@ -1002,7 +938,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                             borderRadius: '6px',
                                             textAlign: 'center'
                                         }}>
-                                            {/* Date & Time */}
                                             <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap: '10px'}}>
                                                 <strong style={{fontSize:'1.1rem', color: isToday ? 'var(--primary-orange)' : 'var(--text-primary)'}}>
                                                     {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
@@ -1014,19 +949,16 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                                 </span>
                                             </div>
                                             
-                                            {/* Status Badge */}
                                             {appt.status === 'pending' && (
                                                 <div style={{background: '#FFD700', color: 'black', fontWeight: 'bold', borderRadius: '4px', fontSize: '0.8rem'}}>
                                                     ⚠️ PENDING APPROVAL
                                                 </div>
                                             )}
 
-                                            {/* Customer Name */}
                                             <div style={{fontSize:'1rem'}}>
                                                 👤 <strong>{appt.customer_name}</strong>
                                             </div>
                                             
-                                            {/* Action Row */}
                                             <div style={{display:'flex', justifyContent:'center', alignItems:'center', marginTop:'5px', gap:'10px'}}>
                                                 
                                                 {appt.status === 'pending' ? (
