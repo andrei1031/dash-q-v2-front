@@ -261,12 +261,21 @@ export const AdminAppLayout = ({ session }) => {
         const duration = form.serviceDuration.value;
         const price = form.servicePrice.value;
 
-        // Frontend Validation
+// Frontend Validation
         if (duration < 5) return alert("Duration must be at least 5 minutes.");
         if (price < 0) return alert("Price cannot be negative.");
+        const vipPrice = form.serviceVipPrice.value === "" ? null : parseFloat(form.serviceVipPrice.value);
+        if (vipPrice !== null && vipPrice < 0) return alert("VIP Price cannot be negative.");
 
         try {
-            const payload = { userId: session.user.id, name, duration_minutes: duration, price_php: price };
+            const payload = { 
+                userId: session.user.id, 
+                name, 
+                duration_minutes: duration, 
+                price_php: price,
+                price_vip_php: vipPrice
+            };
+
             
             if (isEditingService) {
                 await axios.put(`${API_URL}/admin/services/${isEditingService.id}`, payload);
@@ -421,8 +430,9 @@ export const AdminAppLayout = ({ session }) => {
                     style={{display:'grid', gap:'10px', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', marginBottom:'20px', paddingBottom:'20px', borderBottom:'1px solid var(--border-color)'}}
                 >
                     <div className="form-group"><label>Service Name</label><input name="serviceName" defaultValue={isEditingService?.name || ''} required placeholder="e.g. Haircut" /></div>
-                    <div className="form-group"><label>Duration (mins)</label><input name="serviceDuration" type="number" defaultValue={isEditingService?.duration_minutes || 30} required min="5" /></div>
-                    <div className="form-group"><label>Price (₱)</label><input name="servicePrice" type="number" defaultValue={isEditingService?.price_php || 150} required min="0" /></div>
+<div className="form-group"><label>Duration (mins)</label><input name="serviceDuration" type="number" defaultValue={isEditingService?.duration_minutes || 30} required min="5" /></div>
+                    <div className="form-group"><label>Base Price (₱)</label><input name="servicePrice" type="number" defaultValue={isEditingService?.price_php || 150} required min="0" /></div>
+                    <div className="form-group"><label>VIP Price (₱)</label><input name="serviceVipPrice" type="number" defaultValue={isEditingService?.price_vip_php || ''} min="0" placeholder="Optional (same as base if blank)" /></div>
                     <div style={{display:'flex', alignItems:'end', gap:'10px'}}>
                         <button type="submit" className="btn btn-primary btn-full-width">{isEditingService ? 'Update' : 'Add'}</button>
                         {isEditingService && <button type="button" onClick={() => setIsEditingService(null)} className="btn btn-secondary">Cancel</button>}
@@ -436,7 +446,8 @@ export const AdminAppLayout = ({ session }) => {
                                 <strong>{s.name}</strong> 
                                 <span style={{color:'var(--text-secondary)'}}> ({s.duration_minutes}m)</span>
                                 {!s.is_active && <span style={{marginLeft:'8px', color:'var(--error-color)', fontWeight:'bold', fontSize:'0.7rem'}}>ARCHIVED</span>}
-                                <div style={{fontWeight:'bold', color:'var(--primary-orange)'}}>₱{s.price_php}</div>
+                                <div style={{fontWeight:'bold', color:'var(--success-color)'}}>Base: ₱{s.price_php}</div>
+                                {s.price_vip_php && <div style={{fontWeight:'bold', color:'var(--primary-orange)'}}>VIP: ₱{s.price_vip_php}</div>}
                             </div>
                             <div style={{display:'flex', gap:'10px'}}>
                                 {s.is_active ? (
