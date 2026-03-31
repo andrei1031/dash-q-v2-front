@@ -2299,7 +2299,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 // Use Philippines timezone for display
                                 const isPast = dateObj < new Date(new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
                                 const displayDate = dateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
-                                const displayTime = dateObj.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
+                                const displayTime = appt.formatted_time || dateObj.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
                                 // Determine Badge Color
                                 let statusColor = 'var(--text-secondary)';
                                 let statusBg = 'rgba(0,0,0,0.05)';

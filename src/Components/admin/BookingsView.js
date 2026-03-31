@@ -21,9 +21,16 @@ export const BookingsView = () => {
 
     useEffect(() => { fetchBookings(); }, []);
 
-    // Helper function to format time in Philippines timezone
-    const formatPhilippinesTime = (dateString) => {
-        const date = new Date(dateString);
+    // Helper function to format time
+    // UPDATED: Now checks for the explicitly formatted string from the backend first
+    const formatPhilippinesTime = (appt) => {
+        // 1. If backend sent the explicitly formatted string, use it!
+        if (appt.formatted_time) {
+            return appt.formatted_time;
+        }
+        
+        // 2. Otherwise, fallback to the old calculation method
+        const date = new Date(appt.scheduled_time);
         return date.toLocaleTimeString('en-PH', { 
             hour: '2-digit', 
             minute: '2-digit',
@@ -101,7 +108,8 @@ export const BookingsView = () => {
                                                 {formatPhilippinesDate(appt.scheduled_time)}
                                             </strong>
                                             <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>
-                                                {formatPhilippinesTime(appt.scheduled_time)}
+                                                {/* UPDATED: We now pass the entire 'appt' object instead of just the string */}
+                                                {formatPhilippinesTime(appt)}
                                             </span>
                                         </div>
                                         <div style={{fontSize:'0.95rem'}}>

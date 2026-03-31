@@ -973,6 +973,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         // Highlight "Today"
                                         const isToday = new Date().toDateString() === dateObj.toDateString();
                                         
+                                        // --- ADD THIS LINE ---
+                                        const displayTime = appt.formatted_time || dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        
                                         return (
                                             <li key={appt.id} style={{
                                             display: 'flex', 
@@ -992,7 +995,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                                     {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
                                                 </strong>
                                                 <span style={{fontSize:'1.1rem', fontWeight:'bold'}}>
-                                                    {dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    {displayTime}
                                                 </span>
                                             </div>
                                             
