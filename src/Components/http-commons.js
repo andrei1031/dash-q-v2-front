@@ -6,7 +6,7 @@ export const API_URL = "https://dash-q-v2-back.onrender.com/api";
 // Create axios instance with auth interceptor
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Request interceptor - attach token
