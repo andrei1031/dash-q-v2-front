@@ -1166,8 +1166,8 @@ export const CustomerView = ({ session }) => {
                                 
                             } catch (err) { 
                                 console.error("Feedback error:", err);
-                                setMessage('Failed to submit feedback. ' + (err.response?.data?.error || ''));
-                                return; // 🛑 STOP HERE. Do not show success screen!
+                                setMessage('Error: ' + (err.response?.data?.error || err.message || 'Failed to connect.'));
+                                return;
                             }
                         }}>
                             <div className="modal-body">

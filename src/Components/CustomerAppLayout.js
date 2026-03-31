@@ -8,7 +8,7 @@ export const CustomerAppLayout = ({ session }) => {
         <div className="app-layout customer-app-layout">
             <header className="app-header">
                 <h1>Welcome, {session?.user?.user_metadata?.full_name || 'Guest'}!</h1>
-                <div className="header-actions">
+                <div className="header-actions">s
                     <ThemeToggleButton />
                     <button 
                         onClick={() => {
