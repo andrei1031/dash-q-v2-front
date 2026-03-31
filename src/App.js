@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
+import apiClient from './Components/http-commons';
 import './App.css';
 
 // --- Chart.js Imports ---
@@ -40,7 +40,7 @@ export const handleLogout = async (userId) => {
     // 1. Clear Server Availability Flag (Barbers only)
     if (userId) {
         try {
-            await axios.put(`${API_URL}/logout/flag`, { userId });
+            await apiClient.put('/logout/flag', { userId });
             console.log("Server status updated successfully.");
         } catch (error) {
             console.warn("Warning: Failed to clear barber availability status on server.", error.message);
@@ -143,7 +143,7 @@ function App() {
                 return; 
             }
 
-            const response = await axios.get(`${API_URL}/barber/profile/${user.id}`);
+            const response = await apiClient.get(`/barber/profile/${user.id}`);
             setUserRole('barber');
             setBarberProfile(response.data);
 
@@ -159,76 +159,97 @@ function App() {
     useEffect(() => {
         const initSession = async () => {
             // 1. Check Supabase Session
-            const { data: { session: existingSession } } = await supabase.auth.getSession();
-            
-            if (existingSession) {
-                setSession(existingSession);
-                checkUserRole(existingSession.user);
-            } else {
-                // 2. Check for existing guest session in localStorage
-                const storedGuestSession = localStorage.getItem('guestSession');
-                const storedToken = localStorage.getItem('token');
-                const storedGuestId = localStorage.getItem('guestId');
-                const storedDeviceFingerprint = localStorage.getItem('deviceFingerprint');
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    
+    if (existingSession) {
+        setSession(existingSession);
+        checkUserRole(existingSession.user);
+    } else {
+        // 2. Check for existing guest session in localStorage
+        const storedGuestSession = localStorage.getItem('guestSession');
+        const storedToken = localStorage.getItem('token');
+        const storedGuestId = localStorage.getItem('guestId');
+        const storedDeviceFingerprint = localStorage.getItem('deviceFingerprint');
+        
+        if (storedGuestSession && storedToken && storedGuestId) {
+            try {
+                const guestData = JSON.parse(storedGuestSession);
                 
-                if (storedGuestSession && storedToken && storedGuestId) {
-                    try {
-                        const guestData = JSON.parse(storedGuestSession);
-                        
-                        // Verify token is still valid by calling guest_login with existing guestId
-                        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/guest`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ 
-                                guestId: storedGuestId,
-                                nickname: guestData?.user?.nickname || 'Guest',
-                                deviceFingerprint: storedDeviceFingerprint
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            console.log("[Guest Session] Recovered successfully");
-                            
-                            // Update session with new token
-                            const recoveredSession = {
-                                access_token: data.token,
-                                user: data.user
-                            };
-                            
-                            localStorage.setItem('guestSession', JSON.stringify(recoveredSession));
-                            localStorage.setItem('token', data.token);
-                            localStorage.setItem('user', JSON.stringify(data.user));
-                            
-                            setSession(recoveredSession);
-                            setUserRole('customer');
-                            isGuestRef.current = true;
-                        } else if (response.status === 403) {
-                            // Device is blocked, clear session
-                            console.log("[Guest Session] Device is blocked");
-                            localStorage.removeItem('guestSession');
-                            localStorage.removeItem('guestId');
-                            localStorage.removeItem('deviceFingerprint');
-                            localStorage.removeItem('token');
-                            localStorage.removeItem('user');
-                        } else {
-                            // Token expired or invalid, use stored session temporarily
-                            console.log("[Guest Session] Using stored session");
-                            setSession(guestData);
-                            setUserRole('customer');
-                            isGuestRef.current = true;
-                        }
-                    } catch (error) {
-                        console.error("[Guest Session] Recovery error:", error);
-                        // Use stored session on network error
-                        if (storedGuestSession) {
-                            setSession(JSON.parse(storedGuestSession));
-                            setUserRole('customer');
-                            isGuestRef.current = true;
-                        }
-                    }
+                // Verify token is still valid by calling guest_login with existing guestId
+                const response = await apiClient.post('/auth/guest', { 
+                    guestId: storedGuestId,
+                    nickname: guestData?.user?.nickname || 'Guest',
+                    deviceFingerprint: storedDeviceFingerprint
+                }).then(res => ({ok: true, data: res.data})).catch(e => ({ok: false, status: e.response?.status || 500}));
+                
+                if (response.ok) {
+                    const data = response.data;
+                    console.log("[Guest Session] Recovered successfully");
+                    
+                    // Update session with new token
+                    const recoveredSession = {
+                        access_token: data.token,
+                        user: data.user
+                    };
+                    
+                    localStorage.setItem('guestSession', JSON.stringify(recoveredSession));
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    setSession(recoveredSession);
+                    setUserRole('customer');
+                    isGuestRef.current = true;
+                } else if (response.status === 403) {
+                    // Device is blocked, clear session
+                    console.log("[Guest Session] Device is blocked");
+                    localStorage.removeItem('guestSession');
+                    localStorage.removeItem('guestId');
+                    localStorage.removeItem('deviceFingerprint');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                } else {
+                    // Token expired or invalid, use stored session temporarily
+                    console.log("[Guest Session] Using stored session");
+                    setSession(guestData);
+                    setUserRole('customer');
+                    isGuestRef.current = true;
+                }
+            } catch (error) {
+                console.error("[Guest Session] Recovery error:", error);
+                // Use stored session on network error
+                if (storedGuestSession) {
+                    setSession(JSON.parse(storedGuestSession));
+                    setUserRole('customer');
+                    isGuestRef.current = true;
                 }
             }
+        } else {
+            // 3. ✅ NEW: NON-GUEST RECOVERY from localStorage
+            const storedUserStr = localStorage.getItem('user');
+            const storedTokenStr = localStorage.getItem('token');
+            if (storedUserStr && storedTokenStr) {
+                try {
+                    const user = JSON.parse(storedUserStr);
+                    // Skip if guest (already handled above)
+                    if (!user.is_guest) {
+                        const accessToken = storedTokenStr.startsWith('supabase-') ? storedTokenStr.substring(9) : storedTokenStr;
+                        const recoveredSession = {
+                            access_token: accessToken,
+                            user: user
+                        };
+                        setSession(recoveredSession);
+                        await checkUserRole(user);
+                        console.log('[App] Non-guest session recovered from localStorage');
+                        return; // Success - don't proceed to login screen
+                    }
+                } catch (e) {
+                    console.error('[App] Stored non-guest session corrupt:', e);
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                }
+            }
+        }
+    }
             setLoadingRole(false);
 
             // 3. SAFER NOTIFICATION CHECK (Prevents Mobile Crash)

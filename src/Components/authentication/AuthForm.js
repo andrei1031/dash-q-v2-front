@@ -48,7 +48,9 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                     localStorage.setItem('deviceFingerprint', deviceFingerprint);
                 }
                 
-                const response = await axios.post(`${API_URL}/login/username`, {
+                import apiClient from '../http-commons'; // Update import
+                
+                const response = await apiClient.post('/login/username', {
                     username: username.trim(), 
                     password, 
                     role: selectedRole, 
@@ -56,15 +58,21 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                     deviceFingerprint: deviceFingerprint
                 });
                 
-                // Safely extract user data to avoid circular references
+                // Safely extract user data
                 if (response.data?.user?.email && supabase?.auth) {
-                    const { error } = await supabase.auth.signInWithPassword({ 
+                    const { data: signInData, error } = await supabase.auth.signInWithPassword({ 
                         email: response.data.user.email, 
                         password 
                     });
                     if (error) {
-                        // Handle specific error messages
-                        throw new Error(error.message || "Login failed");
+                        throw new Error(error.message || "Supabase login failed");
+                    }
+                    
+                    // ✅ PERSIST NON-GUEST SESSION to localStorage (matches guest flow)
+                    if (signInData.session?.access_token && signInData.user) {
+                        localStorage.setItem('token', `supabase-${signInData.session.access_token}`);
+                        localStorage.setItem('user', JSON.stringify(signInData.user));
+                        console.log('[AuthForm] Non-guest session persisted');
                     }
                 } else { 
                     throw new Error("Login failed: Invalid server response."); 
@@ -72,7 +80,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
             } else { // This is now just for 'signup'
                 if (!email.trim() || !fullName.trim()) throw new Error("Email/Full Name required.");
                 if (selectedRole === 'barber' && !barberCode.trim()) throw new Error("Barber Code required.");
-                const response = await axios.post(`${API_URL}/signup/username`, { 
+                const response = await apiClient.post('/signup/username', { 
                     username: username.trim(), 
                     email: email.trim(), 
                     password, 
@@ -120,7 +128,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
             console.log(`Checking if email ${trimmedEmail} exists...`);
             
             // 1. SECURELY CHECK IF EMAIL EXISTS
-            const checkResponse = await axios.post(`${API_URL}/check-email`, { email: trimmedEmail });
+            const checkResponse = await apiClient.post('/check-email', { email: trimmedEmail });
             
             // 2. LOGIC SPLIT: If email is NOT found, throw a clean, display-ready error.
             if (!checkResponse.data.found) {
