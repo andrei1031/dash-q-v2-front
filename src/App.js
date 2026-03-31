@@ -86,6 +86,9 @@ function App() {
     const [showAdminLogin, setShowAdminLogin] = useState(false);
     const isGuestRef = useRef(false);
 
+    // --- Stabilize supabase for useCallback deps ---
+    const supabaseRef = useRef(supabase);
+
     const handleGuestLogin = (guestData) => {
     isGuestRef.current = true;
 
@@ -118,7 +121,7 @@ function App() {
         setShowLanding(false);
     };
 
-    // --- Helper to Check Role ---
+    // --- Helper to Check Role (MOVED UP, FIXED DEPS) ---
     const checkUserRole = useCallback(async (user) => {
         if (!user || !user.id) {
             setUserRole('customer');
@@ -130,7 +133,7 @@ function App() {
         console.log(`Checking role for user: ${user.id}`);
         setLoadingRole(true);
         try {
-            const { data: profileData } = await supabase
+            const { data: profileData } = await supabaseRef.current
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
@@ -143,6 +146,7 @@ function App() {
                 return; 
             }
 
+
             const response = await axios.get(`${API_URL}/barber/profile/${user.id}`);
             setUserRole('barber');
             setBarberProfile(response.data);
@@ -153,8 +157,9 @@ function App() {
         } finally {
             setLoadingRole(false);
         }
-    }, []);
+    }, [supabaseRef, API_URL]);
 
+    
     // --- Auth Listener ---
     useEffect(() => {
         const initSession = async () => {
