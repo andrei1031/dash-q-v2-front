@@ -200,18 +200,34 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
             // Get existing guestId from localStorage if available
             const existingGuestId = localStorage.getItem('guestId');
             
-            const data = await apiClient.post('/auth/guest', { 
+            const response = await apiClient.post('/auth/guest', { 
                 nickname: guestNickname.trim(),
                 guestId: existingGuestId,
                 deviceFingerprint: deviceFingerprint
-            }).then(res => res.data).catch(() => null);
+            });
 
-            if (!data) {
+            const data = response.data;
+
+            if (!response || response.status !== 200) {
+                console.error("Guest login failed:", data?.error || 'Unknown error');
+                
+                // Check if device is blocked
+                if (response?.status === 403) {
+                    alert(data?.error || "This device has been blocked from the system.");
+                    setIsLoading(false);
+                    return;
+                }
+
                 // Fallback guest
                 console.warn("API guest login failed, using fallback");
-                if (onGuestLogin) {
+                if (onGuestLogin && typeof onGuestLogin === 'function') {
                     onGuestLogin({ 
-                        user: { id: 'guest-fallback-' + Date.now(), nickname: guestNickname.trim(), is_guest: true, user_metadata: { full_name: guestNickname.trim() } }, 
+                        user: { 
+                            id: existingGuestId || 'guest-fallback-' + Date.now(), 
+                            nickname: guestNickname.trim(), 
+                            is_guest: true, 
+                            user_metadata: { full_name: guestNickname.trim() } 
+                        }, 
                         token: 'guest-fallback-token' 
                     });
                 }
@@ -219,52 +235,35 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                 return;
             }
 
-            const data = await res.json();
-
-            if (!res.ok) {
-                console.error("Guest login failed:", data);
-                
-                // Check if device is blocked
-                if (res.status === 403) {
-                    alert(data.error || "This device has been blocked from the system.");
-                    return;
-                }
-
-                // Fallback: Check if onGuestLogin is actually a function
-                if (onGuestLogin && typeof onGuestLogin === 'function') {
-                    console.warn("Backend error, using fallback guest session.");
-                    onGuestLogin({ user: { id: 'guest-fallback', user_metadata: { full_name: guestNickname } }, token: 'guest-token' });
-                    return;
-                }
-                alert(data.error || "Guest login failed");
-                return;
-            }
-
             console.log("Guest login success:", data);
 
             // Save guestId for session persistence
             localStorage.setItem('guestId', data.user.id);
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
 
-            // Success: Check if onGuestLogin is actually a function
+            // Success
             if (onGuestLogin && typeof onGuestLogin === 'function') {
                 onGuestLogin(data);
             } else {
                 console.error("CRITICAL: onGuestLogin prop is missing or not a function!", typeof onGuestLogin);
             }
 
-            // Save token for later requests
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("user", JSON.stringify(data.user));
-
-            return data;
-
         } catch (err) {
             setIsLoading(false);
             console.error("Error calling guest endpoint:", err);
             
-            // Catch Block Fallback: Check if onGuestLogin is actually a function
+            // Fallback guest on any error
             if (onGuestLogin && typeof onGuestLogin === 'function') {
-                onGuestLogin({ user: { id: 'guest-fallback', user_metadata: { full_name: guestNickname } }, token: 'guest-token' });
+                onGuestLogin({ 
+                    user: { 
+                        id: localStorage.getItem('guestId') || 'guest-fallback', 
+                        nickname: guestNickname.trim(), 
+                        is_guest: true, 
+                        user_metadata: { full_name: guestNickname.trim() } 
+                    }, 
+                    token: 'guest-fallback-token' 
+                });
             }
         }
     };
