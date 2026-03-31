@@ -1076,4 +1076,5 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             )}
         </div>
     );
+    
 }
