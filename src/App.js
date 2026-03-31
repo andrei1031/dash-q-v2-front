@@ -15,8 +15,7 @@ import { CustomerAppLayout } from './Components/CustomerAppLayout';
 import { LandingPage } from './Components/LandingPage';
 import { AdminLoginForm } from './Components/AdminLoginForm';
 
-// HTTP-COMMONS
-import { API_URL } from './Components/http-commons';
+// HTTP-COMMONS (apiClient used directly)
 // SUPABASE
 import { supabase } from './Components/supabase';
 // NOTIFICATIONS
