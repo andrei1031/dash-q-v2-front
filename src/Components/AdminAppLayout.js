@@ -28,7 +28,7 @@ export const AdminAppLayout = ({ session }) => {
     const [users, setUsers] = useState([]);
     const [services, setServices] = useState([]);
     const [isEditingService, setIsEditingService] = useState(null);
-    const [showVipPricing, setShowVipPricing] = useState(false);
+
     const [vipPrice, setVipPrice] = useState(100);
 
     // Analytics Filter States
@@ -266,9 +266,6 @@ export const AdminAppLayout = ({ session }) => {
 // Frontend Validation
         if (duration < 5) return alert("Duration must be at least 5 minutes.");
         if (price < 0) return alert("Price cannot be negative.");
-        const hasVipPrice = form.serviceVipPrice && form.serviceVipPrice.value !== "";
-        const vipPrice = hasVipPrice ? parseFloat(form.serviceVipPrice.value) : undefined;
-        if (hasVipPrice && vipPrice < 0) return alert("VIP Price cannot be negative.");
 
         try {
             const payload = { 
@@ -277,9 +274,6 @@ export const AdminAppLayout = ({ session }) => {
                 duration_minutes: duration, 
                 price_php: price
             };
-            if (hasVipPrice) {
-              payload.price_vip_php = vipPrice;
-            }
 
             
             if (isEditingService) {
@@ -437,44 +431,10 @@ export const AdminAppLayout = ({ session }) => {
                     <div className="form-group"><label>Service Name</label><input name="serviceName" defaultValue={isEditingService?.name || ''} required placeholder="e.g. Haircut" /></div>
                     <div className="form-group"><label>Duration (mins)</label><input name="serviceDuration" type="number" defaultValue={isEditingService?.duration_minutes || 30} required min="5" /></div>
                     <div className="form-group"><label>Base Price (₱)</label><input name="servicePrice" type="number" defaultValue={isEditingService?.price_php || 150} required min="0" /></div>
-                    {showVipPricing && (
-                      <div className="form-group">
-                        <label>VIP Price (₱)</label>
-                        <input name="serviceVipPrice" type="number" defaultValue={isEditingService?.price_vip_php || ''} min="0" placeholder="Leave blank to match base price" />
-                      </div>
-                    )}
                     <div style={{display:'flex', alignItems:'end', gap:'10px', marginBottom: '10px'}}>
-                        {!showVipPricing && (
-                          <button 
-                            type="button" 
-                            onClick={() => setShowVipPricing(true)}
-                            className="btn btn-outline" 
-                            style={{borderColor: 'var(--primary-orange)', color: 'var(--primary-orange)'}}
-                          >
-                            👑 Advanced Pricing
-                          </button>
-                        )}
                         <button type="submit" className="btn btn-primary btn-full-width">{isEditingService ? 'Update' : 'Add'}</button>
                         {isEditingService && <button type="button" onClick={() => setIsEditingService(null)} className="btn btn-secondary">Cancel</button>}
                     </div>
-                    {showVipPricing && (
-                      <div style={{padding: '10px', background: 'rgba(255, 165, 0, 0.1)', borderRadius: '6px', borderLeft: '3px solid var(--primary-orange)'}}>
-                        <button 
-                          type="button" 
-                          onClick={() => setShowVipPricing(false)}
-                          className="btn btn-small btn-secondary" 
-                          style={{float: 'right'}}
-                        >
-                          Hide VIP
-                        </button>
-                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600'}}>👑 VIP Pricing (Optional)</label>
-                        <div className="form-group">
-                          <label>VIP Price (₱)</label>
-                          <input name="serviceVipPrice" type="number" defaultValue={isEditingService?.price_vip_php || ''} min="0" placeholder="Leave blank to match base price" />
-                          <small style={{color: 'var(--text-secondary)'}}>Leave empty = VIP price matches base price</small>
-                        </div>
-                      </div>
-                    )}
                 </form>
                 <h3 style={{marginTop:0}}>Current Services</h3>
                 <ul className="queue-list">
@@ -484,8 +444,7 @@ export const AdminAppLayout = ({ session }) => {
                                 <strong>{s.name}</strong> 
                                 <span style={{color:'var(--text-secondary)'}}> ({s.duration_minutes}m)</span>
                                 {!s.is_active && <span style={{marginLeft:'8px', color:'var(--error-color)', fontWeight:'bold', fontSize:'0.7rem'}}>ARCHIVED</span>}
-                                <div style={{fontWeight:'bold', color:'var(--success-color)'}}>Base: ₱{s.price_php}</div>
-                                {s.price_vip_php && <div style={{fontWeight:'bold', color:'var(--primary-orange)'}}>VIP: ₱{s.price_vip_php}</div>}
+                                <div style={{fontWeight:'bold', color:'var(--success-color)'}}>₱{s.price_php}</div>
                             </div>
                             <div style={{display:'flex', gap:'10px'}}>
                                 {s.is_active ? (
