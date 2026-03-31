@@ -156,13 +156,13 @@ export const AdminAppLayout = ({ session }) => {
     };
 
     const fetchVipPrice = useCallback(async () => {
-        try {
-            const res = await axios.get(`${API_URL}/settings/vip-price`);
-            setVipPrice(res.data.vip_price || 100);
-        } catch (e) {
-            console.error("Failed to fetch VIP price:", e);
-        }
-    }, []);
+            try {
+                const res = await axios.get(`${API_URL}/settings?key=vip_price`);
+                setVipPrice(parseFloat(res.data.vip_price) || 100);
+            } catch (e) {
+                console.error("Failed to fetch VIP price:", e);
+            }
+        }, []);
 
     const handleUpdateVipPrice = async (e) => {
         e.preventDefault();
