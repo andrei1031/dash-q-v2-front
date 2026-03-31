@@ -157,7 +157,7 @@ function App() {
         } finally {
             setLoadingRole(false);
         }
-    }, [supabaseRef, API_URL]);
+}, [supabaseRef]);
 
     
     // --- Auth Listener ---
