@@ -1,27 +1,9 @@
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
-import { useTheme } from "./hooks/useTheme";
 import { API_URL } from "./http-commons";
 import { IconEye, IconEyeOff, IconRefresh } from "./assets/Icon";
-import { Bar } from 'react-chartjs-2';
 
 export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
-
-    // --- THE TIMEZONE KILLER HELPER ---
-    // Safely reads "2026-04-01T11:00:00" and outputs "11:00 AM" without browser shifts
-    const formatNaiveTime = (timeStr) => {
-        if (!timeStr) return "";
-        if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
-        try {
-            const cleanStr = timeStr.split('Z')[0].split('+')[0].split('.')[0];
-            const timePart = cleanStr.includes('T') ? cleanStr.split('T')[1] : cleanStr;
-            let [hours, mins] = timePart.split(':');
-            hours = parseInt(hours, 10);
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-            return `${hours}:${mins} ${ampm}`;
-        } catch(e) { return timeStr; }
-    };
 
     // 1. Initialize from Browser Memory (LocalStorage)
     const [showEarnings, setShowEarnings] = useState(() => {
@@ -40,7 +22,6 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const { theme } = useTheme();
 
      // 2. Custom Toggle Handler (Saves to Memory)
     const handleTogglePrivacy = () => {
@@ -148,16 +129,11 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
                                     <span className="feedback-score" style={{color: '#FFD700', fontSize: '1.2rem'}}>
                                         {'★'.repeat(Math.round(item.score || 0))}
                                     </span>
-                                    <span className="feedback-customer">
+                                    <span className="feedback-customer" style={{marginLeft: '10px', fontWeight: 'bold'}}>
                                         {item.customer_name}
-                                        {item.created_at && (
-                                            <small style={{display: 'block', fontSize: '0.7rem', opacity: 0.6}}>
-                                                {new Date(item.created_at).toLocaleDateString()}
-                                            </small>
-                                        )}
                                     </span>
                                 </div>
-                                {item.comments && <p className="feedback-comment">"{item.comments}"</p>}
+                                {item.comments && <p className="feedback-comment" style={{fontStyle: 'italic', color: 'var(--text-secondary)'}}>"{item.comments}"</p>}
                             </li>
                         )) : <p className="empty-text">No feedback yet.</p>}
                     </ul>
