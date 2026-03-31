@@ -5,7 +5,7 @@ import { IconEye, IconEyeOff, IconRefresh } from "./assets/Icon";
 
 export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
 
-    // 1. Initialize from Browser Memory (LocalStorage)
+    // 1. Initialize Privacy State from Memory
     const [showEarnings, setShowEarnings] = useState(() => {
         if (!barberId) return true;
         const saved = localStorage.getItem(`barber_privacy_${barberId}`);
@@ -23,7 +23,6 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-     // 2. Custom Toggle Handler (Saves to Memory)
     const handleTogglePrivacy = () => {
         const newState = !showEarnings;
         setShowEarnings(newState);
@@ -35,6 +34,7 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
         if (isManual) setIsRefreshing(true);
         
         try {
+            // Fetch both stats and feedback at once
             const [analyticsRes, feedbackRes] = await Promise.all([
                 axios.get(`${API_URL}/barber/${barberId}/analytics`),
                 axios.get(`${API_URL}/feedback/${barberId}`)
@@ -44,7 +44,7 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
             setFeedback(feedbackRes.data || []);
             setError('');
         } catch (err) {
-            console.error("Failed to load dashboard data:", err);
+            console.error("Dashboard Sync Error:", err);
             setError("Could not refresh stats.");
         } finally {
             setIsLoading(false);
@@ -54,7 +54,7 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
 
     useEffect(() => {
         fetchAnalytics();
-        const interval = setInterval(() => fetchAnalytics(), 60000); // Auto-refresh every minute
+        const interval = setInterval(() => fetchAnalytics(), 60000); 
         return () => clearInterval(interval);
     }, [fetchAnalytics, refreshSignal]);
 
@@ -120,7 +120,7 @@ export const AnalyticsDashboard = ({ barberId, refreshSignal }) => {
                     </div>
                 </div>
 
-                <div className="feedback-list-container">
+                <div className="feedback-list-container" style={{marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px'}}>
                     <h3 className="analytics-subtitle">Recent Feedback</h3>
                     <ul className="feedback-list">
                         {feedback.length > 0 ? feedback.map((item, index) => (
