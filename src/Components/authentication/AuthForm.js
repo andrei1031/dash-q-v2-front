@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { API_URL } from "../http-commons";
+import apiClient from "../http-commons";
 import { supabase } from "../supabase";
 import { ThemeToggleButton } from "../Partials/ThemeToggleButton";
 import { IconEye, IconEyeOff } from "../assets/Icon";
@@ -47,8 +46,6 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                     deviceFingerprint = getDeviceFingerprint();
                     localStorage.setItem('deviceFingerprint', deviceFingerprint);
                 }
-                
-                import apiClient from '../http-commons'; // Update import
                 
                 const response = await apiClient.post('/login/username', {
                     username: username.trim(), 
@@ -203,17 +200,24 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
             // Get existing guestId from localStorage if available
             const existingGuestId = localStorage.getItem('guestId');
             
-            const res = await fetch(`${API_URL}/auth/guest`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ 
-                    nickname: guestNickname.trim(),
-                    guestId: existingGuestId,
-                    deviceFingerprint: deviceFingerprint
-                })
-            });
+            const data = await apiClient.post('/auth/guest', { 
+                nickname: guestNickname.trim(),
+                guestId: existingGuestId,
+                deviceFingerprint: deviceFingerprint
+            }).then(res => res.data).catch(() => null);
+
+            if (!data) {
+                // Fallback guest
+                console.warn("API guest login failed, using fallback");
+                if (onGuestLogin) {
+                    onGuestLogin({ 
+                        user: { id: 'guest-fallback-' + Date.now(), nickname: guestNickname.trim(), is_guest: true, user_metadata: { full_name: guestNickname.trim() } }, 
+                        token: 'guest-fallback-token' 
+                    });
+                }
+                setIsLoading(false);
+                return;
+            }
 
             const data = await res.json();
 
