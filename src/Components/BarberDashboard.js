@@ -21,7 +21,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
 
     const [queueDetails, setQueueDetails] = useState({ waiting: [], inProgress: null, upNext: null });
     
-    // 🟢 ADDED: Feedback State
+    // 🟢 ADDED: Feedback State (Vercel Safe)
     const [barberFeedback, setBarberFeedback] = useState([]);
     
     const [error, setError] = useState('');
@@ -59,6 +59,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             setLoadingAppts(false);
         }
     };
+
     const handleRejectAppointment = async (apptId) => {
         const reason = prompt("Reason for cancellation? (e.g., Emergency, Shop Closed)");
         if (!reason) return; 
@@ -74,6 +75,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             alert("Failed to cancel appointment.");
         }
     };
+
     const handleLoyaltyCheck = async (customer) => {
         if (!customer.customer_email) {
             setModalState({ 
@@ -315,6 +317,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setTipInput('');
         setModalError('');
     };
+
     const handleNextCustomer = async () => {
         const nextAppt = queueDetails.nextAppointment; 
         if (nextAppt) {
@@ -341,12 +344,14 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         try { await axios.put(`${API_URL}/queue/next`, { queue_id: next.id, barber_id: barberId }); }
         catch (err) { console.error('Failed next customer:', err); setError(err.response?.data?.error || 'Failed call next.'); }
     };
+
     const handleCompleteCut = async () => {
         if (!queueDetails.inProgress) return;
         setModalState({ type: 'tipPrompt', data: queueDetails.inProgress });
         setModalError('');
         setTipInput('');
     };
+
     const handleSubmitTipForm = async (e) => {
         e.preventDefault();
         const entry = modalState.data;
@@ -376,7 +381,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 queue_id: queueId,
                 barber_id: barberId,
                 tip_amount: parsedTip,
-                vip_charge: vipCharge, 
+                vip_charge: vipCharge,
             });
             onCutComplete();
             setModalState({ 
@@ -392,10 +397,12 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             closeModal();
         }
     };
+
     const handleCancel = async (customerToCancel) => {
         if (!customerToCancel) return;
         setModalState({ type: 'confirmCancel', data: customerToCancel });
     };
+
     const handleConfirmCancel = async () => {
         const customerToCancel = modalState.data;
         if (!customerToCancel) return;
@@ -745,6 +752,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 </button>
             </div>
 
+            {/* --- MODALS --- */}
             {modalState.type === 'alert' && (
                 <div className="modal-overlay">
                     <div className="modal-content">
@@ -840,6 +848,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                     </div>
                 </div>
             )}
+            
             {viewImageModalUrl && (
             <div className="modal-overlay" onClick={() => setViewImageModalUrl(null)}>
                 <div 
@@ -948,6 +957,8 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 reportedId={reportTargetId}         
                 userRole="barber"
             />
+            
+            {/* THE UPCOMING BOOKINGS MODAL */}
             {isApptListOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content">
@@ -963,11 +974,14 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                 <ul className="queue-list">
                                     {barberAppointments.map((appt) => {
                                         
+                                        // 🟢 THE FIX IS HERE 🟢
+                                        // 1. Safely extract the date part to prevent timezone shifting
                                         const safeDateString = appt.scheduled_time ? appt.scheduled_time.split('T')[0] : '';
                                         const dateObj = new Date(safeDateString + 'T00:00:00');
                                         
                                         const isToday = new Date().toDateString() === dateObj.toDateString();
                                         
+                                        // 2. Use the backend's explicit formatted time ("10:30 AM")
                                         const displayTime = appt.formatted_time || new Date(appt.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                                         return (
@@ -983,26 +997,31 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                                 borderRadius: '6px',
                                                 textAlign: 'center'
                                             }}>
+                                                {/* Date & Time */}
                                                 <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap: '10px'}}>
                                                     <strong style={{fontSize:'1.1rem', color: isToday ? 'var(--primary-orange)' : 'var(--text-primary)'}}>
                                                         {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
                                                     </strong>
                                                     
+                                                    {/* THIS WILL NOW RENDER THE PERFECT 10:30 AM */}
                                                     <span style={{fontSize:'1.1rem', fontWeight:'bold'}}>
                                                         {displayTime}
                                                     </span>
                                                 </div>
                                                 
+                                                {/* Status Badge */}
                                                 {appt.status === 'pending' && (
                                                     <div style={{background: '#FFD700', color: 'black', fontWeight: 'bold', borderRadius: '4px', fontSize: '0.8rem'}}>
                                                         ⚠️ PENDING APPROVAL
                                                     </div>
                                                 )}
 
+                                                {/* Customer Name */}
                                                 <div style={{fontSize:'1rem'}}>
                                                     👤 <strong>{appt.customer_name}</strong>
                                                 </div>
                                                 
+                                                {/* Action Row */}
                                                 <div style={{display:'flex', justifyContent:'center', alignItems:'center', marginTop:'5px', gap:'10px'}}>
                                                     
                                                     {appt.status === 'pending' ? (
