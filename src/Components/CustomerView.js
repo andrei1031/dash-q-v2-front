@@ -12,11 +12,27 @@ import { MyReportsModal } from "./modals/MyReportsModal";
 import axios from "axios";
 
 export const CustomerView = ({ session }) => {
+    
+    // --- THE TIMEZONE KILLER HELPER ---
+    // Safely reads "2026-04-01T11:00:00" and outputs "11:00 AM" without shifting timezones
+    const formatNaiveTime = (timeStr) => {
+        if (!timeStr) return "";
+        if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
+        try {
+            const cleanStr = timeStr.split('Z')[0].split('+')[0].split('.')[0];
+            const timePart = cleanStr.includes('T') ? cleanStr.split('T')[1] : cleanStr;
+            let [hours, mins] = timePart.split(':');
+            hours = parseInt(hours, 10);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            return `${hours}:${mins} ${ampm}`;
+        } catch(e) { return timeStr; }
+    };
+
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
     
     const isGuest = session && session.user && session.user.is_guest === true;
-    console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
     const [guestName, setGuestName] = useState(() => session?.user?.nickname || session?.user?.user_metadata?.full_name || '');
     const [guestEmail, setGuestEmail] = useState('');
     
@@ -116,7 +132,6 @@ export const CustomerView = ({ session }) => {
                 setLoyaltyHistory(data.history);
                 if (data.loyalty) {
                     setLoyaltyData(data.loyalty);
-                    console.log('Customer loyalty data:', data.loyalty);
                 }
             } else {
                 setLoyaltyHistory(data || []);
@@ -156,7 +171,6 @@ export const CustomerView = ({ session }) => {
     };
 
     const handleReturnToJoin = useCallback(async (userInitiated = false) => {
-        console.log("[handleReturnToJoin] Function called.");
         if (userInitiated && myQueueEntryId) {
             setIsLoading(true);
             try {
@@ -186,8 +200,6 @@ export const CustomerView = ({ session }) => {
         setFeedbackText('');
         setFeedbackSubmitted(false);
         setBarberFeedback([]);
-
-        console.log("[handleReturnToJoin] State reset complete.");
     }, [myQueueEntryId, session]);
 
     const fetchPublicQueue = useCallback(async (barberId) => {
@@ -246,25 +258,17 @@ export const CustomerView = ({ session }) => {
                 if (!amIInActiveQueue && !isServiceCompleteModalOpen && !isCancelledModalOpen) {
     
                     const investigateDisappearance = async () => {
-                        console.log("[Catcher] Entry missing from public list. Verifying with server...");
-
                         const { data: myEntry, error } = await supabase
                             .from('queue_entries')
                             .select('status, barber_id')
                             .eq('id', myQueueEntryId)
                             .maybeSingle();
 
-                        if (error) {
-                            console.warn("Network error checking status. Assuming safe.", error);
-                            return; 
-                        }
+                        if (error) { return; }
 
                         if (myEntry && ['Waiting', 'Up Next', 'In Progress'].includes(myEntry.status)) {
-                            console.log("Entry still exists in DB. Ignoring public list lag.");
-                            
                             const currentStoredBarber = localStorage.getItem('joinedBarberId');
                             if (myEntry.barber_id.toString() !== currentStoredBarber) {
-                                console.log(`[Transfer] Detected move to Barber ${myEntry.barber_id}. Updating local state.`);
                                 localStorage.setItem('joinedBarberId', myEntry.barber_id.toString());
                                 setJoinedBarberId(myEntry.barber_id.toString());
                                 setMessage("🔄 You have been transferred to another barber.");
@@ -280,7 +284,6 @@ export const CustomerView = ({ session }) => {
                             const eventType = response.data.event;
 
                             if (eventType === 'Done') {
-                                console.log("[Catcher] Confirmed 'Done'.");
                                 localStorage.setItem('pendingFeedback', JSON.stringify({
                                     barberId: joinedBarberId,
                                     queueId: myQueueEntryId, 
@@ -291,13 +294,11 @@ export const CustomerView = ({ session }) => {
                                 localStorage.removeItem('joinedBarberId');
                                 localStorage.removeItem('stickyModal');
                             } else if (eventType === 'Cancelled') {
-                                console.log("[Catcher] Confirmed 'Cancelled'.");
                                 setIsCancelledModalOpen(true);
                                 localStorage.removeItem('myQueueEntryId');
                                 localStorage.removeItem('joinedBarberId');
                                 localStorage.removeItem('stickyModal');
                             } else {
-                                console.warn("[Catcher] Entry disappeared completely.");
                                 setQueueMessage("Your queue entry was removed.");
                                 handleReturnToJoin(false); 
                             }
@@ -428,9 +429,6 @@ export const CustomerView = ({ session }) => {
         }
 
         const isGuestUser = isGuest;
-        console.log("[JoinQueue] isGuest:", isGuestUser, "session:", session);
-        console.log("[JoinQueue] session.user:", session?.user);
-        console.log("[JoinQueue] is_guest value:", session?.user?.is_guest);
         
         const requestData = isGuestUser ? {
             name: customerName,
@@ -453,7 +451,6 @@ export const CustomerView = ({ session }) => {
         };
 
         let endpoint = isGuestUser ? `${API_URL}/guest/join` : `${API_URL}/queue`;
-        console.log("[JoinQueue] Using endpoint:", endpoint);
 
         try {
             let response;
@@ -464,7 +461,6 @@ export const CustomerView = ({ session }) => {
                 newEntry = response.data.data || response.data;
             } catch (initialError) {
                 if (isGuestUser && initialError.response && initialError.response.status === 404) {
-                    console.log("[JoinQueue] Guest endpoint not found (404), trying regular queue...");
                     endpoint = `${API_URL}/queue`;
                     response = await axios.post(endpoint, requestData);
                     newEntry = response.data;
@@ -486,10 +482,6 @@ export const CustomerView = ({ session }) => {
                 setIsVIPToggled(false);
             } else { throw new Error("Invalid response from server."); }
         } catch (error) {
-        console.error('Failed to join queue:', error);
-        
-        const errorMessage = error.response?.data?.error || error.message;
-        console.log("[JoinQueue] Error details:", error.response?.status, errorMessage, error);
         
         if (error.response && error.response.status === 409) {
             const existing = error.response.data.details;
@@ -511,7 +503,6 @@ export const CustomerView = ({ session }) => {
                 fetchPublicQueue(existing.barber_id.toString());
             } else {
                 const errorMsg = error.response.data.error || "A conflict occurred.";
-                console.error("409 Error without details:", errorMsg);
                 setMessage(`Error: ${errorMsg}`);
             }
         }
@@ -544,7 +535,8 @@ export const CustomerView = ({ session }) => {
                 scheduled_time: selectedSlot
             });
 
-            setMessage(`Success! Appointment confirmed for ${new Date(selectedSlot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}.`);
+            // 🟢 APPLYING THE FIX TO SUCCESS MESSAGE 🟢
+            setMessage(`Success! Appointment confirmed for ${formatNaiveTime(selectedSlot)}.`);
             
             setSelectedSlot(null);
             setAvailableSlots([]);
@@ -554,7 +546,6 @@ export const CustomerView = ({ session }) => {
             }, 3000);
 
         } catch (error) {
-            console.error('Booking failed:', error);
             setMessage(error.response?.data?.error || 'Booking failed.');
         } finally {
             setIsLoading(false);
@@ -635,9 +626,7 @@ export const CustomerView = ({ session }) => {
                 } else {
                     setFreeBarber(null);
                 }
-            } catch (e) {
-                console.error("Opportunity check failed", e);
-            }
+            } catch (e) {}
         };
 
         const interval = setInterval(checkOpportunities, 10000); 
@@ -654,7 +643,6 @@ export const CustomerView = ({ session }) => {
             setOptimisticMessage("✅ Confirmed! Welcome to the shop.");
             setTimeout(() => setOptimisticMessage(null), 3000);
         } catch (e) { 
-            console.error(e);
             setMessage("Failed to confirm. Please try again.");
         }
     };
@@ -695,7 +683,6 @@ export const CustomerView = ({ session }) => {
     useEffect(() => {
         const restoreSession = async () => {
             if (!myQueueEntryId && session?.user?.id) {
-                console.log("[Recovery] Checking for lost tickets...");
                 try {
                     const { data: activeEntry, error } = await supabase
                         .from('queue_entries')
@@ -705,7 +692,6 @@ export const CustomerView = ({ session }) => {
                         .maybeSingle();
 
                     if (!error && activeEntry) {
-                        console.log(`[Recovery] Found active ticket #${activeEntry.id}. Restoring...`);
                         localStorage.setItem('myQueueEntryId', activeEntry.id.toString());
                         localStorage.setItem('joinedBarberId', activeEntry.barber_id.toString());
                         setMyQueueEntryId(activeEntry.id.toString());
@@ -714,9 +700,7 @@ export const CustomerView = ({ session }) => {
                         setIsChatOpen(true);
                         fetchPublicQueue(activeEntry.barber_id.toString());
                     }
-                } catch (err) {
-                    console.error("[Recovery] Failed to restore session:", err);
-                }
+                } catch (err) {}
             }
         };
         restoreSession();
@@ -731,7 +715,6 @@ export const CustomerView = ({ session }) => {
                         const response = await axios.post(`${API_URL}/guest_login`, { guestId: storedGuestId });
                         if (response.data && response.data.activeQueueEntry) {
                             const entry = response.data.activeQueueEntry;
-                            console.log("[Guest Recovery] Restored guest session:", entry);
                             
                             localStorage.setItem('myQueueEntryId', entry.id.toString());
                             localStorage.setItem('joinedBarberId', entry.barber_id.toString());
@@ -746,9 +729,7 @@ export const CustomerView = ({ session }) => {
 
                             fetchPublicQueue(entry.barber_id.toString());
                         }
-                    } catch (err) {
-                        console.error("[Guest Recovery] Failed:", err);
-                    }
+                    } catch (err) {}
                 }
             }
         };
@@ -859,7 +840,7 @@ export const CustomerView = ({ session }) => {
     useEffect(() => { 
         const fetchServices = async () => {
             try { const response = await axios.get(`${API_URL}/services`); setServices(response.data || []); }
-            catch (error) { console.error('Failed to fetch services:', error); }
+            catch (error) {}
         };
         fetchServices();
     }, []);
@@ -869,9 +850,7 @@ export const CustomerView = ({ session }) => {
             try {
                 const response = await axios.get(`${API_URL}/settings/vip-price`);
                 setVipPrice(response.data.vip_price || 100);
-            } catch (error) {
-                console.error('Failed to fetch VIP price:', error);
-            }
+            } catch (error) {}
         };
         fetchVipPrice();
     }, []);
@@ -879,7 +858,7 @@ export const CustomerView = ({ session }) => {
     useEffect(() => { 
         const loadBarbers = async () => {
             try { const response = await axios.get(`${API_URL}/barbers`); setBarbers(response.data || []); }
-            catch (error) { console.error('Failed fetch available barbers:', error); setMessage('Could not load barbers.'); setBarbers([]); }
+            catch (error) { setBarbers([]); }
         };
         loadBarbers();
         const intervalId = setInterval(loadBarbers, 15000);
@@ -898,7 +877,6 @@ export const CustomerView = ({ session }) => {
 
                 const currentBarber = localStorage.getItem('joinedBarberId');
                 if (currentBarber) {
-                    console.log("Tab is visible, re-fetching queue status...");
                     fetchPublicQueue(currentBarber);
                 }
             }
@@ -919,16 +897,12 @@ export const CustomerView = ({ session }) => {
         if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); }
         let queueChannel = null; let refreshInterval = null;
         if (joinedBarberId && myQueueEntryId && supabase?.channel) {
-            console.log(`Subscribing queue changes: barber ${joinedBarberId}`);
             queueChannel = supabase.channel(`public_queue_${joinedBarberId}`)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${joinedBarberId}` }, (payload) => {
-                    console.log("Realtime Update Received:", payload);
                     
                     if (payload.eventType === 'UPDATE' && payload.new.id.toString() === myQueueEntryId) {
                         const newStatus = payload.new.status;
                         const isConfirmed = payload.new.is_confirmed; 
-
-                        console.log(`My status updated to: ${newStatus} (Confirmed: ${isConfirmed})`);
                         
                         if (newStatus === 'Up Next') {
                             if (isConfirmed) {
@@ -961,30 +935,23 @@ export const CustomerView = ({ session }) => {
                     }
                     fetchPublicQueue(joinedBarberId);
                 })
-                .subscribe((status, err) => {
-                    if (status === 'SUBSCRIBED') { console.log('Subscribed to Realtime queue!'); setQueueMessage(''); fetchPublicQueue(joinedBarberId); }
-                    else { console.error('Supabase Realtime error:', status, err); setQueueMessage('Live updates unavailable.'); }
-                });
-            refreshInterval = setInterval(() => { console.log("Periodic refresh..."); fetchPublicQueue(joinedBarberId); }, 15000);
+                .subscribe();
+            refreshInterval = setInterval(() => { fetchPublicQueue(joinedBarberId); }, 15000);
         }
         return () => {
-            console.log("Cleaning up queue subscription for barber:", joinedBarberId);
-            if (queueChannel && supabase?.removeChannel) { supabase.removeChannel(queueChannel).catch(err => console.error("Error removing channel:", err)); }
+            if (queueChannel && supabase?.removeChannel) { supabase.removeChannel(queueChannel).catch(err => {}); }
             if (refreshInterval) { clearInterval(refreshInterval); }
         };
     }, [joinedBarberId, myQueueEntryId, fetchPublicQueue]);
 
     useEffect(() => { 
         if (selectedBarberId) {
-            console.log(`Fetching feedback for barber ${selectedBarberId}`);
             setBarberFeedback([]);
             const fetchFeedback = async () => {
                 try {
                     const response = await axios.get(`${API_URL}/feedback/${selectedBarberId}`);
                     setBarberFeedback(response.data || []);
-                } catch (err) {
-                    console.error("Failed to fetch barber feedback:", err);
-                }
+                } catch (err) {}
             };
             fetchFeedback();
         } else {
@@ -994,9 +961,6 @@ export const CustomerView = ({ session }) => {
 
     useEffect(() => { 
         if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
-
-        console.log("Restoring chat history for Queue ID:", myQueueEntryId);
-
         fetchChatHistory(myQueueEntryId);
 
         const chatChannel = supabase.channel(`customer_chat_fix_${myQueueEntryId}`) 
@@ -1010,7 +974,6 @@ export const CustomerView = ({ session }) => {
                 }, 
                 (payload) => {
                     const newMsg = payload.new;
-                    console.log("[Customer] Message received:", newMsg);
 
                     if (newMsg.sender_id !== session.user.id) {
                         setChatMessagesFromBarber(prev => {
@@ -1037,9 +1000,7 @@ export const CustomerView = ({ session }) => {
                     }
                 }
             )
-            .subscribe((status) => {
-                    console.log(`[Customer Chat] Subscription status: ${status}`);
-            });
+            .subscribe();
 
         return () => {
             supabase.removeChannel(chatChannel);
@@ -1059,7 +1020,6 @@ export const CustomerView = ({ session }) => {
                 message: messageText
             });
         } catch (error) {
-            console.error("Failed to send message:", error);
             setMessage("Failed to send message. Profanity?");
         }
     };
@@ -1071,8 +1031,6 @@ export const CustomerView = ({ session }) => {
             setPeopleWaiting(0); 
             setFinishTime(0);    
             setIsQueueLoading(true); 
-
-            console.log(`[EWT Preview] Fetching queue for barber ${selectedBarberId}`);
             fetchPublicQueue(selectedBarberId);
         } else {
             setLiveQueue([]);
@@ -1163,7 +1121,6 @@ export const CustomerView = ({ session }) => {
     return (
         <div className="card">
             
-            {/* Instructions Modal */}
             <div className="modal-overlay" style={{ display: isInstructionsModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content instructions-modal">
                     <div className="modal-body">
@@ -1180,7 +1137,6 @@ export const CustomerView = ({ session }) => {
                 </div>
             </div>
             
-            {/* Service Complete Modal */}
             <div className="modal-overlay" style={{ display: isServiceCompleteModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     {!feedbackSubmitted ? (
@@ -1204,7 +1160,6 @@ export const CustomerView = ({ session }) => {
                                     queue_id: myQueueEntryId
                                 }); 
                             } catch (err) { 
-                                console.error("Failed to submit feedback", err); 
                                 setMessage('Failed to submit feedback.');
                             }
                             setFeedbackSubmitted(true);
@@ -1357,7 +1312,6 @@ export const CustomerView = ({ session }) => {
                 </div>
             </div>
 
-            {/* Cancelled Modal */}
             <div className="modal-overlay" style={{ display: isCancelledModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body"><h2>Appointment Cancelled</h2><p>Your queue entry was cancelled.</p></div>
@@ -1369,7 +1323,6 @@ export const CustomerView = ({ session }) => {
                 </div>
             </div>
             
-            {/* Too Far Modal */}
             <div className="modal-overlay" style={{ display: isTooFarModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body">
@@ -1391,7 +1344,6 @@ export const CustomerView = ({ session }) => {
                 </div>
             </div>
 
-            {/* VIP Modal */}
             <div className="modal-overlay" style={{ display: isVIPModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body">
@@ -1431,9 +1383,6 @@ export const CustomerView = ({ session }) => {
                 </div>
             )}
 
-            {/* --- MAIN CONTENT START --- */}
-            
-            {/* 1. View Toggle Tabs */}
             <div className="card-header customer-view-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
                 <button className={viewMode === 'join' ? 'active' : ''} onClick={() => setViewMode('join')} style={{ flex: '1 1 auto' }}>
                     Join Queue
@@ -1446,7 +1395,6 @@ export const CustomerView = ({ session }) => {
                 </button>}
             </div>
 
-            {/* A. JOIN / BOOKING SECTION */}
             {viewMode === 'join' && !myQueueEntryId && (
                 <div className="card-body">
                     <div className="customer-view-tabs" style={{marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
@@ -1478,7 +1426,6 @@ export const CustomerView = ({ session }) => {
                             placeholder={isGuest ? "Enter your name" : ""}
                         />
                     </div>
-
 
                     {joinMode === 'now' && (
                         <form onSubmit={handleJoinQueue}>
@@ -1650,6 +1597,8 @@ export const CustomerView = ({ session }) => {
                                     <p className="message small">Select a Service and Barber to see times.</p>
                                 ) : (
                                     <div className="slots-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginTop: '10px'}}>
+                                        
+                                        {/* 🟢 THE TIMEZONE FIX FOR SLOTS 🟢 */}
                                         {availableSlots.length > 0 ? availableSlots.map(slot => (
                                             <button 
                                                 type="button" 
@@ -1658,7 +1607,7 @@ export const CustomerView = ({ session }) => {
                                                 onClick={() => setSelectedSlot(slot)}
                                                 style={{fontSize: '0.8rem', padding: '8px'}}
                                             >
-                                                {new Date(slot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}
+                                                {formatNaiveTime(slot)}
                                             </button>
                                         )) : (
                                             <p className="empty-text" style={{gridColumn: '1/-1'}}>No slots available for this date.</p>
@@ -1715,7 +1664,6 @@ export const CustomerView = ({ session }) => {
                 </div>
             )}
 
-            {/* B. LIVE QUEUE VIEW (SHOWS WHEN IN JOIN MODE AND IN QUEUE) */}
             {viewMode === 'join' && myQueueEntryId && (
                 <div className="live-queue-view card-body">
                     {myQueueEntry?.status === 'In Progress' && (<div className="status-banner in-progress-banner"><h2><IconCheck /> It's Your Turn!</h2><p>The barber is calling you now.</p></div>)}
@@ -1891,7 +1839,9 @@ export const CustomerView = ({ session }) => {
                                         <li key={entry.id} className="queue-item ghost-slot" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px'}}>
                                             <div className="queue-item-info">
                                                 <span style={{color:'var(--text-secondary)', marginRight:'5px'}}>{index + 1}.</span>
-                                                <strong style={{color:'var(--text-secondary)'}}>📅 {entry.display_time} - Reserved</strong>
+                                                
+                                                {/* 🟢 THE GHOST SLOT TIMEZONE FIX 🟢 */}
+                                                <strong style={{color:'var(--text-secondary)'}}>📅 {formatNaiveTime(entry.display_time)} - Reserved</strong>
                                             </div>
                                             <span className="status-badge" style={{
                                                 background:'rgba(128, 128, 128, 0.1)', 
@@ -2152,17 +2102,14 @@ export const CustomerView = ({ session }) => {
                         <ul className="queue-list">
                             {myAppointments.map((appt) => {
                                 
-                                // 🟢 THE SAME FIX FROM THE DASHBOARDS 🟢
-                                // 1. Safely extract the date part to prevent timezone shifting
                                 const safeDateString = appt.scheduled_time ? appt.scheduled_time.split('T')[0] : '';
                                 const dateObj = new Date(safeDateString + 'T00:00:00');
                                 
-                                // Use Philippines timezone for comparison
-                                const isPast = dateObj < new Date(new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
-                                const displayDate = dateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
+                                const isPast = dateObj < new Date();
+                                const displayDate = dateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
                                 
-                                // 2. USE THE BACKEND'S EXPLICIT FORMATTED TIME ("10:30 AM")
-                                const displayTime = appt.formatted_time || new Date(appt.scheduled_time).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
+                                // 🟢 THE TIMEZONE FIX FOR MY BOOKINGS 🟢
+                                const displayTime = appt.formatted_time || formatNaiveTime(appt.scheduled_time);
                                 
                                 let statusColor = 'var(--text-secondary)';
                                 let statusBg = 'rgba(0,0,0,0.05)';
@@ -2212,7 +2159,6 @@ export const CustomerView = ({ session }) => {
                                         </div>
                                         
                                         <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.95rem'}}>
-                                            {/* THIS WILL NOW RENDER THE PERFECT 10:30 AM */}
                                             <span>🕒 {displayTime}</span>
                                             <span>✂️ {appt.services?.name || 'Service'}</span>
                                         </div>
