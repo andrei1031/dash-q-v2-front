@@ -60,7 +60,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     const [isUploading, setIsUploading] = useState(false);
     const [isVIPToggled, setIsVIPToggled] = useState(false);
     const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
-    const [vipPrice, setVipPrice] = useState(100);
+    const [vipPrice, setVipPrice] = useState(0);
     const lastUploadTime = useRef(0);
 
     const [feedbackText, setFeedbackText] = useState('');
@@ -1504,13 +1504,10 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 <div className="modal-content">
                     <div className="modal-body">
                         <h2>Priority Service Confirmation</h2>
-                        <p>
-                            You are booking for <strong>{headCount} person(s)</strong>.
-                        </p>
-                        <p>
-                            VIP priority incurs an additional <strong>₱{vipPrice} per head</strong> fee.
-                        </p>
+                        <p>You are booking for <strong>{headCount} person(s)</strong>.</p>
+                        <p>VIP priority incurs an additional <strong>₱{vipPrice} per head</strong> fee.</p>
                         <div style={{background:'rgba(255, 149, 0, 0.1)', padding:'10px', borderRadius:'8px', marginTop:'10px'}}>
+                            {/* Check this line specifically */}
                             <strong>Total VIP Surcharge: ₱{vipPrice * headCount}</strong>
                         </div>
                     </div>
@@ -1807,8 +1804,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                         <strong>₱{services.find(s => s.id.toString() === selectedServiceId)?.price_php}</strong>
                                     </div>
                                     <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
-                                        <span>Appointment Fee:</span>
-                                        <strong>+ ₱{vipPrice}.00</strong>
+                                    <span>Appointment Fee:</span>
+                                    <strong>+ ₱{vipPrice}.00</strong>
                                     </div>
                                     <hr style={{borderColor: 'rgba(255, 149, 0, 0.3)', margin: '5px 0'}} />
                                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem'}}>
