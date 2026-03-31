@@ -20,6 +20,7 @@ import axios from "axios";
 export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, onQueueUpdate }) => {
 
     const [queueDetails, setQueueDetails] = useState({ waiting: [], inProgress: null, upNext: null });
+    const [barberFeedback, setBarberFeedback] = useState([]);
     const [error, setError] = useState('');
     const [fetchError, setFetchError] = useState('');
     const [chatMessages, setChatMessages] = useState({});
