@@ -20,10 +20,10 @@ import { registerPushNotifications } from './Components/notifications/registerPu
 import { AuthForm } from './Components/authentication/AuthForm';
 import { UpdatePasswordForm } from './Components/authentication/UpdatePasswordForm';
 
-const BarberAppLayout = lazy(() => import('./Components/BarberAppLayout').then(mod => ({ default: module.BarberAppLayout })));
-const AdminAppLayout = lazy(() => import('./Components/AdminAppLayout').then(mod => ({ default: module.AdminAppLayout })));
-const CustomerAppLayout = lazy(() => import('./Components/CustomerAppLayout').then(mod => ({ default: module.CustomerAppLayout })));
-const AdminLoginForm = lazy(() => import('./Components/AdminLoginForm').then(mod => ({ default: module.AdminLoginForm })));
+const BarberAppLayout = lazy(() => import('./Components/BarberAppLayout').then(mod => ({ default: mod.BarberAppLayout })));
+const AdminAppLayout = lazy(() => import('./Components/AdminAppLayout').then(mod => ({ default: mod.AdminAppLayout })));
+const CustomerAppLayout = lazy(() => import('./Components/CustomerAppLayout').then(mod => ({ default: mod.CustomerAppLayout })));
+const AdminLoginForm = lazy(() => import('./Components/AdminLoginForm').then(mod => ({ default: mod.AdminLoginForm })));
 
 // --- SOUND NOTIFICATION SETUP ---
 export const queueNotificationSound = new Audio('/queue_sound.mp3');
