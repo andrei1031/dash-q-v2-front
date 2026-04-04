@@ -2525,41 +2525,67 @@ html {
 }
 /* ===================================================================
    🛑 MOBILE HORIZONTAL GAP FIX
+/* ===================================================================
+   🛑 NUCLEAR FIX FOR MOBILE HORIZONTAL GAP 
    =================================================================== */
 
-/* 1. Paint the HTML background to match your theme so the white gap vanishes */
-html {
-  background-color: var(--bg-dark);
-  overflow-x: hidden;
-}
-
-/* 2. Lock the body and layout firmly to 100% (Prevents side-scrolling) */
-body, .app-layout {
-  width: 100%;
-  max-width: 100%;
+/* 1. Lock the absolute root of the document */
+html, body, #root {
+  width: 100% !important;
+  max-width: 100% !important;
   overflow-x: hidden !important;
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-/* 3. Fix the container width (100vw causes overflow, 100% respects boundaries) */
+/* 2. Lock all major layout wrappers */
+.app-layout, .main-content, .container, .auth-page-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* 3. Fix the container padding and alignment */
 .container {
+  padding: 0 15px !important;
+  margin: 15px auto !important;
+  display: block !important; 
+}
+
+/* 4. Ensure the card never exceeds boundaries */
+.card {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  overflow-x: hidden;
 }
 
-/* 4. Fix Flexbox blowout (Forces long text/ads to wrap instead of pushing the screen) */
-.card, .card-body, .serving-item, .ewt-item {
-  min-width: 0; /* CRITICAL: Allows flex children to shrink below their text size */
+/* 5. Force long text and ads to shrink inside their boxes */
+.card-body * {
   max-width: 100%;
-  box-sizing: border-box;
 }
 
-/* Ensure the Cafe Ad and grid items don't stretch out of bounds */
-.card-body > div {
-  max-width: 100%;
+/* 6. Force the top grids to STACK on mobile instead of stretching the screen */
+.ewt-container, .current-serving-display {
+  display: flex !important;
+  flex-direction: column !important; /* Stack vertically on small phones */
+  width: 100% !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
 }
-.card-body > div[style*="display: flex"] > div,
-.card-body > div[style*="linear-gradient"] > div {
-  min-width: 0 !important; 
+
+.ewt-item, .serving-item {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Let them sit side-by-side only if the screen is actually wide enough */
+@media (min-width: 450px) {
+  .ewt-container, .current-serving-display {
+    flex-direction: row !important;
+  }
+  .ewt-item, .serving-item {
+    flex: 1 !important;
+  }
 }
