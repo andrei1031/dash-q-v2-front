@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import apiClient from './Components/http-commons';
 import './App.css';
 
