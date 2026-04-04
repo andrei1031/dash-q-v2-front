@@ -2524,18 +2524,70 @@ html {
   text-size-adjust: 100%;
 }
 /* ===================================================================
-   🟢 UNLOCK VERTICAL SCROLLING (Fixes frozen screen)
+   🛑 NUCLEAR FIX + SCROLL UNLOCK FOR MOBILE 
    =================================================================== */
 
-/* 1. Explicitly tell the phone to allow up/down swiping */
+/* 1. Lock horizontal width, but EXPLICITLY allow vertical scrolling */
 html, body, #root {
-  overflow-y: auto !important; 
-  overscroll-behavior-y: auto !important; 
-  touch-action: pan-y !important; /* Re-enables the vertical finger swipe */
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;           /* <-- SCROLL FIX */
+  overscroll-behavior-y: auto !important;/* <-- SCROLL FIX */
+  touch-action: pan-y !important;        /* <-- SCROLL FIX (Allows up/down swipe) */
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-/* 2. Remove the heavy "hidden" locks from the inner boxes so they don't trap the scroll */
+/* 2. Lock layout wrappers, but DO NOT hide overflow here (this is what froze the screen) */
 .app-layout, .main-content, .container, .auth-page-container {
-  overflow-x: visible !important; 
-  overflow-y: visible !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: visible !important;        /* <-- SCROLL FIX */
+  overflow-y: visible !important;        /* <-- SCROLL FIX */
+}
+
+/* 3. Fix the container padding and alignment */
+.container {
+  padding: 0 15px !important;
+  margin: 15px auto !important;
+  display: block !important; 
+}
+
+/* 4. Ensure the card never exceeds boundaries */
+.card {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 5. Force long text and ads to shrink inside their boxes */
+.card-body * {
+  max-width: 100%;
+}
+
+/* 6. Force the top grids to STACK on mobile instead of stretching the screen */
+.ewt-container, .current-serving-display {
+  display: flex !important;
+  flex-direction: column !important; /* Stack vertically on small phones */
+  width: 100% !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.ewt-item, .serving-item {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Let them sit side-by-side only if the screen is actually wide enough */
+@media (min-width: 450px) {
+  .ewt-container, .current-serving-display {
+    flex-direction: row !important;
+  }
+  .ewt-item, .serving-item {
+    flex: 1 !important;
+  }
 }
