@@ -9,11 +9,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import { ThemeProvider } from './Components/Providers/ThemeProvider';
 
 // COMPONENT
-import { BarberAppLayout } from './Components/BarberAppLayout';
-import { AdminAppLayout } from './Components/AdminAppLayout';
-import { CustomerAppLayout } from './Components/CustomerAppLayout';
 import { LandingPage } from './Components/LandingPage';
-import { AdminLoginForm } from './Components/AdminLoginForm';
 
 // HTTP-COMMONS (apiClient used directly)
 // SUPABASE
@@ -23,6 +19,11 @@ import { registerPushNotifications } from './Components/notifications/registerPu
 // AUTHENTICATIONS
 import { AuthForm } from './Components/authentication/AuthForm';
 import { UpdatePasswordForm } from './Components/authentication/UpdatePasswordForm';
+
+const BarberAppLayout = lazy(() => import('./Components/BarberAppLayout').then(mod => ({ default: module.BarberAppLayout })));
+const AdminAppLayout = lazy(() => import('./Components/AdminAppLayout').then(mod => ({ default: module.AdminAppLayout })));
+const CustomerAppLayout = lazy(() => import('./Components/CustomerAppLayout').then(mod => ({ default: module.CustomerAppLayout })));
+const AdminLoginForm = lazy(() => import('./Components/AdminLoginForm').then(mod => ({ default: module.AdminLoginForm })));
 
 // --- SOUND NOTIFICATION SETUP ---
 export const queueNotificationSound = new Audio('/queue_sound.mp3');
@@ -386,7 +387,10 @@ function App() {
 
     return (
         <ThemeProvider>
-            {renderAppContent()}
+            {/* 🟢 Suspense provides a loading screen while the specific layout downloads */}
+            <Suspense fallback={<div className="loading-fullscreen"><span className="spinner"></span><span>Loading Dashboard...</span></div>}>
+                {renderAppContent()}
+            </Suspense>
         </ThemeProvider>
     );
 }

@@ -40,7 +40,24 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        .pre-loader {
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          height: 100vh; background-color: #121212; color: #ff9500; font-family: sans-serif;
+        }
+        .pre-spinner {
+          width: 40px; height: 40px; border: 4px solid rgba(255, 149, 0, 0.3);
+          border-top-color: #ff9500; border-radius: 50%;
+          animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      </style>
+      <div class="pre-loader">
+        <div class="pre-spinner"></div>
+        <h2>Dash-Q</h2>
+      </div>
+    </div>
     
     <!-- Service Worker Registration -->
     <script>

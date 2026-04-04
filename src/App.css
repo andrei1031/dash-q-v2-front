@@ -128,6 +128,9 @@ html, body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+  /* 🟢 FIX 1: Prevent Android's bouncy pull-to-refresh for a native app feel */
+  overscroll-behavior-y: none; 
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -1075,7 +1078,9 @@ button:disabled {
 .chat-window {
   display: flex;
   flex-direction: column;
-  height: 350px; /* Fixed height for chat */
+  height: 350px; 
+  /* 🟢 FIX: Allow the chat to flex dynamically if the screen shrinks */
+  max-height: 50dvh; 
   background: var(--bg-dark);
 }
 
@@ -2485,4 +2490,36 @@ body, html {
     max-width: 100%; 
     min-width: 0; /* Fix flex child overflow issues */
   }
+}
+/* ===================================================================
+   🟢 ANDROID OPTIMIZATION FIXES 
+   =================================================================== */
+
+/* FIX 2: Use "dvh" (Dynamic Viewport Height) so the Android keyboard doesn't squish the app */
+.app-layout, 
+.auth-page-container, 
+.landing-container, 
+.loading-fullscreen {
+  min-height: 100vh;     /* Fallback for older browsers */
+  min-height: 100dvh;    /* Modern fix for mobile keyboards */
+}
+
+/* FIX 3: Remove the ugly grey tap highlight on Android and ensure zero tap delay */
+button, 
+a, 
+input, 
+select, 
+textarea, 
+.barber-card, 
+.btn-stepper,
+.image-modal-content {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* Tells Android not to wait for a double-tap */
+}
+
+/* FIX 4: Prevent text from getting way too small on some Android screens */
+html {
+  -moz-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
