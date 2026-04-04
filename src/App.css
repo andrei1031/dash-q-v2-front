@@ -2523,3 +2523,43 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* ===================================================================
+   🛑 MOBILE HORIZONTAL GAP FIX
+   =================================================================== */
+
+/* 1. Paint the HTML background to match your theme so the white gap vanishes */
+html {
+  background-color: var(--bg-dark);
+  overflow-x: hidden;
+}
+
+/* 2. Lock the body and layout firmly to 100% (Prevents side-scrolling) */
+body, .app-layout {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+/* 3. Fix the container width (100vw causes overflow, 100% respects boundaries) */
+.container {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden;
+}
+
+/* 4. Fix Flexbox blowout (Forces long text/ads to wrap instead of pushing the screen) */
+.card, .card-body, .serving-item, .ewt-item {
+  min-width: 0; /* CRITICAL: Allows flex children to shrink below their text size */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure the Cafe Ad and grid items don't stretch out of bounds */
+.card-body > div {
+  max-width: 100%;
+}
+.card-body > div[style*="display: flex"] > div,
+.card-body > div[style*="linear-gradient"] > div {
+  min-width: 0 !important; 
+}
