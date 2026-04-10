@@ -37,6 +37,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [loadingAppts, setLoadingAppts] = useState(false);
     const [pendingApptCount, setPendingApptCount] = useState(0);
     const [vipPrice, setVipPrice] = useState(100); 
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); 
@@ -120,26 +121,16 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setFetchError('');
         try {
             const response = await axios.get(`${API_URL}/queue/details/${barberId}`);
-            let data = response.data;
-
-            if (openChatQueueId) {
-                const clearBadge = (entry) => {
-                    if (entry && entry.id === openChatQueueId) {
-                        return { ...entry, unread_count: 0 }; 
-                    }
-                    return entry;
-                };
-
-                if (data.inProgress) data.inProgress = clearBadge(data.inProgress);
-                if (data.upNext) data.upNext = clearBadge(data.upNext);
-                if (data.waiting) data.waiting = data.waiting.map(clearBadge);
-            }
-
-            setQueueDetails(data);
+            setQueueDetails(response.data);
         } catch (err) {
-            console.error('[BarberDashboard] Queue fetch error:', err);
+            if (!navigator.onLine) {
+                console.log("Barber is offline. Serving cached queue details.");
+                // We don't set an error here so the UI keeps showing the cached data
+            } else {
+                setFetchError('Failed to load fresh queue data.');
+            }
         }
-    }, [barberId, openChatQueueId]); 
+    }, [barberId]);
 
     useEffect(() => {
         if (!openChatQueueId) return;
@@ -241,6 +232,16 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             console.error("Failed to send:", error);
         }
     };
+
+    useEffect(() => {
+        const handleStatus = () => setIsOffline(!navigator.onLine);
+        window.addEventListener('online', handleStatus);
+        window.addEventListener('offline', handleStatus);
+        return () => {
+            window.removeEventListener('online', handleStatus);
+            window.removeEventListener('offline', handleStatus);
+        };
+    }, []);
     
     useEffect(() => {
         if (!barberId || !supabase?.channel) return;
@@ -473,6 +474,15 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
 
     return (
         <div className="card">
+            {isOffline && (
+            <div style={{
+                background: '#ff3b30', color: 'white', textAlign: 'center', 
+                padding: '8px', fontSize: '0.85rem', fontWeight: 'bold',
+                borderRadius: '8px 8px 0 0', animation: 'pulse-border 2s infinite'
+            }}>
+                ⚠️ OFFLINE MODE: Actions (Next/Complete) are disabled until internet returns.
+            </div>
+        )}
             <div className="card-header">
                 <h2>My Queue ({barberName || '...'})</h2>
             </div>
@@ -489,15 +499,15 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                         <div className="action-buttons-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
                             {queueDetails.inProgress ? (
                                 <>
-                                    <button onClick={handleCompleteCut} className="btn btn-success btn-full-width btn-icon-label">
+                                    <button onClick={handleCompleteCut} disabled={isOffline} className="btn btn-success btn-full-width btn-icon-label">
                                         <IconCheck /> Complete: #{queueDetails.inProgress.id} - {queueDetails.inProgress.customer_name}
                                     </button>
-                                    <button onClick={() => handleCancel(queueDetails.inProgress)} className="btn btn-danger btn-full-width btn-icon-label">
+                                    <button onClick={() => handleCancel(queueDetails.inProgress)} disabled={isOffline} className="btn btn-danger btn-full-width btn-icon-label">
                                         <IconX /> Cancel / No-Show
                                     </button>
                                 </>
                             ) : queueDetails.upNext ? (
-                                <button onClick={handleNextCustomer} className="btn btn-primary btn-full-width btn-icon-label">
+                                <button onClick={handleNextCustomer} disabled={isOffline} className="btn btn-primary btn-full-width btn-icon-label">
                                     <IconNext /> Call: #{queueDetails.upNext.id} - {queueDetails.upNext.customer_name}
                                 </button>
                             ) : queueDetails.waiting.length > 0 ? (

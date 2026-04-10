@@ -54,21 +54,20 @@ self.addEventListener('fetch', (event) => {
     // 2. API STRATEGY: Network First, then Cache (The "Gmail Killer" logic)
     // This allows customers to see the barber list and services even when offline.
     if (url.pathname.startsWith('/api/')) {
-        event.respondWith(
-            fetch(request)
-                .then((networkResponse) => {
-                    // Update dynamic cache with fresh data from the server
+    event.respondWith(
+        fetch(request)
+            .then((networkResponse) => {
+                // Only cache GET requests (queue details, profiles)
+                if (request.method === 'GET') {
                     const responseClone = networkResponse.clone();
                     caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseClone));
-                    return networkResponse;
-                })
-                .catch(() => {
-                    // Serve cached data if the internet is disconnected
-                    return caches.match(request);
-                })
-        );
-        return;
-    }
+                }
+                return networkResponse;
+            })
+            .catch(() => caches.match(request)) // Fallback to last known queue data
+    );
+    return;
+}
 
     // 3. HTML STRATEGY: Network First, Fallback to offline.html
     // This ensures they get the latest app version but see your custom offline page if they have no signal.

@@ -28,7 +28,7 @@ export const AvailabilityToggle = ({ barberProfile, session, onAvailabilityChang
             </p>
             <button 
                 onClick={handleToggle} 
-                disabled={loading} 
+                disabled={loading || !navigator.onLine}
                 className={`btn ${isAvailable ? 'btn-danger' : 'btn-success'}`}
             >
                 {isAvailable ? 'Go Offline' : 'Go Online'}
