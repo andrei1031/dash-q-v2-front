@@ -108,6 +108,7 @@ export const CustomerView = ({ session }) => {
     const [showIOSPrompt, setShowIOSPrompt] = useState(true);
     const [isMyReportsOpen, setIsMyReportsOpen] = useState(false);
     const [viewProduct, setViewProduct] = useState(null);
+    
 
     const customerName = isGuest ? guestName : (session?.user?.user_metadata?.full_name || '');
     const customerEmail = isGuest ? guestEmail : (session?.user?.email || '');
@@ -207,6 +208,7 @@ export const CustomerView = ({ session }) => {
     const fetchPublicQueue = useCallback(async (barberId) => {
         if (!barberId) {
             setLiveQueue([]);
+            liveQueueRef.current = [];
             setIsQueueLoading(false);
             return;
         }
@@ -215,6 +217,10 @@ export const CustomerView = ({ session }) => {
         try {
             const response = await axios.get(`${API_URL}/queue/public/${barberId}`);
             const queueData = response.data || [];
+            
+            // Clear any previous offline/error messages on success
+            setQueueMessage(""); 
+            
             setLiveQueue(queueData);
             liveQueueRef.current = queueData;
 
@@ -253,11 +259,12 @@ export const CustomerView = ({ session }) => {
                     }
                 }
             }
+
             if (currentQueueId) {
                 const amIInActiveQueue = queueData.some(entry => entry.id.toString() === currentQueueId);
 
                 if (!amIInActiveQueue && !isServiceCompleteModalOpen && !isCancelledModalOpen) {
-    
+
                     const investigateDisappearance = async () => {
                         const { data: myEntry, error } = await supabase
                             .from('queue_entries')
@@ -312,29 +319,30 @@ export const CustomerView = ({ session }) => {
             }
 
         } catch (error) {
-        // NEW: Check if we are offline and have cached data
+            // --- GRACEFUL OFFLINE FALLBACK ---
             if (!navigator.onLine) {
-                console.log("Offline: Attempting to retrieve cached queue data.");
-                setQueueMessage("⚠️ Offline Mode: Showing last known queue status.");
+                console.log("Offline: Serving last known queue data from Service Worker cache.");
+                // We keep the current liveQueue data so the UI doesn't flicker/empty
+                setQueueMessage("📴 Offline Mode: Showing last known queue status.");
             } else {
                 console.error("Failed fetch public queue:", error);
-                setQueueMessage("Could not load fresh queue data.");
+                setLiveQueue([]);
+                liveQueueRef.current = [];
+                setQueueMessage("Could not load queue data.");
             }
         } finally {
             setIsQueueLoading(false);
         }
     }, [
-    session, 
-    isServiceCompleteModalOpen, 
-    isCancelledModalOpen, 
-    setLiveQueue, 
-    setQueueMessage, 
-    setIsServiceCompleteModalOpen, 
-    setIsCancelledModalOpen, 
-    setJoinedBarberId,
-    handleReturnToJoin,
-    myQueueEntryId,
-    joinedBarberId
+        session, 
+        isServiceCompleteModalOpen, 
+        isCancelledModalOpen, 
+        setLiveQueue, 
+        setQueueMessage, 
+        setJoinedBarberId,
+        handleReturnToJoin,
+        myQueueEntryId,
+        joinedBarberId
     ]);
 
     const handleFileChange = (e) => {
@@ -686,17 +694,14 @@ export const CustomerView = ({ session }) => {
     }, [viewMode, fetchMyAppointments]);
 
     useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-    };
-}, []);
+        const handleStatusChange = () => setIsOffline(!navigator.onLine);
+        window.addEventListener('online', handleStatusChange);
+        window.addEventListener('offline', handleStatusChange);
+        return () => {
+            window.removeEventListener('online', handleStatusChange);
+            window.removeEventListener('offline', handleStatusChange);
+        };
+    }, []);
 
     useEffect(() => {
         const restoreSession = async () => {
@@ -1163,15 +1168,11 @@ export const CustomerView = ({ session }) => {
             {/* OFFLINE BADGE */}
             {isOffline && (
                 <div style={{
-                    backgroundColor: 'var(--error-color)',
-                    color: 'white',
-                    textAlign: 'center',
-                    padding: '5px',
-                    fontSize: '0.8rem',
-                    borderRadius: '8px 8px 0 0',
-                    fontWeight: 'bold'
+                    background: '#ff3b30', color: 'white', textAlign: 'center', 
+                    padding: '8px', fontSize: '0.85rem', fontWeight: 'bold',
+                    borderRadius: '12px 12px 0 0', animation: 'pulse-border 2s infinite'
                 }}>
-                    📴 You are offline. Showing cached information.
+                    📴 You are currently offline. Using cached data.
                 </div>
             )}
             
