@@ -102,33 +102,33 @@ self.addEventListener('fetch', (event) => {
 });
 
 // 4. PUSH NOTIFICATIONS: The "Gmail Killer" system
+// public/sw.js
 self.addEventListener('push', (event) => {
-    console.log('[Service Worker] Push Received.');
-    
-    let data = { title: 'Dash-Q Update', body: 'You have a new notification.' };
-    try {
-        data = event.data ? event.data.json() : data;
-    } catch (e) {
-        console.warn('Push event data was not JSON:', event.data?.text());
-        data.body = event.data?.text() || data.body;
-    }
-    
+    const data = event.data ? event.data.json() : { title: 'Dash-Q Update', body: 'You have a new update!' };
+
     const options = {
         body: data.body,
-        icon: '/logo192.png',
-        badge: '/logo192.png',
+        icon: '/logo192.png', // Path from your public folder
+        badge: '/favicon.ico',
         vibrate: [100, 50, 100],
         data: {
-            url: data.url || '/'
+            url: data.url || '/' 
         },
         actions: [
-            { action: 'open', title: 'View Status' },
-            { action: 'close', title: 'Dismiss' }
+            { action: 'open', title: 'View Details' }
         ]
     };
 
     event.waitUntil(
         self.registration.showNotification(data.title, options)
+    );
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.openWindow(event.notification.data.url)
     );
 });
 

@@ -308,6 +308,23 @@ function App() {
     }, [checkUserRole]);
 
     useEffect(() => {
+        const handleRegistration = async () => {
+            // Check for valid session and browser support
+            if (session?.user?.id && 'Notification' in window && 'serviceWorker' in navigator) {
+                // To prevent mobile UI crashes, we only register if permission is already granted
+                if (Notification.permission === 'granted') {
+                    console.log("[Push] Permission already granted, registering...");
+                    await registerPushNotifications(session.user.id);
+                } 
+                // If permission is 'default', the user hasn't been asked yet.
+                // You may want to trigger a custom UI modal before calling Notification.requestPermission()
+            }
+        };
+
+        handleRegistration();
+    }, [session]);
+
+    useEffect(() => {
         const handleBeforeInstallPrompt = (e) => {
         e.preventDefault(); // Stop the default browser bar
         setInstallPrompt(e); // Save it to show our own button

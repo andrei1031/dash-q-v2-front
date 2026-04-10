@@ -1,34 +1,43 @@
-import axios from "axios";
-import { urlBase64ToUint8Array } from "../helpers/utils";
-import { API_URL } from "../http-commons";
+// src/Components/notifications/registerPushNotifications.js
+import apiClient from '../http-commons';
+
+const VAPID_PUBLIC_KEY = "process.env.VAPID_PUBLIC_KEY"; // Get this from your backend config
 
 export const registerPushNotifications = async (userId) => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
-    // 1. Request Permission
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-        console.warn("Notification permission denied");
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn("Push notifications not supported on this browser.");
         return;
     }
 
     try {
         const registration = await navigator.serviceWorker.ready;
         
-        // 2. Subscribe
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)
+        // Check for existing subscription
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        }
+
+        // Send subscription to your backend
+        await apiClient.post('/notifications/subscribe', {
+            userId,
+            subscription
         });
 
-        // 3. Send to Backend
-        await axios.post(`${API_URL}/subscribe`, {
-            subscription: subscription,
-            userId: userId
-        });
-
-        console.log("✅ Successfully subscribed to Push Notifications");
-    } catch (error) {
-        console.error("❌ Push Registration Error:", error);
+        console.log("Successfully subscribed to Dash-Q Push Notifications.");
+    } catch (err) {
+        console.error("Failed to register for push notifications:", err);
     }
 };
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return new Uint8Array([...rawData].map((char) => char.charCodeAt(0)));
+}
