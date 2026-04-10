@@ -122,40 +122,36 @@ function App() {
 
     // --- Helper to Check Role ---
     const checkUserRole = useCallback(async (user) => {
-        if (!user || !user.id) {
-            setUserRole('customer');
-            setBarberProfile(null);
-            setLoadingRole(false);
+    if (!user || !user.id) return;
+    setLoadingRole(true);
+    try {
+        // FIX: Check is_banned status during role check
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select('role, is_banned')
+            .eq('id', user.id)
+            .single();
+        
+        if (profileData?.is_banned) {
+            alert("Your account has been suspended.");
+            handleLogout(user.id); // Force logout for banned users
             return;
         }
 
-        console.log(`Checking role for user: ${user.id}`);
-        setLoadingRole(true);
-        try {
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
-                .single();
-            
-            if (profileData && profileData.role === 'admin') {
-                setUserRole('admin');
-                setBarberProfile(null);
-                setLoadingRole(false);
-                return; 
+        // Optimization: Use the role directly if found
+        if (profileData) {
+            setUserRole(profileData.role);
+            if (profileData.role === 'barber') {
+                const response = await apiClient.get(`/barber/profile/${user.id}`);
+                setBarberProfile(response.data);
             }
-
-            const response = await apiClient.get(`/barber/profile/${user.id}`);
-            setUserRole('barber');
-            setBarberProfile(response.data);
-
-        } catch (error) {
-            setUserRole('customer');
-            setBarberProfile(null);
-        } finally {
-            setLoadingRole(false);
         }
-    }, []);
+    } catch (error) {
+        setUserRole('customer');
+    } finally {
+        setLoadingRole(false);
+    }
+}, []);
 
     // --- Auth Listener ---
     useEffect(() => {

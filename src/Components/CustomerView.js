@@ -941,7 +941,17 @@ export const CustomerView = ({ session }) => {
         let queueChannel = null; let refreshInterval = null;
         if (joinedBarberId && myQueueEntryId && supabase?.channel) {
             queueChannel = supabase.channel(`public_queue_${joinedBarberId}`)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${joinedBarberId}` }, (payload) => {
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries'}, (payload) => {
+
+                    // ✅ CHECK THE BARBER ID OR EVENT TYPE MANUALLY
+                    const isOurBarber = payload.new?.barber_id?.toString() === joinedBarberId || 
+                                       payload.old?.barber_id?.toString() === joinedBarberId;
+                    
+                    // Always refresh on DELETE to ensure names disappear correctly
+                    if (isOurBarber || payload.eventType === 'DELETE') {
+                        console.log(`[Realtime] ${payload.eventType} detected. Refreshing list...`);
+                        fetchPublicQueue(joinedBarberId);
+                    }
                     
                     if (payload.eventType === 'UPDATE' && payload.new.id.toString() === myQueueEntryId) {
                         const newStatus = payload.new.status;

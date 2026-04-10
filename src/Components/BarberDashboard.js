@@ -260,10 +260,14 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         fetchQueueDetails();
         fetchAppointmentCount();
         const channel = supabase.channel(`barber_queue_${barberId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${barberId}` }, (payload) => {
-                console.log('Barber dashboard received queue update (via Realtime):', payload);
-                fetchQueueDetails();
-                if (onQueueUpdate) onQueueUpdate();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries'}, (payload) => {
+
+                // ✅ REFRESH ON ANY RELEVANT CHANGE
+                if (payload.new?.barber_id === barberId || payload.eventType === 'DELETE') {
+                    console.log('Refreshing barber queue due to:', payload.eventType);
+                    fetchQueueDetails();
+                    if (onQueueUpdate) onQueueUpdate();
+                }
             })
             .subscribe((status, err) => {
                 if (status === 'SUBSCRIBED') {
