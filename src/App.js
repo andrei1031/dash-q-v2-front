@@ -11,6 +11,9 @@ import { ThemeProvider } from './Components/Providers/ThemeProvider';
 // COMPONENT
 import { LandingPage } from './Components/LandingPage';
 
+// --- SERVICE WORKER (Offline Caching) ---
+import React, { useState, useEffect } from 'react';
+
 // HTTP-COMMONS (apiClient used directly)
 // SUPABASE
 import { supabase } from './Components/supabase';
@@ -80,6 +83,7 @@ function App() {
     const [loadingRole, setLoadingRole] = useState(true);
     const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
     const [authRole, setAuthRole] = useState(null); // Track selected role for AuthForm
+    const [installPrompt, setInstallPrompt] = useState(null); // For PWA install prompt
     
     // --- NEW STATE: Controls Landing Page visibility ---
     const [showLanding, setShowLanding] = useState(true); 
@@ -308,6 +312,16 @@ function App() {
 
         return () => subscription?.unsubscribe();
     }, [checkUserRole]);
+
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e) => {
+        e.preventDefault(); // Stop the default browser bar
+        setInstallPrompt(e); // Save it to show our own button
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    }, []);
     
     // --- Render Logic ---
     const renderAppContent = () => {
@@ -321,7 +335,13 @@ function App() {
         if (session) {
             if (userRole === 'admin') return <AdminAppLayout session={session} />;
             if (userRole === 'barber' && barberProfile) return <BarberAppLayout session={session} barberProfile={barberProfile} setBarberProfile={setBarberProfile} />;
-            return <CustomerAppLayout session={session} />;
+            
+
+            return <CustomerAppLayout 
+            session={session} 
+            installPrompt={installPrompt} 
+            setInstallPrompt={setInstallPrompt} 
+        />;
         }
 
         // 4. ADMIN LOGIN (New Section)
