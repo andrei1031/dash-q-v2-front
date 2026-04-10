@@ -12,7 +12,6 @@ const STATIC_ASSETS = [
     '/logo512.png',
     '/manifest.json',
     '/favicon.ico',
-    '/static/js/bundle.js',
     '/queue_sound.mp3', // Add this
     '/chat_sound.mp3',  // Add this
     '/buzzer.mp3' // Added common build files if applicable
