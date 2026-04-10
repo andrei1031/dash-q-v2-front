@@ -207,7 +207,6 @@ export const CustomerView = ({ session }) => {
     const fetchPublicQueue = useCallback(async (barberId) => {
         if (!barberId) {
             setLiveQueue([]);
-            liveQueueRef.current = [];
             setIsQueueLoading(false);
             return;
         }
@@ -313,10 +312,14 @@ export const CustomerView = ({ session }) => {
             }
 
         } catch (error) {
-            console.error("Failed fetch public queue:", error);
-            setLiveQueue([]);
-            liveQueueRef.current = [];
-            setQueueMessage("Could not load queue data.");
+        // NEW: Check if we are offline and have cached data
+            if (!navigator.onLine) {
+                console.log("Offline: Attempting to retrieve cached queue data.");
+                setQueueMessage("⚠️ Offline Mode: Showing last known queue status.");
+            } else {
+                console.error("Failed fetch public queue:", error);
+                setQueueMessage("Could not load fresh queue data.");
+            }
         } finally {
             setIsQueueLoading(false);
         }

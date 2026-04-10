@@ -43,23 +43,36 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// 3. FETCH STRATEGY: Offline Support & Dynamic Caching
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Skip non-HTTP requests (like Chrome extensions) and API calls
-    if (!url.protocol.startsWith('http') || url.pathname.startsWith('/api/')) {
+    // 1. FILTER: Skip non-HTTP (fixes Chrome Extension errors) and non-GET requests
+    if (!url.protocol.startsWith('http')) return;
+    if (request.method !== 'GET') return;
+
+    // 2. API STRATEGY: Network First, then Cache (The "Gmail Killer" logic)
+    // This allows customers to see the barber list and services even when offline.
+    if (url.pathname.startsWith('/api/')) {
+        event.respondWith(
+            fetch(request)
+                .then((networkResponse) => {
+                    // Update dynamic cache with fresh data from the server
+                    const responseClone = networkResponse.clone();
+                    caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseClone));
+                    return networkResponse;
+                })
+                .catch(() => {
+                    // Serve cached data if the internet is disconnected
+                    return caches.match(request);
+                })
+        );
         return;
     }
 
-    // Skip non-GET requests
-    if (request.method !== 'GET') {
-        return;
-    }
-
-    // A. Strategy for HTML: Network First, Fallback to offline.html
-    if (request.headers.get('accept')?.includes('text/html')) {
+    // 3. HTML STRATEGY: Network First, Fallback to offline.html
+    // This ensures they get the latest app version but see your custom offline page if they have no signal.
+    if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
         event.respondWith(
             fetch(request)
                 .then((networkResponse) => {
@@ -67,30 +80,20 @@ self.addEventListener('fetch', (event) => {
                     caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseClone));
                     return networkResponse;
                 })
-                .catch(() => {
-                    return caches.match(request)
-                        .then((cachedResponse) => {
-                            if (cachedResponse) return cachedResponse;
-                            // The "Perfect" Fallback: serve the branded offline page
-                            return caches.match('/offline.html');
-                        });
+                .catch(async () => {
+                    const cachedResponse = await caches.match(request);
+                    // Return the specific page if cached, otherwise the fallback branding page
+                    return cachedResponse || caches.match('/offline.html');
                 })
         );
         return;
     }
 
-    // B. Strategy for Assets (JS, CSS, Images, Sounds): Cache First
+    // 4. ASSET STRATEGY: Cache First, then Network
+    // This makes JS, CSS, and your sound files load instantly without hitting the network.
     event.respondWith(
         caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-                // Return cached version and update in background
-                fetch(request).then((networkResponse) => {
-                    caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, networkResponse));
-                });
-                return cachedResponse;
-            }
-
-            return fetch(request).then((networkResponse) => {
+            return cachedResponse || fetch(request).then((networkResponse) => {
                 const responseClone = networkResponse.clone();
                 caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseClone));
                 return networkResponse;
