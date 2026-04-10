@@ -11,8 +11,6 @@ import { ThemeProvider } from './Components/Providers/ThemeProvider';
 // COMPONENT
 import { LandingPage } from './Components/LandingPage';
 
-// --- SERVICE WORKER (Offline Caching) ---
-import React, { useState, useEffect } from 'react';
 
 // HTTP-COMMONS (apiClient used directly)
 // SUPABASE
