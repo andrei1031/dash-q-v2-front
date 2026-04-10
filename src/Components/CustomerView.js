@@ -500,7 +500,8 @@ export const CustomerView = ({ session }) => {
             const existing = error.response.data.details;
             
             if (existing && existing.id && existing.barber_id) {
-                setMessage(`⚠️ Found active booking! Recovering your spot (ID: #${existing.id})...`);
+                // ✅ SUCCESSFUL RECOVERY LOGIC
+                setMessage(`⚠️ Active booking found! Recovering spot #${existing.id}...`);
                 
                 localStorage.setItem('myQueueEntryId', existing.id.toString());
                 localStorage.setItem('joinedBarberId', existing.barber_id.toString());
@@ -509,10 +510,7 @@ export const CustomerView = ({ session }) => {
                 setJoinedBarberId(existing.barber_id.toString());
                 setIsChatOpen(true);
                 
-                setSelectedBarberId('');
-                setSelectedServiceId('');
-                setReferenceImageUrl(existing.reference_image_url || '');
-
+                // Refresh the queue view for the recovered barber
                 fetchPublicQueue(existing.barber_id.toString());
             } else {
                 const errorMsg = error.response.data.error || "A conflict occurred.";
