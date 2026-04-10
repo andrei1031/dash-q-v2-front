@@ -78,6 +78,8 @@ export const CustomerView = ({ session }) => {
     const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
     const [vipPrice, setVipPrice] = useState(0);
     const lastUploadTime = useRef(0);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    
 
     const [feedbackText, setFeedbackText] = useState('');
     const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -681,6 +683,19 @@ export const CustomerView = ({ session }) => {
     }, [viewMode, fetchMyAppointments]);
 
     useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+}, []);
+
+    useEffect(() => {
         const restoreSession = async () => {
             if (!myQueueEntryId && session?.user?.id) {
                 try {
@@ -839,8 +854,16 @@ export const CustomerView = ({ session }) => {
     
     useEffect(() => { 
         const fetchServices = async () => {
-            try { const response = await axios.get(`${API_URL}/services`); setServices(response.data || []); }
-            catch (error) {}
+            try { 
+                const response = await axios.get(`${API_URL}/services`); 
+                setServices(response.data || []); 
+            } catch (error) {
+                if (!navigator.onLine) {
+                    console.log("Offline: Services are being served from cache.");
+                } else {
+                    console.error("Error fetching services:", error);
+                }
+            }
         };
         fetchServices();
     }, []);
@@ -850,18 +873,32 @@ export const CustomerView = ({ session }) => {
             try {
                 const response = await axios.get(`${API_URL}/settings/vip-price`);
                 setVipPrice(response.data.vip_price || 100);
-            } catch (error) {}
+            } catch (error) {
+                if (!navigator.onLine) {
+                    console.log("Offline: Using last known VIP price from cache.");
+                }
+            }
         };
         fetchVipPrice();
     }, []);
 
     useEffect(() => { 
         const loadBarbers = async () => {
-            try { const response = await axios.get(`${API_URL}/barbers`); setBarbers(response.data || []); }
-            catch (error) { setBarbers([]); }
+            try { 
+                const response = await axios.get(`${API_URL}/barbers`); 
+                setBarbers(response.data || []); 
+            } catch (error) {
+                if (!navigator.onLine) {
+                    console.log("Offline: Barber list is being served from cache.");
+                } else {
+                    setBarbers([]); 
+                }
+            }
         };
         loadBarbers();
-        const intervalId = setInterval(loadBarbers, 15000);
+        const intervalId = setInterval(() => {
+            if (navigator.onLine) loadBarbers(); // Only auto-refresh if online
+        }, 15000);
         return () => clearInterval(intervalId);
     }, []);
     
@@ -1120,6 +1157,20 @@ export const CustomerView = ({ session }) => {
 
     return (
         <div className="card">
+            {/* OFFLINE BADGE */}
+            {isOffline && (
+                <div style={{
+                    backgroundColor: 'var(--error-color)',
+                    color: 'white',
+                    textAlign: 'center',
+                    padding: '5px',
+                    fontSize: '0.8rem',
+                    borderRadius: '8px 8px 0 0',
+                    fontWeight: 'bold'
+                }}>
+                    📴 You are offline. Showing cached information.
+                </div>
+            )}
             
             <div className="modal-overlay" style={{ display: isInstructionsModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content instructions-modal">
