@@ -133,60 +133,68 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     }, [barberId]);
 
     // Inside BarberDashboard.js
-    useEffect(() => {
-    if (!barberId || !supabase) return;
+// 🟢 FIXED REALTIME CHAT LISTENER
+useEffect(() => {
+    if (!barberId || !supabase || !session?.user?.id) return;
 
     const chatChannel = supabase.channel(`barber_global_chat_listener`)
         .on(
-    'postgres_changes',
-    { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-    (payload) => {
-        const newMsg = payload.new;
-        if (newMsg.sender_id === session.user.id) return;
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+            (payload) => {
+                const newMsg = payload.new;
+                // Ignore our own messages to prevent echoes
+                if (newMsg.sender_id === session.user.id) return;
 
-        // 🟢 THE FIX: Always use queue_entry_id as the state key
-        const qId = newMsg.queue_entry_id.toString(); 
+                const qId = newMsg.queue_entry_id?.toString();
+                if (!qId) return;
 
-        setChatMessages(prev => {
-            const currentMsgs = prev[qId] || [];
-            // Prevent duplicates
-            if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
-
-            return {
-                ...prev,
-                // qId is now a string, matching what openChatQueueId.toString() uses
-                [qId]: [...currentMsgs, {
-                    senderId: newMsg.sender_id,
-                    message: newMsg.message,
-                    created_at: newMsg.created_at
-                }]
-            };
-        });
-
-        // Badge logic (Compare strings to be safe)
-        if (openChatQueueId?.toString() !== qId.toString()) {
-            setQueueDetails(prev => {
-                const incrementBadge = (entry) => {
-                    if (entry && entry.id.toString() === qId.toString()) {
-                        return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                setChatMessages(prev => {
+                    const currentMsgs = prev[qId] || [];
+                    
+                    // Prevent duplicate messages using timestamp
+                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) {
+                        return prev;
                     }
-                    return entry;
-                };
-                return {
-                    ...prev,
-                    inProgress: incrementBadge(prev.inProgress),
-                    upNext: incrementBadge(prev.upNext),
-                    waiting: prev.waiting.map(incrementBadge)
-                };
-            });
-            playSound(messageNotificationSound);
-        }
-    }
-)
-        .subscribe();
 
-    return () => { supabase.removeChannel(chatChannel); };
-}, [barberId, openChatQueueId, session.user.id]);
+                    const normalizedMsg = {
+                        senderId: newMsg.sender_id,
+                        message: newMsg.message,
+                        created_at: newMsg.created_at
+                    };
+
+                    return {
+                        ...prev,
+                        [qId]: [...currentMsgs, normalizedMsg]
+                    };
+                });
+
+                // Increment badge if chat is not currently open for this queue
+                if (openChatQueueId?.toString() !== qId) {
+                    setQueueDetails(prev => {
+                        const incrementBadge = (entry) => {
+                            if (entry?.id?.toString() === qId) {
+                                return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                            }
+                            return entry;
+                        };
+                        return {
+                            ...prev,
+                            inProgress: incrementBadge(prev.inProgress),
+                            upNext: incrementBadge(prev.upNext),
+                            waiting: prev.waiting.map(incrementBadge)
+                        };
+                    });
+                    playSound(messageNotificationSound);
+                }
+            }
+        )
+        .subscribe(); // 🟢 CRITICAL: Must call subscribe()
+
+    return () => {
+        supabase.removeChannel(chatChannel);
+    };
+}, [barberId, session?.user?.id, openChatQueueId]); // Added dependencies
 
     const sendBarberMessage = async (recipientId, messageText) => {
     if (!messageText.trim() || !openChatQueueId) return;
@@ -393,32 +401,54 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         }
     };
 
-    /**
- * openChat - Handles opening the chat window and loading history
- * @param {Object} customer - The customer object from the queue entry
- */
+// 🟢 FIXED OPEN CHAT & HISTORY FETCH
 const openChat = async (customer) => {
-    const qId = customer?.id;
+    const qId = customer?.id?.toString();
     if (!qId) return;
 
     setOpenChatQueueId(qId);
     setOpenChatCustomerId(customer?.profiles?.id);
 
     try {
-        const { data } = await supabase
+        // Mark as read on the backend
+        await axios.post(`${API_URL}/chat/read`, { 
+            queueId: qId, 
+            readerId: session.user.id 
+        });
+
+        // Reset local unread badge for this customer
+        setQueueDetails(prev => {
+            const clearBadge = (entry) => 
+                entry?.id?.toString() === qId ? { ...entry, unread_count: 0 } : entry;
+            return {
+                ...prev,
+                inProgress: clearBadge(prev.inProgress),
+                upNext: clearBadge(prev.upNext),
+                waiting: prev.waiting.map(clearBadge)
+            };
+        });
+
+        const { data, error } = await supabase
             .from('chat_messages')
             .select('*')
             .eq('queue_entry_id', qId)
             .order('created_at', { ascending: true });
         
+        if (error) throw error;
+
         if (data) {
             setChatMessages(prev => ({
                 ...prev,
-                [qId.toString()]: data // 🟢 Gamitin ang Queue ID as String key
+                [qId]: data.map(msg => ({
+                    senderId: msg.sender_id,
+                    message: msg.message,
+                    created_at: msg.created_at
+                }))
             }));
         }
-        axios.put(`${API_URL}/chat/read`, { queueId: qId, readerId: session.user.id });
-    } catch (err) { console.error("Barber history fetch failed:", err); }
+    } catch (err) { 
+        console.error("Chat sync failed:", err); 
+    }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
