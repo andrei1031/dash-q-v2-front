@@ -297,13 +297,14 @@ function App() {
 
     useEffect(() => {
         const handleRegistration = async () => {
-            if (session?.user?.id && Notification.permission === 'granted') {
-                // 3. Use the function here as well
-                await registerServiceWorker();
+            if (session?.user?.id && 'Notification' in window && Notification.permission === 'granted') {
+                console.log("[Push] Permission already granted, registering...");
+                // FIX: Call the function from the hook, not the hook itself!
+                await registerServiceWorker(); 
             }
         };
         handleRegistration();
-    }, [session, registerServiceWorker]);
+    }, [session, registerServiceWorker]); // Add registerServiceWorker to dependencies
 
     useEffect(() => {
         if (!supabase?.auth) {
