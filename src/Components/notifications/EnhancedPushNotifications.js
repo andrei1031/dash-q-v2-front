@@ -78,7 +78,7 @@ export const useEnhancedNotifications = (userId) => {
             // Subscribe to push notifications
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY || '')
+                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_KEY || '')
             });
 
             // Send subscription to server
