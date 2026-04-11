@@ -1192,7 +1192,7 @@ export const CustomerView = ({ session }) => {
 
             try {
                 // Check if the entry is still active in the database
-                const { data: entry, error } = await supabase
+                const { data: entry } = await supabase
                     .from('queue_entries')
                     .select('status, barber_id')
                     .eq('id', storedQueueId)
