@@ -7,4 +7,4 @@
 - [ ] Step 3: Test push registration in console: look for "Successfully subscribed to Dash-Q Push Notifications."
 - [ ] Step 4: Verify backend `/notifications/subscribe` endpoint works with subscription
 
-**Next**: Complete Step 1 via edit_file, then mark done and proceed.
+✅ Code changes complete. User: Add to `.env`:\n\nREACT_APP_VAPID_PUBLIC_KEY=your_vapid_public_key_here\n\n(Generate via backend: `npx web-push generate-vapid-keys`)\n\nThen `yarn start` / `npm start` to restart. Test console for success message.\n\nSteps 2-4: Manual user verification.

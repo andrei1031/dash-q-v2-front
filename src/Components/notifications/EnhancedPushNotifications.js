@@ -70,27 +70,25 @@ export const useEnhancedNotifications = (userId) => {
 
     const registerServiceWorker = useCallback(async () => {
         try {
-            const registration = await navigator.serviceWorker.register('/sw.js', {
-                scope: '/'
-            });
-            
-            console.log('Service Worker registered:', registration);
+            const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             setIsRegistered(true);
 
-            // CORRECTED: Added the missing 'applicationServerKey' property name
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY || '')
-            });
-
-            // Send subscription to server
-            if (userId) {
-                await axios.post(`${API_URL}/notifications/subscribe`, {
-                    userId,
-                    subscription: subscription // Fixed: Send the raw object
-                });
+            // 1. Check if the key exists before trying to use it
+            const publicKey = process.env.REACT_APP_VAPID_PUBLIC_KEY;
+            if (!publicKey) {
+                console.error("❌ PWA ERROR: REACT_APP_VAPID_PUBLIC_KEY is missing from environment variables.");
+                return false;
             }
 
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                // 2. FIX: Added the missing 'applicationServerKey' label
+                applicationServerKey: urlBase64ToUint8Array(publicKey)
+            });
+
+            if (userId) {
+                await axios.post(`${API_URL}/notifications/subscribe`, { userId, subscription });
+            }
             return true;
         } catch (err) {
             console.error('Service Worker registration failed:', err);
@@ -200,27 +198,19 @@ export const useEnhancedNotifications = (userId) => {
 // src/Components/notifications/EnhancedPushNotifications.js
 
 function urlBase64ToUint8Array(base64String) {
-    // Safety check to prevent .length error if variable is undefined
-    if (!base64String || typeof base64String !== 'string') {
-        console.warn("VAPID Public Key is missing or invalid. Check your .env file.");
-        return new Uint8Array();
-    }
+    if (!base64String || typeof base64String !== 'string') return new Uint8Array();
 
     try {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding)
-            .replace(/-/g, '+')
-            .replace(/_/g, '/');
-
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
         const rawData = window.atob(base64);
         const outputArray = new Uint8Array(rawData.length);
-
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
         return outputArray;
-    } catch (error) {
-        console.error("Failed to convert VAPID key:", error);
+    } catch (e) {
+        console.error("VAPID Key conversion failed", e);
         return new Uint8Array();
     }
 }
