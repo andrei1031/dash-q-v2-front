@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { DistanceBadge } from "./Partials/DistanceBadge";
@@ -133,68 +133,68 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     }, [barberId]);
 
     // Inside BarberDashboard.js
-// 🟢 FIXED REALTIME CHAT LISTENER
+// Use a ref to keep track of the current chat ID without triggering re-renders 
+// that might conflict with the supabase subscription
+const chatChannelRef = useRef(null);
+
 useEffect(() => {
     if (!barberId || !supabase || !session?.user?.id) return;
 
-    const chatChannel = supabase.channel(`barber_global_chat_listener`)
+    // Clean up existing channel if it exists
+    if (chatChannelRef.current) {
+        supabase.removeChannel(chatChannelRef.current);
+    }
+
+    const channel = supabase.channel(`barber_chat_${barberId}`)
         .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'chat_messages' },
             (payload) => {
                 const newMsg = payload.new;
-                // Ignore our own messages to prevent echoes
                 if (newMsg.sender_id === session.user.id) return;
 
                 const qId = newMsg.queue_entry_id?.toString();
-                if (!qId) return;
-
+                
                 setChatMessages(prev => {
                     const currentMsgs = prev[qId] || [];
+                    // Check for duplicates by timestamp
+                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
                     
-                    // Prevent duplicate messages using timestamp
-                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) {
-                        return prev;
-                    }
-
-                    const normalizedMsg = {
-                        senderId: newMsg.sender_id,
-                        message: newMsg.message,
-                        created_at: newMsg.created_at
-                    };
-
                     return {
                         ...prev,
-                        [qId]: [...currentMsgs, normalizedMsg]
+                        [qId]: [...currentMsgs, {
+                            senderId: newMsg.sender_id,
+                            message: newMsg.message,
+                            created_at: newMsg.created_at
+                        }]
                     };
                 });
 
-                // Increment badge if chat is not currently open for this queue
+                // Update unread badges for the correct queue item
                 if (openChatQueueId?.toString() !== qId) {
                     setQueueDetails(prev => {
-                        const incrementBadge = (entry) => {
-                            if (entry?.id?.toString() === qId) {
-                                return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
-                            }
-                            return entry;
-                        };
+                        const mapper = (item) => (item?.id?.toString() === qId) 
+                            ? { ...item, unread_count: (item.unread_count || 0) + 1 } 
+                            : item;
                         return {
                             ...prev,
-                            inProgress: incrementBadge(prev.inProgress),
-                            upNext: incrementBadge(prev.upNext),
-                            waiting: prev.waiting.map(incrementBadge)
+                            inProgress: mapper(prev.inProgress),
+                            upNext: mapper(prev.upNext),
+                            waiting: prev.waiting.map(mapper)
                         };
                     });
                     playSound(messageNotificationSound);
                 }
             }
         )
-        .subscribe(); // 🟢 CRITICAL: Must call subscribe()
+        .subscribe();
+
+    chatChannelRef.current = channel;
 
     return () => {
-        supabase.removeChannel(chatChannel);
+        if (chatChannelRef.current) supabase.removeChannel(chatChannelRef.current);
     };
-}, [barberId, session?.user?.id, openChatQueueId]); // Added dependencies
+}, [barberId, session?.user?.id]); // 🟢 REMOVED openChatQueueId from here to prevent loops
 
     const sendBarberMessage = async (recipientId, messageText) => {
     if (!messageText.trim() || !openChatQueueId) return;
