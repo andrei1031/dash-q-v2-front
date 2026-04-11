@@ -4,6 +4,9 @@ import { API_URL } from '../http-commons';
 import { supabase } from '../supabase';
 
 // Enhanced Push Notifications Service
+// Module-level lock to prevent AbortError from concurrent subscription requests
+let isRegisteringPush = false;
+
 // Handles iOS, Android, and Desktop notifications
 export const useEnhancedNotifications = (userId) => {
     const [isSupported, setIsSupported] = useState(false);
@@ -71,8 +74,10 @@ export const useEnhancedNotifications = (userId) => {
     const registerServiceWorker = useCallback(async () => {
         // 1. Safety check: avoid registering if offline or unsupported
         if (!('serviceWorker' in navigator) || !navigator.onLine) return;
+        if (isRegisteringPush) return; // Prevent race conditions from multiple hook instances
 
         try {
+            isRegisteringPush = true;
             // 2. Ensure the SW is registered and FULLY ready
             await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             const readyReg = await navigator.serviceWorker.ready;
@@ -104,6 +109,8 @@ export const useEnhancedNotifications = (userId) => {
             // Log specific error type to help debugging
             console.error(`[Push] ${err.name}: ${err.message}`);
             setError(err.message);
+        } finally {
+            isRegisteringPush = false;
         }
     }, [userId]);
 
