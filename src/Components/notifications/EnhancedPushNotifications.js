@@ -92,10 +92,23 @@ export const useEnhancedNotifications = (userId) => {
                 // Add a micro-delay to allow the push service connection to stabilize
                 await new Promise(res => setTimeout(res, 150));
                 
-                subscription = await readyReg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(publicKey)
-                });
+                try {
+                    subscription = await readyReg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicKey)
+                    });
+                } catch (subErr) {
+                    if (subErr.name === 'AbortError') {
+                        console.warn('[Push] AbortError detected. Retrying subscription in 1s...');
+                        await new Promise(res => setTimeout(res, 1000));
+                        subscription = await readyReg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(publicKey)
+                        });
+                    } else {
+                        throw subErr;
+                    }
+                }
             }
 
             if (userId && subscription) {
