@@ -69,26 +69,23 @@ export const useEnhancedNotifications = (userId) => {
     // src/Components/notifications/EnhancedPushNotifications.js
 
     const registerServiceWorker = useCallback(async () => {
+        // 1. Safety check: avoid registering if offline or unsupported
         if (!('serviceWorker' in navigator) || !navigator.onLine) return;
 
         try {
-            // 1. Ensure the SW is fully active and ready
+            // 2. Ensure the SW is registered and FULLY ready
             await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             const readyReg = await navigator.serviceWorker.ready;
             
             const publicKey = process.env.REACT_APP_VAPID_PUBLIC_KEY;
-            if (!publicKey) {
-                console.error("❌ PWA ERROR: REACT_APP_VAPID_PUBLIC_KEY is missing from environment variables.");
-                return false;
-            }
+            if (!publicKey) return;
 
-            // 2. Check for existing subscription first
+            // 3. Check for an existing subscription first to avoid redundant requests
             let subscription = await readyReg.pushManager.getSubscription();
             
             if (!subscription) {
-                // 3. This is where AbortError usually happens. 
-                // We add a tiny delay to ensure the push service is reachable.
-                await new Promise(res => setTimeout(res, 100));
+                // Add a micro-delay to allow the push service connection to stabilize
+                await new Promise(res => setTimeout(res, 150));
                 
                 subscription = await readyReg.pushManager.subscribe({
                     userVisibleOnly: true,
@@ -97,14 +94,16 @@ export const useEnhancedNotifications = (userId) => {
             }
 
             if (userId && subscription) {
-                await axios.post(`${API_URL}/notifications/subscribe`, { userId, subscription });
+                await axios.post(`${API_URL}/notifications/subscribe`, {
+                    userId,
+                    subscription
+                });
             }
             setIsRegistered(true);
-            return true;
         } catch (err) {
-            console.error('Push Registration Error:', err.name, err.message);
+            // Log specific error type to help debugging
+            console.error(`[Push] ${err.name}: ${err.message}`);
             setError(err.message);
-            return false;
         }
     }, [userId]);
 

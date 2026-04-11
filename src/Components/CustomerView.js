@@ -4,7 +4,7 @@ import { getDeviceFingerprint } from "./helpers/deviceFingerprint";
 import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { messageNotificationSound, queueNotificationSound } from "../App";
-import { useEnhancedNotifications } from './notifications/EnhancedPushNotifications';
+import { useEnhancedNotifications } from "./notifications/EnhancedPushNotifications";
 import { IconChat, IconCheck, IconNext, IconRefresh, IconUpload, IconX } from "./assets/Icon";
 import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
@@ -14,6 +14,8 @@ import axios from "axios";
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
+    
+    const { requestPermission } = useEnhancedNotifications(session?.user?.id);
     const { requestPermission } = useEnhancedNotifications(session?.user?.id);
     
 const isGuest = session && session.user && session.user.is_guest === true;

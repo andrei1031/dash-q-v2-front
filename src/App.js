@@ -80,6 +80,8 @@ function App() {
     const [loadingRole, setLoadingRole] = useState(true);
     const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
     const [authRole, setAuthRole] = useState(null); // Track selected role for AuthForm
+    
+    useEnhancedNotifications(session?.user?.id);
     const [installPrompt, setInstallPrompt] = useState(null); // For PWA install prompt
     useEnhancedNotifications(session?.user?.id); // Call the hook at the top level, it will handle its own logic
     
