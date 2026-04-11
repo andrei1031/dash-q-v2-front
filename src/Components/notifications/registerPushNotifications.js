@@ -1,7 +1,7 @@
 // src/Components/notifications/registerPushNotifications.js
 import apiClient from '../http-commons';
 
-const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY; 
+const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY
 
 export const registerPushNotifications = async (userId) => {
     // 2. Add this safety check to stop the function if the key is missing

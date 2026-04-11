@@ -66,6 +66,8 @@ export const useEnhancedNotifications = (userId) => {
     }, [isSupported]);
 
     // Register service worker for push
+    // src/Components/notifications/EnhancedPushNotifications.js
+
     const registerServiceWorker = useCallback(async () => {
         try {
             const registration = await navigator.serviceWorker.register('/sw.js', {
@@ -75,17 +77,17 @@ export const useEnhancedNotifications = (userId) => {
             console.log('Service Worker registered:', registration);
             setIsRegistered(true);
 
-            // Subscribe to push notifications
+            // CORRECTED: Added the missing 'applicationServerKey' property name
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)
+                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY || '')
             });
 
             // Send subscription to server
             if (userId) {
                 await axios.post(`${API_URL}/notifications/subscribe`, {
                     userId,
-                    subscription: subscription
+                    subscription: subscription // Fixed: Send the raw object
                 });
             }
 
