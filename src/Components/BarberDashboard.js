@@ -406,40 +406,40 @@ useEffect(() => {
     const customerUserId = customer?.profiles?.id;
     const queueId = customer?.id;
 
-    if (customerUserId && queueId) {
-        // 1. Set the IDs immediately to open the window
-        setOpenChatCustomerId(customerUserId);
-        setOpenChatQueueId(queueId);
+        if (customerUserId && queueId) {
+            setOpenChatCustomerId(customerUserId);
+            setOpenChatQueueId(queueId);
 
-        // 2. Fetch History and UPDATE state
-        try {
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .select('sender_id, message, created_at')
-                .eq('queue_entry_id', queueId)
-                .order('created_at', { ascending: true });
-            
-            if (error) throw error;
+            // Fetch History IMMEDIATELY on open
+            try {
+                const { data, error } = await supabase
+                    .from('chat_messages')
+                    .select('sender_id, message, created_at')
+                    .eq('queue_entry_id', queueId)
+                    .order('created_at', { ascending: true });
+                
+                if (error) throw error;
 
-            const formattedHistory = data.map(msg => ({ 
-                senderId: msg.sender_id, 
-                message: msg.message,
-                created_at: msg.created_at
-            }));
-            
-            setChatMessages(prev => ({ 
-                ...prev, 
-                [customerUserId]: formattedHistory 
-            }));
+                // Map results to ensure 'senderId' (camelCase) exists
+                const formattedHistory = data.map(msg => ({ 
+                    senderId: msg.sender_id, 
+                    message: msg.message,
+                    created_at: msg.created_at
+                }));
+                
+                setChatMessages(prev => ({ 
+                    ...prev, 
+                    [customerUserId]: formattedHistory 
+                }));
 
-            // Mark as read
-            await axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
+                // Mark as read on server
+                axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
 
-        } catch (err) { 
-            console.error("Barber failed to fetch history:", err); 
+            } catch (err) { 
+                console.error("Failed to load chat history:", err); 
+            }
         }
-    }
-};
+    };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
 
