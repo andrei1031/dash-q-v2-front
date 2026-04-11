@@ -4,6 +4,7 @@ import { getDeviceFingerprint } from "./helpers/deviceFingerprint";
 import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { messageNotificationSound, queueNotificationSound } from "../App";
+import { useEnhancedNotifications } from "./notifications/EnhancedPushNotifications";
 import { IconChat, IconCheck, IconNext, IconRefresh, IconUpload, IconX } from "./assets/Icon";
 import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
