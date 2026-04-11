@@ -196,7 +196,7 @@ useEffect(() => {
 
                     setQueueDetails(prev => {
                         const incrementBadge = (entry) => {
-                            if (entry && entry.id === newMsg.queue_entry_id) {
+                            if (entry && entry.id.toString() === newMsg.queue_entry_id.toString()) {
                                 console.log(`🔔 New message from ${entry.customer_name}! Incrementing badge.`);
                                 return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
                             }
@@ -655,7 +655,7 @@ useEffect(() => {
                                 <ChatWindow
                                     currentUser_id={session.user.id}
                                     otherUser_id={openChatCustomerId}
-                                    messages={chatMessages[openChatCustomerId] || []}
+                                    messages={chatMessagesFromBarber}
                                     onSendMessage={sendBarberMessage}
                                     isVisible={!!openChatCustomerId}
                                 />
