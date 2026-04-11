@@ -144,10 +144,9 @@ export const CustomerView = ({ session }) => {
         }
     }, []);
 
-    const fetchChatHistory = useCallback(async (queueId) => {
+const fetchChatHistory = useCallback(async (queueId) => {
     if (!queueId) return;
     
-    // 🟢 DEBUG LOG:
     console.log("CUSTOMER: Fetching History for ID:", queueId);
 
     try {
@@ -161,10 +160,36 @@ export const CustomerView = ({ session }) => {
 
         if (data) {
             console.log(`CUSTOMER: Found ${data.length} messages in DB for ID ${queueId}`);
-            setChatMessagesFromBarber(data);
+            
+            // 🟢 MERGE LOGIC: Only add newer messages, preserve realtime ones
+            setChatMessagesFromBarber((prevMessages) => {
+                const normalizedData = data.map(msg => ({
+                    senderId: msg.sender_id || msg.senderId,
+                    message: msg.message,
+                    created_at: msg.created_at
+                })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                // Filter out duplicates and only add messages newer than current latest
+                const latestTime = prevMessages.length > 0 ? 
+                    new Date(prevMessages[prevMessages.length - 1].created_at).getTime() : 0;
+                
+                const newMessages = normalizedData.filter(msg => 
+                    new Date(msg.created_at).getTime() > latestTime
+                );
+                
+                if (newMessages.length > 0) {
+                    console.log(`MERGE: Adding ${newMessages.length} new messages`);
+                    return [...prevMessages, ...newMessages];
+                }
+                
+                console.log('MERGE: No new messages found');
+                return prevMessages;
+            });
         }
-    } catch (err) { console.error("Customer sync error:", err); }
-}, []);
+    } catch (err) { 
+        console.error("Customer sync error:", err); 
+    }
+}, [setChatMessagesFromBarber]);
 
     const handleCloseInstructions = () => {
         localStorage.setItem('hasSeenInstructions_v1', 'true');
@@ -682,11 +707,11 @@ export const CustomerView = ({ session }) => {
         }
     };
 
+    // 🟢 IMPROVED FOCUS HANDLER - now merges properly
     useEffect(() => {
-    const handleFocus = () => {
-            // 🟢 FIX: Use myQueueEntryId instead of openChatQueueId
+        const handleFocus = () => {
             if (myQueueEntryId && isChatOpen) {
-                console.log("Customer returned to tab. Syncing chat history...");
+                console.log("Tab focused - gentle sync (merge only newer)...");
                 fetchChatHistory(myQueueEntryId);
             }
         };
@@ -1054,12 +1079,16 @@ export const CustomerView = ({ session }) => {
     }, [selectedBarberId]);
 
     // Replace the existing chat useEffect in CustomerView.js
+    // 🟢 FIXED CHAT USEFFECT with polling backup
     useEffect(() => { 
-        if (!session?.user?.id || !myQueueEntryId) return;
+        if (!session?.user?.id || !myQueueEntryId || !isChatOpen) return;
 
-        // Fetch initial history once
+        let pollInterval;
+
+        // Initial sync
         fetchChatHistory(myQueueEntryId);
 
+        // Realtime
         const chatChannel = supabase.channel(`customer_chat_realtime_${myQueueEntryId}`) 
             .on(
                 'postgres_changes', 
@@ -1074,14 +1103,18 @@ export const CustomerView = ({ session }) => {
 
                     if (newMsg.sender_id !== session.user.id) {
                         setChatMessagesFromBarber(prev => {
-                            // Prevent duplicates from realtime/refetch collision
-                            if (prev.some(m => m.created_at === newMsg.created_at)) return prev;
-                            
-                            return [...prev, { 
-                                senderId: newMsg.sender_id, // 🟢 Ensure CamelCase
+                            const normalizedMsg = { 
+                                senderId: newMsg.sender_id,
                                 message: newMsg.message,
                                 created_at: newMsg.created_at
-                            }];
+                            };
+                            
+                            // Check exact timestamp match to prevent dupes
+                            if (prev.some(m => m.created_at === normalizedMsg.created_at)) {
+                                return prev;
+                            }
+                            
+                            return [...prev, normalizedMsg];
                         });
                         
                         playSound(messageNotificationSound);
@@ -1090,20 +1123,27 @@ export const CustomerView = ({ session }) => {
                             setHasUnreadFromBarber(true);
                             localStorage.setItem('hasUnreadFromBarber', 'true');
                         } else {
+                            // Mark as read
                             axios.put(`${API_URL}/chat/read`, { 
                                 queueId: myQueueEntryId, 
                                 readerId: session.user.id 
-                            });
+                            }).catch(console.error);
                         }
                     }
                 }
             )
             .subscribe();
 
+        // 🟢 POLLING BACKUP: Every 5s when chat is open
+        pollInterval = setInterval(() => {
+            fetchChatHistory(myQueueEntryId);
+        }, 5000);
+
         return () => {
             supabase.removeChannel(chatChannel);
+            if (pollInterval) clearInterval(pollInterval);
         };
-    }, [session, myQueueEntryId, isChatOpen, fetchChatHistory]); // Dependencies added for stability
+    }, [session?.user?.id, myQueueEntryId, isChatOpen, fetchChatHistory]);
 
     const sendCustomerMessage = async (recipientId, messageText) => {
         if (!messageText.trim()) return;

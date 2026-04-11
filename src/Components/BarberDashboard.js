@@ -133,60 +133,77 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     }, [barberId]);
 
     // Inside BarberDashboard.js
+    // 🟢 ENHANCED REALTIME with polling when chat open
     useEffect(() => {
-    if (!barberId || !supabase) return;
+        if (!barberId || !supabase) return;
 
-    const chatChannel = supabase.channel(`barber_global_chat_listener`)
-        .on(
-    'postgres_changes',
-    { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-    (payload) => {
-        const newMsg = payload.new;
-        if (newMsg.sender_id === session.user.id) return;
+        let pollInterval;
 
-        // 🟢 THE FIX: Always use queue_entry_id as the state key
-        const qId = newMsg.queue_entry_id.toString(); 
+        const chatChannel = supabase.channel(`barber_global_chat_listener`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+                (payload) => {
+                    const newMsg = payload.new;
+                    if (newMsg.sender_id === session.user.id) return;
 
-        setChatMessages(prev => {
-            const currentMsgs = prev[qId] || [];
-            // Prevent duplicates
-            if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
+                    const qId = newMsg.queue_entry_id?.toString();
+                    if (!qId) return;
 
-            return {
-                ...prev,
-                // qId is now a string, matching what openChatQueueId.toString() uses
-                [qId]: [...currentMsgs, {
-                    senderId: newMsg.sender_id,
-                    message: newMsg.message,
-                    created_at: newMsg.created_at
-                }]
-            };
-        });
+                    setChatMessages(prev => {
+                        const currentMsgs = prev[qId] || [];
+                        
+                        // Normalize and check dupe by exact timestamp
+                        const normalizedMsg = {
+                            senderId: newMsg.sender_id,
+                            message: newMsg.message,
+                            created_at: newMsg.created_at
+                        };
+                        
+                        if (currentMsgs.some(m => m.created_at === normalizedMsg.created_at)) {
+                            return prev;
+                        }
 
-        // Badge logic (Compare strings to be safe)
-        if (openChatQueueId?.toString() !== qId.toString()) {
-            setQueueDetails(prev => {
-                const incrementBadge = (entry) => {
-                    if (entry && entry.id.toString() === qId.toString()) {
-                        return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                        return {
+                            ...prev,
+                            [qId]: [...currentMsgs, normalizedMsg]
+                        };
+                    });
+
+                    // Badge only if not current chat
+                    if (openChatQueueId?.toString() !== qId) {
+                        setQueueDetails(prev => {
+                            const incrementBadge = (entry) => {
+                                if (entry?.id?.toString() === qId) {
+                                    return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                                }
+                                return entry;
+                            };
+                            return {
+                                ...prev,
+                                inProgress: incrementBadge(prev.inProgress),
+                                upNext: incrementBadge(prev.upNext),
+                                waiting: prev.waiting.map(incrementBadge)
+                            };
+                        });
+                        playSound(messageNotificationSound);
                     }
-                    return entry;
-                };
-                return {
-                    ...prev,
-                    inProgress: incrementBadge(prev.inProgress),
-                    upNext: incrementBadge(prev.upNext),
-                    waiting: prev.waiting.map(incrementBadge)
-                };
-            });
-            playSound(messageNotificationSound);
-        }
-    }
-)
-        .subscribe();
+                }
+            )
+            .subscribe();
 
-    return () => { supabase.removeChannel(chatChannel); };
-}, [barberId, openChatQueueId, session.user.id]);
+        // 🟢 POLLING when specific chat open
+        if (openChatQueueId) {
+            pollInterval = setInterval(() => {
+                openChat({ id: openChatQueueId });
+            }, 5000);
+        }
+
+        return () => { 
+            supabase.removeChannel(chatChannel); 
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    }, [barberId, openChatQueueId, session.user.id]);
 
     const sendBarberMessage = async (recipientId, messageText) => {
     if (!messageText.trim() || !openChatQueueId) return;
@@ -398,10 +415,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
  * @param {Object} customer - The customer object from the queue entry
  */
 const openChat = async (customer) => {
-    const qId = customer?.id;
+    const qId = customer?.id?.toString();
     if (!qId) return;
 
-    // 🟢 DEBUG LOG: Tignan natin sa Console (F12) kung anong ID ito
     console.log("BARBER: Opening Chat Room ID:", qId);
 
     setOpenChatQueueId(qId);
@@ -418,12 +434,38 @@ const openChat = async (customer) => {
 
         if (data) {
             console.log(`BARBER: Found ${data.length} messages in DB for ID ${qId}`);
-            setChatMessages(prev => ({
-                ...prev,
-                [qId.toString()]: data 
-            }));
+            
+            // 🟢 MERGE LOGIC: Preserve any realtime messages, only add from history what's missing/newer
+            setChatMessages(prev => {
+                const normalizedData = data.map(msg => ({
+                    senderId: msg.sender_id || msg.senderId,
+                    message: msg.message,
+                    created_at: msg.created_at
+                })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                const existing = prev[qId] || [];
+                const latestTime = existing.length > 0 ? 
+                    new Date(existing[existing.length - 1].created_at).getTime() : 0;
+                
+                // Merge: keep existing + add newer from history
+                const newMessages = normalizedData.filter(msg => 
+                    !existing.some(existingMsg => existingMsg.created_at === msg.created_at) &&
+                    new Date(msg.created_at).getTime() > latestTime
+                );
+                
+                if (newMessages.length > 0) {
+                    console.log(`BARBER MERGE: Adding ${newMessages.length} new messages`);
+                }
+                
+                return {
+                    ...prev,
+                    [qId]: [...existing, ...newMessages]
+                };
+            });
         }
-    } catch (err) { console.error("History fetch failed:", err); }
+    } catch (err) { 
+        console.error("History fetch failed:", err); 
+    }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
