@@ -36,29 +36,14 @@ export const ChatWindow = ({ currentUser_id, queueId, messages = [], onSendMessa
             <div className="message-list">
                 {messages.map((msg, index) => {
                     // FIX: Changed from msg.senderId to msg.sender_id to match Supabase
-                    const isMe = msg.sender_id === currentUser_id;
+                    const isMe = msg.senderId === currentUser_id;
                     
                     return (
-                        <div 
-                            key={msg.id || index} 
-                            className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}
-                        >
-                            <div 
-                                className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
-                                style={{ 
-                                    whiteSpace: 'pre-wrap', 
-                                    wordBreak: 'break-word', 
-                                    overflowWrap: 'break-word',
-                                    maxWidth: '85%', 
-                                    padding: '10px 14px', 
-                                    borderRadius: '18px', 
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                    lineHeight: '1.4'
-                                }}
-                            >
+                        <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
+                            <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
                                 {msg.message}
                             </div>
-                            <span className="message-timestamp">
+                                            <span className="message-timestamp">
                                 {msg.created_at 
                                     ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                                     : ''}

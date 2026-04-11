@@ -306,9 +306,6 @@ export const CustomerView = ({ session }) => {
                                 localStorage.removeItem('myQueueEntryId');
                                 localStorage.removeItem('joinedBarberId');
                                 localStorage.removeItem('stickyModal');
-                            } else {
-                                setQueueMessage("Your queue entry was removed.");
-                                handleReturnToJoin(false); 
                             }
                         } catch (error) {
                             console.error("[Catcher] Error checking event:", error.message);
