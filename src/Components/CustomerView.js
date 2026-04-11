@@ -2033,12 +2033,13 @@ export const CustomerView = ({ session }) => {
                             {referenceImageUrl && referenceImageUrl !== myQueueEntry?.reference_image_url && <p className="success-message small">New photo uploaded.</p>}
                         </div>)}
                         <div className="chat-section">
-                            {!isChatOpen && myQueueEntryId && !isGuest && (<button onClick={() => {
+                            {!isChatOpen && myQueueEntryId && !isGuest && (
+                                <button onClick={async () => {
                                 if (currentChatTargetBarberUserId) {
-                                    fetchChatHistory(myQueueEntryId);
+                                    await fetchChatHistory(myQueueEntryId);
                                     setIsChatOpen(true);
                                     setHasUnreadFromBarber(false);
-                                    axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+                                    await axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                                 } else { console.error("Barber user ID missing."); setMessage("Cannot initiate chat."); }
                             }} className="btn btn-secondary btn-full-width btn-icon-label chat-toggle-button">
                                 <IconChat />Chat with Barber{hasUnreadFromBarber && (<span className="notification-badge"></span>)}</button>)}
