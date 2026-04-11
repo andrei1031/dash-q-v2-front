@@ -11,6 +11,7 @@ import { ThemeProvider } from './Components/Providers/ThemeProvider';
 // COMPONENT
 import { LandingPage } from './Components/LandingPage';
 
+import { useEnhancedNotifications } from './Components/notifications/EnhancedPushNotifications';
 
 // HTTP-COMMONS (apiClient used directly)
 // SUPABASE
@@ -80,6 +81,7 @@ function App() {
     const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
     const [authRole, setAuthRole] = useState(null); // Track selected role for AuthForm
     const [installPrompt, setInstallPrompt] = useState(null); // For PWA install prompt
+    const { registerServiceWorker } = useEnhancedNotifications(session?.user?.id); // Get the registration function from our custom hook
     
     // --- NEW STATE: Controls Landing Page visibility ---
     const [showLanding, setShowLanding] = useState(true); 
@@ -274,6 +276,34 @@ function App() {
 
         return () => subscription?.unsubscribe();
     }, [checkUserRole]);
+
+    useEffect(() => {
+        const initSession = async () => {
+            const { data: { session: existingSession } } = await supabase.auth.getSession();
+            
+            if (existingSession) {
+                setSession(existingSession);
+                checkUserRole(existingSession.user);
+
+                // 2. Use the function from the hook, NOT the hook itself
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    registerServiceWorker(); 
+                }
+            }
+            setLoadingRole(false);
+        };
+        initSession();
+    }, [checkUserRole, registerServiceWorker]); // Add registerServiceWorker to dependency array
+
+    useEffect(() => {
+        const handleRegistration = async () => {
+            if (session?.user?.id && Notification.permission === 'granted') {
+                // 3. Use the function here as well
+                await registerServiceWorker();
+            }
+        };
+        handleRegistration();
+    }, [session, registerServiceWorker]);
 
     useEffect(() => {
         if (!supabase?.auth) {

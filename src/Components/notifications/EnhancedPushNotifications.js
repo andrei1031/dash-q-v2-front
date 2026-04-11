@@ -187,6 +187,7 @@ export const useEnhancedNotifications = (userId) => {
         isRegistered,
         error,
         requestPermission,
+        registerServiceWorker,
         sendLocalNotification,
         playNotificationSound,
         vibrate,

@@ -14,6 +14,7 @@ import axios from "axios";
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
+    const { registerServiceWorker } = useEnhancedNotifications(session?.user?.id);
     
 const isGuest = session && session.user && session.user.is_guest === true;
 console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
@@ -656,6 +657,12 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
     // --- Effects ---
     
+    useEffect(() => {
+        if (session?.user?.id && Notification.permission === 'granted') {
+             registerServiceWorker();
+        }
+    }, [session, registerServiceWorker]);
+
     useEffect(() => {
     // Only run if we are already in a queue and waiting
     if (!myQueueEntryId || !joinedBarberId) return;
