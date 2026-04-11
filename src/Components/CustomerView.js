@@ -1059,20 +1059,18 @@ export const CustomerView = ({ session }) => {
                     const newMsg = payload.new;
 
                     // 1. Only add if it's NOT from the customer (prevents local echoing)
-                    if (newMsg.sender_id !== session.user.id) {
-                        setChatMessagesFromBarber(prev => {
-                            // 2. Prevent duplicate messages if re-fetch and realtime collide
-                            const isDuplicate = prev.some(m => 
-                                m.created_at === newMsg.created_at && m.message === newMsg.message
-                            );
-                            if (isDuplicate) return prev;
-                            
-                            return [...prev, { 
-                                senderId: newMsg.sender_id, 
-                                message: newMsg.message,
-                                created_at: newMsg.created_at
-                            }];
-                        });
+                   if (newMsg.sender_id !== session.user.id) {
+                    setChatMessagesFromBarber(prev => {
+                        // Prevent duplicates
+                        const isDuplicate = prev.some(m => m.created_at === newMsg.created_at);
+                        if (isDuplicate) return prev;
+                        
+                        return [...prev, { 
+                            senderId: newMsg.sender_id, // 👈 Map to CamelCase
+                            message: newMsg.message,
+                            created_at: newMsg.created_at
+                        }];
+                    });
                         
                         playSound(messageNotificationSound);
                         

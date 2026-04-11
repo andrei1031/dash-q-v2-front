@@ -4,11 +4,11 @@ import { IconSend } from "./assets/Icon";
 /**
  * ChatWindow Component
  * @param {string} currentUser_id - The ID of the person currently logged in.
- * @param {string} queueId - The ID of the specific queue entry (used for routing messages).
- * @param {Array} messages - Array of message objects from the database.
+ * @param {string} otherUser_id - The ID of the person you are chatting with.
+ * @param {Array} messages - Array of message objects [{ senderId, message, created_at }].
  * @param {function} onSendMessage - Handler to trigger the backend API call.
  */
-export const ChatWindow = ({ currentUser_id, queueId, messages = [], onSendMessage }) => {
+export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSendMessage }) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
 
@@ -23,11 +23,9 @@ export const ChatWindow = ({ currentUser_id, queueId, messages = [], onSendMessa
         if (!newMessage.trim()) return;
 
         if (onSendMessage) {
-            // Ensure we pass the queueId so the backend knows which chat this belongs to
-            onSendMessage(queueId, newMessage);
+            // Passing otherUser_id as the first argument to match your view handlers
+            onSendMessage(otherUser_id, newMessage);
             setNewMessage('');
-        } else {
-            console.warn("[ChatWindow] Cannot send message, onSendMessage handler is missing.");
         }
     };
     
@@ -35,15 +33,30 @@ export const ChatWindow = ({ currentUser_id, queueId, messages = [], onSendMessa
         <div className="chat-window">
             <div className="message-list">
                 {messages.map((msg, index) => {
-                    // FIX: Changed from msg.senderId to msg.sender_id to match Supabase
+                    // 🟢 FIX: Use 'senderId' (CamelCase) to match the mapping in CustomerView/BarberDashboard
                     const isMe = msg.senderId === currentUser_id;
                     
                     return (
-                        <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
-                            <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
+                        <div 
+                            key={index} 
+                            className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}
+                        >
+                            <div 
+                                className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
+                                style={{ 
+                                    whiteSpace: 'pre-wrap', 
+                                    wordBreak: 'break-word', 
+                                    overflowWrap: 'break-word',
+                                    maxWidth: '85%', 
+                                    padding: '10px 14px', 
+                                    borderRadius: '18px', 
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                    lineHeight: '1.4'
+                                }}
+                            >
                                 {msg.message}
                             </div>
-                                            <span className="message-timestamp">
+                            <span className="message-timestamp">
                                 {msg.created_at 
                                     ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                                     : ''}
