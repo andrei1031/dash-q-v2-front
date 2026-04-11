@@ -428,29 +428,25 @@ const openChat = async (customer) => {
         setOpenChatCustomerId(customerUserId);
 
         try {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('chat_messages')
                 .select('sender_id, message, created_at')
                 .eq('queue_entry_id', queueId)
                 .order('created_at', { ascending: true });
             
-            if (data) {
-                const formattedHistory = data.map(msg => ({ 
-                    senderId: msg.sender_id, 
-                    message: msg.message,
-                    created_at: msg.created_at
-                }));
-                
-                // 🟢 FIX: Merge history into the queueId key
-                setChatMessages(prev => {
-                    const existing = prev[queueId] || [];
-                    const merged = [...existing, ...formattedHistory].filter((msg, idx, self) =>
-                        idx === self.findIndex((m) => m.created_at === msg.created_at)
-                    ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            if (error) throw error;
 
-                    return { ...prev, [queueId]: merged };
-                });
-            }
+            const history = data.map(msg => ({ 
+                senderId: msg.sender_id, 
+                message: msg.message,
+                created_at: msg.created_at
+            }));
+            
+            // 🟢 FIX: Store history using the Queue ID as the key
+            setChatMessages(prev => ({ 
+                ...prev, 
+                [queueId]: history 
+            }));
 
             axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
         } catch (err) { console.error("History fetch failed:", err); }
