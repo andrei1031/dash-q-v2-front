@@ -403,66 +403,43 @@ useEffect(() => {
     };
 
     const openChat = async (customer) => {
-        const customerUserId = customer?.profiles?.id;
-        const queueId = customer?.id;
+    const customerUserId = customer?.profiles?.id;
+    const queueId = customer?.id;
 
-        if (customerUserId && queueId) {
-            console.log(`[openChat] Opening chat for ${customerUserId} on queue ${queueId}`);
-            setOpenChatCustomerId(customerUserId);
-            setOpenChatQueueId(queueId);
+    if (customerUserId && queueId) {
+        setOpenChatCustomerId(customerUserId);
+        setOpenChatQueueId(queueId);
 
-            axios.put(`${API_URL}/chat/read`, { 
-                queueId: queueId, 
-                readerId: session.user.id 
-            }).catch(err => console.error("Failed to mark messages as read:", err));
+        // Fetch History IMMEDIATELY on open
+        try {
+            const { data, error } = await supabase
+                .from('chat_messages')
+                .select('sender_id, message, created_at')
+                .eq('queue_entry_id', queueId)
+                .order('created_at', { ascending: true });
+            
+            if (error) throw error;
 
-            setQueueDetails(prev => {
-                const updateEntry = (entry) => {
-                    if (entry && entry.id === queueId) {
-                        return { ...entry, unread_count: 0 };
-                    }
-                    return entry;
-                };
+            // Map results to ensure 'senderId' (camelCase) exists
+            const formattedHistory = data.map(msg => ({ 
+                senderId: msg.sender_id, 
+                message: msg.message,
+                created_at: msg.created_at
+            }));
+            
+            setChatMessages(prev => ({ 
+                ...prev, 
+                [customerUserId]: formattedHistory 
+            }));
 
-                return {
-                    ...prev,
-                    inProgress: updateEntry(prev.inProgress),
-                    upNext: updateEntry(prev.upNext),
-                    waiting: prev.waiting.map(updateEntry)
-                };
-            });
+            // Mark as read on server
+            axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
 
-            const fetchHistory = async () => {
-                try {
-                    const { data, error } = await supabase
-                        .from('chat_messages')
-                        .select('sender_id, message, created_at')
-                        .eq('queue_entry_id', queueId)
-                        .order('created_at', { ascending: true });
-                    
-                    if (error) throw error;
-
-                    const formattedHistory = data.map(msg => ({ 
-                        senderId: msg.sender_id, 
-                        message: msg.message,
-                        created_at: msg.created_at
-                    }));
-                    
-                    setChatMessages(prev => ({ 
-                        ...prev, 
-                        [customerUserId]: formattedHistory 
-                    }));
-                } catch (err) { 
-                    console.error("Barber failed to fetch history:", err); 
-                }
-            };
-            fetchHistory();
-
-        } else { 
-            console.error("Cannot open chat: Customer user ID or Queue ID missing.", customer); 
-            setError("Could not get customer details."); 
+        } catch (err) { 
+            console.error("Failed to load chat history:", err); 
         }
-    };
+    }
+};
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
 

@@ -1,29 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { IconSend } from "./assets/Icon";
 
-/**
- * ChatWindow Component
- * @param {string} currentUser_id - The ID of the person currently logged in.
- * @param {string} otherUser_id - The ID of the person you are chatting with.
- * @param {Array} messages - Array of message objects [{ senderId, message, created_at }].
- * @param {function} onSendMessage - Handler to trigger the backend API call.
- */
 export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSendMessage }) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
 
-    // Auto-scroll to the bottom when new messages arrive
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     const handleSendMessage = (e) => {
         e.preventDefault();
-        
-        if (!newMessage.trim()) return;
-
-        if (onSendMessage) {
-            // Passing otherUser_id as the first argument to match your view handlers
+        if (newMessage.trim() && onSendMessage) {
             onSendMessage(otherUser_id, newMessage);
             setNewMessage('');
         }
@@ -32,41 +20,28 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
     return (
         <div className="chat-window">
             <div className="message-list">
-                {messages.map((msg, index) => {
-                    // 🟢 FIX: Use 'senderId' (CamelCase) to match the mapping in CustomerView/BarberDashboard
-                    const isMe = msg.senderId === currentUser_id;
-                    
-                    return (
-                        <div 
-                            key={index} 
-                            className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}
-                        >
-                            <div 
-                                className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
-                                style={{ 
-                                    whiteSpace: 'pre-wrap', 
-                                    wordBreak: 'break-word', 
-                                    overflowWrap: 'break-word',
-                                    maxWidth: '85%', 
-                                    padding: '10px 14px', 
-                                    borderRadius: '18px', 
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                    lineHeight: '1.4'
-                                }}
-                            >
-                                {msg.message}
+                {messages.length === 0 ? (
+                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px' }}>No messages yet.</p>
+                ) : (
+                    messages.map((msg, index) => {
+                        // 🟢 ROBUST FIX: Check both naming conventions
+                        const msgSenderId = msg.senderId || msg.sender_id;
+                        const isMe = msgSenderId === currentUser_id;
+                        
+                        return (
+                            <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
+                                <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
+                                    {msg.message}
+                                </div>
+                                <span className="message-timestamp">
+                                    {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                </span>
                             </div>
-                            <span className="message-timestamp">
-                                {msg.created_at 
-                                    ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                                    : ''}
-                            </span>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                )}
                 <div ref={messagesEndRef} />
             </div>
-
             <form onSubmit={handleSendMessage} className="message-input-form">
                 <input
                     type="text"
@@ -75,11 +50,7 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
                     placeholder="Type a message..."
                     autoComplete="off"
                 />
-                <button 
-                    type="submit" 
-                    disabled={!onSendMessage || !newMessage.trim()} 
-                    className="btn btn-icon btn-send"
-                >
+                <button type="submit" disabled={!onSendMessage || !newMessage.trim()} className="btn btn-icon btn-send">
                     <IconSend />
                 </button>
             </form>
