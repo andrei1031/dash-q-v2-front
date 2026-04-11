@@ -401,24 +401,31 @@ const openChat = async (customer) => {
     const qId = customer?.id;
     if (!qId) return;
 
+    // 🟢 Siguraduhin na String ang ID para sa state key
+    const stringQId = qId.toString();
+
     setOpenChatQueueId(qId);
     setOpenChatCustomerId(customer?.profiles?.id);
 
     try {
-        const { data } = await supabase
+        // Magdagdag ng timestamp para iwasan ang browser caching
+        const { data, error } = await supabase
             .from('chat_messages')
             .select('*')
             .eq('queue_entry_id', qId)
             .order('created_at', { ascending: true });
         
+        if (error) throw error;
+
         if (data) {
+            console.log(`[openChat] Loaded ${data.length} messages for Queue ${stringQId}`);
             setChatMessages(prev => ({
                 ...prev,
-                [qId.toString()]: data // 🟢 Gamitin ang Queue ID as String key
+                [stringQId]: data // 🟢 I-overwrite ang luma ng bagong history
             }));
         }
         axios.put(`${API_URL}/chat/read`, { queueId: qId, readerId: session.user.id });
-    } catch (err) { console.error("Barber history fetch failed:", err); }
+    } catch (err) { console.error("History fetch failed:", err); }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
