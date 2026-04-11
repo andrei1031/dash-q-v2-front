@@ -176,36 +176,40 @@ useEffect(() => {
     if (!barberId || !supabase) return;
 
     const chatChannel = supabase.channel(`barber_global_chat_listener`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
-        const newMsg = payload.new;
-        if (newMsg.sender_id === session.user.id) return;
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+            (payload) => {
+                const newMsg = payload.new;
+                if (newMsg.sender_id === session.user.id) return;
 
-        const qId = newMsg.queue_entry_id; // 👈 Use this as the key
+                const qId = newMsg.queue_entry_id;
 
-        setChatMessages(prev => {
-            const currentMsgs = prev[qId] || [];
-            if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
-            return { 
-                ...prev, 
-                [qId]: [...currentMsgs, { 
-                    senderId: newMsg.sender_id, 
-                    message: newMsg.message, 
-                    created_at: newMsg.created_at 
-                }] 
-            };
-        });
+                // 🟢 FIX: Save message to state immediately, even if window is closed
+                setChatMessages(prev => {
+                    const currentMsgs = prev[qId] || [];
+                    // Prevent duplicates
+                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
 
-                // 🟢 2. Notification Badge Logic (Always type-safe)
+                    return { 
+                        ...prev, 
+                        [qId]: [...currentMsgs, { 
+                            senderId: newMsg.sender_id, 
+                            message: newMsg.message, 
+                            created_at: newMsg.created_at 
+                        }] 
+                    };
+                });
+
+                // Handle badge updates
                 if (openChatQueueId?.toString() !== qId.toString()) {
                     setQueueDetails(prev => {
                         const incrementBadge = (entry) => {
-                            // FIX: Compare as strings to ensure badge appears
                             if (entry && entry.id.toString() === qId.toString()) {
                                 return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
                             }
                             return entry;
                         };
-
                         return {
                             ...prev,
                             inProgress: incrementBadge(prev.inProgress),
@@ -214,9 +218,6 @@ useEffect(() => {
                         };
                     });
                     playSound(messageNotificationSound);
-                } else {
-                    // If chat is open, mark as read
-                    axios.put(`${API_URL}/chat/read`, { queueId: qId, readerId: session.user.id });
                 }
             }
         )
@@ -226,35 +227,28 @@ useEffect(() => {
 }, [barberId, openChatQueueId, session.user.id]);
 
     const sendBarberMessage = async (recipientId, messageText) => {
-    // 🟢 FIX: Ensure we have the Queue ID before attempting to update state
     if (!messageText.trim() || !openChatQueueId) return;
 
-    // 1. Optimistic Update: Save using openChatQueueId as the key
+    // 🟢 FIX: Save using openChatQueueId
     setChatMessages(prev => {
         const msgs = prev[openChatQueueId] || [];
         return { 
             ...prev, 
-            [openChatQueueId]: [
-                ...msgs, 
-                { 
-                    senderId: session.user.id, 
-                    message: messageText, 
-                    created_at: new Date().toISOString() 
-                }
-            ] 
+            [openChatQueueId]: [...msgs, { 
+                senderId: session.user.id, 
+                message: messageText, 
+                created_at: new Date().toISOString() 
+            }] 
         };
     });
 
     try {
-        // 2. Send to backend using the queue context
         await axios.post(`${API_URL}/chat/send`, {
             senderId: session.user.id,
             queueId: openChatQueueId,
             message: messageText
         });
-    } catch (error) {
-        console.error("Failed to send barber message:", error);
-    }
+    } catch (error) { console.error("Send failed:", error); }
 };
 
     useEffect(() => {
@@ -426,42 +420,40 @@ useEffect(() => {
  * @param {Object} customer - The customer object from the queue entry
  */
 const openChat = async (customer) => {
-    const customerUserId = customer?.profiles?.id;
     const queueId = customer?.id;
+    const customerUserId = customer?.profiles?.id;
 
-    if (customerUserId && queueId) {
-        setOpenChatCustomerId(customerUserId);
+    if (queueId && customerUserId) {
         setOpenChatQueueId(queueId);
+        setOpenChatCustomerId(customerUserId);
 
-        // Fetch History IMMEDIATELY on open
         try {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('chat_messages')
                 .select('sender_id, message, created_at')
                 .eq('queue_entry_id', queueId)
                 .order('created_at', { ascending: true });
             
-            if (error) throw error;
+            if (data) {
+                const formattedHistory = data.map(msg => ({ 
+                    senderId: msg.sender_id, 
+                    message: msg.message,
+                    created_at: msg.created_at
+                }));
+                
+                // 🟢 FIX: Merge history into the queueId key
+                setChatMessages(prev => {
+                    const existing = prev[queueId] || [];
+                    const merged = [...existing, ...formattedHistory].filter((msg, idx, self) =>
+                        idx === self.findIndex((m) => m.created_at === msg.created_at)
+                    ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-            // Map results to ensure 'senderId' (camelCase) exists for the ChatWindow
-            const formattedHistory = data.map(msg => ({ 
-                senderId: msg.sender_id, 
-                message: msg.message,
-                created_at: msg.created_at
-            }));
-            
-            // 🟢 FIX: Store history using queueId as the key
-            setChatMessages(prev => ({ 
-                ...prev, 
-                [queueId]: formattedHistory 
-            }));
+                    return { ...prev, [queueId]: merged };
+                });
+            }
 
-            // Mark as read on server
             axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
-
-        } catch (err) { 
-            console.error("Barber failed to load chat history:", err); 
-        }
+        } catch (err) { console.error("History fetch failed:", err); }
     }
 };
 
@@ -678,9 +670,8 @@ const openChat = async (customer) => {
                                 <p className="chat-warning">Hey there! Just a friendly nudge to keep the chat open even when your phone’s screen is off.</p>
                                 <ChatWindow
                                     currentUser_id={session.user.id}
-                                    // 🟢 FIX: Pass openChatQueueId as the source of truth
-                                    queueId={openChatQueueId} 
-                                    // 🟢 FIX: Retrieve messages using the queueId key
+                                    otherUser_id={openChatCustomerId}
+                                    // 🟢 FIX: Retrieve from chatMessages using openChatQueueId
                                     messages={chatMessages[openChatQueueId] || []} 
                                     onSendMessage={sendBarberMessage}
                                 />
