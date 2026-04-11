@@ -24,7 +24,7 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
                     <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px' }}>No messages yet.</p>
                 ) : (
                     messages.map((msg, index) => {
-                    
+                    // 🟢 Dito natin sinisiguro na kahit 'senderId' o 'sender_id' ang gamit, gagana siya
                     const effectiveSenderId = msg.senderId || msg.sender_id;
                     const isMe = effectiveSenderId === currentUser_id;
                     

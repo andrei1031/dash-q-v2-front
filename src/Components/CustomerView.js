@@ -615,12 +615,12 @@ export const CustomerView = ({ session }) => {
             }, (payload) => {
                 const newMsg = payload.new;
 
-                // Huwag i-add kung galing sa sarili (kasi handled na ng optimistic update)
+                // Huwag i-add kung ikaw ang nag-send (optimistic update handle na 'to)
                 if (newMsg.sender_id !== session.user.id) {
                     setChatMessagesFromBarber(prev => {
-                        // Check kung existing na para iwas duplicate
+                        // Iwas duplicate pag-refresh
                         if (prev.some(m => m.created_at === newMsg.created_at)) return prev;
-                        return [...prev, newMsg]; // 🟢 I-save ang buong payload (nandito na ang sender_id)
+                        return [...prev, newMsg];
                     });
 
                     if (!isChatOpen) {

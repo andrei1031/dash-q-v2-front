@@ -414,10 +414,11 @@ const openChat = async (customer) => {
         if (data) {
             setChatMessages(prev => ({
                 ...prev,
-                [qId.toString()]: data // 🟢 Laging string ang key para walang mismatch
+                [qId.toString()]: data // 🟢 Gamitin ang Queue ID as String key
             }));
         }
-    } catch (err) { console.error(err); }
+        axios.put(`${API_URL}/chat/read`, { queueId: qId, readerId: session.user.id });
+    } catch (err) { console.error("Barber history fetch failed:", err); }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
@@ -634,8 +635,7 @@ const openChat = async (customer) => {
                                 <ChatWindow
                                     currentUser_id={session.user.id}
                                     otherUser_id={openChatCustomerId}
-                                    // 🟢 FIX: Pull messages using the queue ID key
-                                    messages={chatMessages[openChatQueueId?.toString()] || []} 
+                                    messages={chatMessages[openChatQueueId?.toString()] || []} // 🟢 String conversion
                                     onSendMessage={sendBarberMessage}
                                 />
                                 <button onClick={closeChat} className="btn btn-secondary btn-full-width">Close Chat</button>
