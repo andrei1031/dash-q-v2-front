@@ -256,7 +256,7 @@ function App() {
                 if (Notification.permission === 'granted') {
                     // Only register if we ALREADY have permission. 
                     // NEVER ask for permission here (it crashes mobile).
-                    useEnhancedNotifications(existingSession.user.id);
+                    registerServiceWorker();
                 }
             }
         };

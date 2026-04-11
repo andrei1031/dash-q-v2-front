@@ -1538,13 +1538,11 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         onClick={() => {
                             Notification.requestPermission().then(perm => {
                                 if (perm === 'granted') {
-                                    useEnhancedNotifications(session.user.id);
+                                    registerServiceWorker(); // Call the function here
                                     alert("Notifications Enabled!");
                                 }
                             });
                         }} 
-                        className="btn btn-primary"
-                        style={{fontSize: '0.8rem', padding: '4px 8px'}}
                     >
                         Enable
                     </button>
