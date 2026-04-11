@@ -343,7 +343,7 @@ function App() {
                 // To prevent mobile UI crashes, we only register if permission is already granted
                 if (Notification.permission === 'granted') {
                     console.log("[Push] Permission already granted, registering...");
-                    await useEnhancedNotifications(session.user.id);
+                    await registerServiceWorker(session.user.id);
                 } 
                 // If permission is 'default', the user hasn't been asked yet.
                 // You may want to trigger a custom UI modal before calling Notification.requestPermission()
