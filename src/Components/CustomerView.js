@@ -4,7 +4,7 @@ import { getDeviceFingerprint } from "./helpers/deviceFingerprint";
 import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { messageNotificationSound, queueNotificationSound } from "../App";
-import { registerPushNotifications } from "./notifications/registerPushNotifications";
+import { useEnhancedNotifications } from "./notifications/useEnhancedNotifications";
 import { IconChat, IconCheck, IconNext, IconRefresh, IconUpload, IconX } from "./assets/Icon";
 import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
@@ -1531,7 +1531,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         onClick={() => {
                             Notification.requestPermission().then(perm => {
                                 if (perm === 'granted') {
-                                    registerPushNotifications(session.user.id);
+                                    useEnhancedNotifications(session.user.id);
                                     alert("Notifications Enabled!");
                                 }
                             });
