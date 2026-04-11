@@ -655,7 +655,7 @@ useEffect(() => {
                                 <ChatWindow
                                     currentUser_id={session.user.id}
                                     otherUser_id={openChatCustomerId}
-                                    messages={chatMessagesFromBarber}
+                                    messages={chatMessages[openChatCustomerId] || []}
                                     onSendMessage={sendBarberMessage}
                                     isVisible={!!openChatCustomerId}
                                 />
