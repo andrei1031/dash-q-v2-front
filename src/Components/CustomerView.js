@@ -1058,32 +1058,28 @@ export const CustomerView = ({ session }) => {
                 (payload) => {
                     const newMsg = payload.new;
 
-                    // 1. Only add if it's NOT from the customer (prevents local echoing)
-                   if (newMsg.sender_id !== session.user.id) {
-                    setChatMessagesFromBarber(prev => {
-                        // Prevent duplicates
-                        const isDuplicate = prev.some(m => m.created_at === newMsg.created_at);
-                        if (isDuplicate) return prev;
-                        
-                        return [...prev, { 
-                            senderId: newMsg.sender_id, // 👈 Map to CamelCase
-                            message: newMsg.message,
-                            created_at: newMsg.created_at
-                        }];
-                    });
+                    if (newMsg.sender_id !== session.user.id) {
+                        setChatMessagesFromBarber(prev => {
+                            // Prevent duplicates from realtime/refetch collision
+                            if (prev.some(m => m.created_at === newMsg.created_at)) return prev;
+                            
+                            return [...prev, { 
+                                senderId: newMsg.sender_id, // 🟢 Ensure CamelCase
+                                message: newMsg.message,
+                                created_at: newMsg.created_at
+                            }];
+                        });
                         
                         playSound(messageNotificationSound);
                         
-                        // 3. Handle badge vs immediate read
                         if (!isChatOpen) {
                             setHasUnreadFromBarber(true);
                             localStorage.setItem('hasUnreadFromBarber', 'true');
                         } else {
-                            // If chat is open, immediately tell the server it's read
                             axios.put(`${API_URL}/chat/read`, { 
                                 queueId: myQueueEntryId, 
                                 readerId: session.user.id 
-                            }).catch(() => {});
+                            });
                         }
                     }
                 }

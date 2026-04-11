@@ -173,31 +173,42 @@ useEffect(() => {
 }, [openChatQueueId, openChatCustomerId, session.user.id]);
 
     useEffect(() => {
-        if (!barberId || !supabase) return;
+    if (!barberId || !supabase) return;
 
-        console.log("🎧 Listening for incoming customer messages...");
+    const chatChannel = supabase.channel(`barber_global_chat_listener`)
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+            (payload) => {
+                const newMsg = payload.new;
+                
+                // Ignore my own messages
+                if (newMsg.sender_id === session.user.id) return;
 
-        const chatChannel = supabase.channel(`barber_global_chat_listener`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-                (payload) => {
-                    const newMsg = payload.new;
+                // 🟢 FIX: Index messages by queue_entry_id so Admin replies show up here too
+                const qId = newMsg.queue_entry_id;
 
-                    if (newMsg.sender_id === session.user.id) return;
+                setChatMessages(prev => {
+                    const currentMsgs = prev[qId] || [];
+                    // Prevent duplicates
+                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
 
-                    if (openChatQueueId === newMsg.queue_entry_id) {
-                        axios.put(`${API_URL}/chat/read`, { 
-                            queueId: newMsg.queue_entry_id, 
-                            readerId: session.user.id 
-                        });
-                        return;
-                    }
+                    return { 
+                        ...prev, 
+                        [qId]: [...currentMsgs, { 
+                            senderId: newMsg.sender_id, 
+                            message: newMsg.message, 
+                            created_at: newMsg.created_at 
+                        }] 
+                    };
+                });
 
+                // 🟢 2. Notification Badge Logic (Always type-safe)
+                if (openChatQueueId?.toString() !== qId.toString()) {
                     setQueueDetails(prev => {
                         const incrementBadge = (entry) => {
-                            if (entry && entry.id.toString() === newMsg.queue_entry_id.toString()) {
-                                console.log(`🔔 New message from ${entry.customer_name}! Incrementing badge.`);
+                            // FIX: Compare as strings to ensure badge appears
+                            if (entry && entry.id.toString() === qId.toString()) {
                                 return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
                             }
                             return entry;
@@ -210,33 +221,38 @@ useEffect(() => {
                             waiting: prev.waiting.map(incrementBadge)
                         };
                     });
-
                     playSound(messageNotificationSound);
+                } else {
+                    // If chat is open, mark as read
+                    axios.put(`${API_URL}/chat/read`, { queueId: qId, readerId: session.user.id });
                 }
-            )
-            .subscribe();
+            }
+        )
+        .subscribe();
 
-        return () => { supabase.removeChannel(chatChannel); };
-    }, [barberId, openChatQueueId, session.user.id]);
+    return () => { supabase.removeChannel(chatChannel); };
+}, [barberId, openChatQueueId, session.user.id]);
 
     const sendBarberMessage = async (recipientId, messageText) => {
-        if (!messageText.trim() || !openChatQueueId) return;
+    if (!messageText.trim() || !openChatQueueId) return;
 
-        setChatMessages(prev => {
-            const msgs = prev[recipientId] || [];
-            return { ...prev, [recipientId]: [...msgs, { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() }] };
+    // Optimistic Update using queue ID
+    setChatMessages(prev => ({
+        ...prev,
+        [openChatQueueId]: [
+            ...(prev[openChatQueueId] || []),
+            { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() }
+        ]
+    }));
+
+    try {
+        await axios.post(`${API_URL}/chat/send`, {
+            senderId: session.user.id,
+            queueId: openChatQueueId,
+            message: messageText
         });
-
-        try {
-            await axios.post(`${API_URL}/chat/send`, {
-                senderId: session.user.id,
-                queueId: openChatQueueId,
-                message: messageText
-            });
-        } catch (error) {
-            console.error("Failed to send:", error);
-        }
-    };
+    } catch (error) { console.error("Send failed:", error); }
+};
 
     useEffect(() => {
         const handleStatus = () => setIsOffline(!navigator.onLine);
