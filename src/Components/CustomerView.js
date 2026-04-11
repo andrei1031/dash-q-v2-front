@@ -16,7 +16,6 @@ export const CustomerView = ({ session }) => {
     const [selectedBarberId, setSelectedBarberId] = useState('');
     
     const { requestPermission } = useEnhancedNotifications(session?.user?.id);
-    const { requestPermission } = useEnhancedNotifications(session?.user?.id);
     
 const isGuest = session && session.user && session.user.is_guest === true;
 console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
