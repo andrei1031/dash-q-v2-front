@@ -12,27 +12,11 @@ import { MyReportsModal } from "./modals/MyReportsModal";
 import axios from "axios";
 
 export const CustomerView = ({ session }) => {
-    
-    // --- THE TIMEZONE KILLER HELPER ---
-    // Safely reads "2026-04-01T11:00:00" and outputs "11:00 AM" without shifting timezones
-    const formatNaiveTime = (timeStr) => {
-        if (!timeStr) return "";
-        if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
-        try {
-            const cleanStr = timeStr.split('Z')[0].split('+')[0].split('.')[0];
-            const timePart = cleanStr.includes('T') ? cleanStr.split('T')[1] : cleanStr;
-            let [hours, mins] = timePart.split(':');
-            hours = parseInt(hours, 10);
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-            return `${hours}:${mins} ${ampm}`;
-        } catch(e) { return timeStr; }
-    };
-
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
     
-    const isGuest = session && session.user && session.user.is_guest === true;
+const isGuest = session && session.user && session.user.is_guest === true;
+console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
     const [guestName, setGuestName] = useState(() => session?.user?.nickname || session?.user?.user_metadata?.full_name || '');
     const [guestEmail, setGuestEmail] = useState('');
     
@@ -61,9 +45,9 @@ export const CustomerView = ({ session }) => {
         return saved ? parseInt(saved, 10) : 0;
     });
 
-    const [travelDirection, setTravelDirection] = useState(null); 
+    const [travelDirection, setTravelDirection] = useState(null); // 'closing', 'away', or null
     const [etaMinutes, setEtaMinutes] = useState(null);
-    const [hasArrived, setHasArrived] = useState(false); 
+    const [hasArrived, setHasArrived] = useState(false); // TRUE if < 20m
     const lastDistanceRef = useRef(null);
 
     const [isTooFarModalOpen, setIsTooFarModalOpen] = useState(false);
@@ -76,17 +60,15 @@ export const CustomerView = ({ session }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isVIPToggled, setIsVIPToggled] = useState(false);
     const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
-    const [vipPrice, setVipPrice] = useState(0);
+    const [vipPrice, setVipPrice] = useState(100);
     const lastUploadTime = useRef(0);
-    const [isOffline, setIsOffline] = useState(!navigator.onLine);
-    
 
     const [feedbackText, setFeedbackText] = useState('');
     const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
     const [barberFeedback, setBarberFeedback] = useState([]);
-    const [viewMode, setViewMode] = useState('join'); 
+    const [viewMode, setViewMode] = useState('join'); // 'join' or 'history'
     const [loyaltyHistory, setLoyaltyHistory] = useState([]);
-    const [loyaltyData, setLoyaltyData] = useState(null); 
+    const [loyaltyData, setLoyaltyData] = useState(null); // Store loyalty stats (total_spent, tier, etc.)
 
     const nowServing = liveQueue.find(entry => entry.status === 'In Progress');
     const upNext = liveQueue.find(entry => entry.status === 'Up Next');
@@ -95,9 +77,11 @@ export const CustomerView = ({ session }) => {
     const currentChatTargetBarberUserId = targetBarber?.user_id;
 
     const myQueueEntry = liveQueue.find(e => e.id.toString() === myQueueEntryId);
+// const isQueueUpdateAllowed = myQueueEntry && (myQueueEntry.status === 'Waiting' || myQueueEntry.status === 'Up Next');
     const [customerRating, setCustomerRating] = useState(0);
-    const [joinMode, setJoinMode] = useState('now'); 
+    const [joinMode, setJoinMode] = useState('now'); // 'now' or 'later'
 
+    // Initialize with Tomorrow's date
     const [selectedDate, setSelectedDate] = useState(getTomorrowDate());
     const [availableSlots, setAvailableSlots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null);
@@ -108,7 +92,6 @@ export const CustomerView = ({ session }) => {
     const [showIOSPrompt, setShowIOSPrompt] = useState(true);
     const [isMyReportsOpen, setIsMyReportsOpen] = useState(false);
     const [viewProduct, setViewProduct] = useState(null);
-    
 
     const customerName = isGuest ? guestName : (session?.user?.user_metadata?.full_name || '');
     const customerEmail = isGuest ? guestEmail : (session?.user?.email || '');
@@ -130,13 +113,17 @@ export const CustomerView = ({ session }) => {
         if (!userId) return;
         try {
             const response = await axios.get(`${API_URL}/customer/history/${userId}`);
+            // Handle new response format with both history and loyalty data
             const data = response.data;
             if (data && data.history) {
                 setLoyaltyHistory(data.history);
+                // Also store loyalty data for display
                 if (data.loyalty) {
                     setLoyaltyData(data.loyalty);
+                    console.log('Customer loyalty data:', data.loyalty);
                 }
             } else {
+                // Fallback for old format (array of history items)
                 setLoyaltyHistory(data || []);
             }
         } catch (error) {
@@ -144,49 +131,30 @@ export const CustomerView = ({ session }) => {
         }
     }, []);
 
-const fetchChatHistory = useCallback(async (queueId) => {
-    if (!queueId) return;
-    
-    console.log("CUSTOMER: Fetching History for ID:", queueId);
-
-    try {
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('queue_entry_id', queueId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            console.log(`CUSTOMER: Found ${data.length} messages in DB for ID ${queueId}`);
+    const fetchChatHistory = useCallback(async (queueId) => {
+        if (!queueId) return;
+        try {
+            // Select messages for this specific queue entry
+            const { data, error } = await supabase
+                .from('chat_messages')
+                .select('sender_id, message, created_at')
+                .eq('queue_entry_id', queueId)
+                .order('created_at', { ascending: true }); // Oldest first
             
-            setChatMessagesFromBarber((prevMessages) => {
-                const normalizedData = data.map(msg => ({
-                    id: msg.id,
-                    senderId: msg.sender_id || msg.senderId,
+            if (error) throw error;
+            
+            if (data) {
+                const formattedHistory = data.map(msg => ({
+                    senderId: msg.sender_id,
                     message: msg.message,
                     created_at: msg.created_at
-                })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                
-                const dbMessages = normalizedData;
-                const latestDbTime = dbMessages.length > 0 ? 
-                    new Date(dbMessages[dbMessages.length - 1].created_at).getTime() : 0;
-                
-                const optimisticMessages = prevMessages.filter(msg => 
-                    !msg.id && new Date(msg.created_at).getTime() > latestDbTime
-                );
-                
-                const merged = [...dbMessages, ...optimisticMessages];
-                const unique = Array.from(new Map(merged.map(item => [item.created_at, item])).values());
-                
-                return unique.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            });
+                }));
+                setChatMessagesFromBarber(formattedHistory);
+            }
+        } catch (err) { 
+            console.error("Error fetching customer chat history:", err); 
         }
-    } catch (err) { 
-        console.error("Customer sync error:", err); 
-    }
-}, [setChatMessagesFromBarber]);
+    }, []);
 
     const handleCloseInstructions = () => {
         localStorage.setItem('hasSeenInstructions_v1', 'true');
@@ -194,6 +162,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
     };
 
     const handleReturnToJoin = useCallback(async (userInitiated = false) => {
+        console.log("[handleReturnToJoin] Function called.");
         if (userInitiated && myQueueEntryId) {
             setIsLoading(true);
             try {
@@ -210,7 +179,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
         localStorage.removeItem('myQueueEntryId'); 
         localStorage.removeItem('joinedBarberId');
         localStorage.removeItem('targetFinishTime'); 
-        localStorage.removeItem('pendingFeedback');
+        localStorage.removeItem('pendingFeedback');// <-- ADD THIS
         setMyQueueEntryId(null); setJoinedBarberId(null);
         setLiveQueue([]); setQueueMessage(''); setSelectedBarberId('');
         setSelectedServiceId(''); setMessage('');
@@ -223,6 +192,8 @@ const fetchChatHistory = useCallback(async (queueId) => {
         setFeedbackText('');
         setFeedbackSubmitted(false);
         setBarberFeedback([]);
+
+        console.log("[handleReturnToJoin] State reset complete.");
     }, [myQueueEntryId, session]);
 
     const fetchPublicQueue = useCallback(async (barberId) => {
@@ -237,23 +208,25 @@ const fetchChatHistory = useCallback(async (queueId) => {
         try {
             const response = await axios.get(`${API_URL}/queue/public/${barberId}`);
             const queueData = response.data || [];
-            
-            // Clear any previous offline/error messages on success
-            setQueueMessage(""); 
-            
             setLiveQueue(queueData);
             liveQueueRef.current = queueData;
 
             const currentQueueId = localStorage.getItem('myQueueEntryId');
             
+            // --- NOTIFICATION LOGIC (Your Turn / Up Next) ---
+            // --- NOTIFICATION LOGIC (Your Turn / Up Next) ---
             if (currentQueueId) {
                 const myEntry = queueData.find(e => e.id.toString() === currentQueueId);
 
                 if (myEntry) {
+                    // 1. "UP NEXT" LOGIC
                     if (myEntry.status === 'Up Next') {
+                        // --- ✅ FIX START: Check Confirmation ---
                         if (myEntry.is_confirmed) {
-                            stopBlinking(); 
+                            stopBlinking(); // Stop blinking immediately
+                            // Do NOT play sound
                         } else {
+                            // Only play if NOT confirmed yet
                             const modalFlag = localStorage.getItem('stickyModal');
                             if (modalFlag !== 'yourTurn') {
                                 playSound(queueNotificationSound);
@@ -262,7 +235,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
                             }
                         }
+                        // --- ✅ FIX END ---
                     } 
+                    // 2. "IN PROGRESS" LOGIC
                     else if (myEntry.status === 'In Progress') {
                         const modalFlag = localStorage.getItem('stickyModal');
                         if (modalFlag !== 'yourTurn') {
@@ -271,6 +246,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             localStorage.setItem('stickyModal', 'yourTurn');
                         }
                     } 
+                    // 3. "WAITING" LOGIC
                     else if (myEntry.status === 'Waiting') {
                         stopBlinking();
                         if (localStorage.getItem('stickyModal') === 'yourTurn') {
@@ -279,24 +255,38 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     }
                 }
             }
-
+            // --- FIX: TRANSFER & MISSED EVENT DETECTION ---
             if (currentQueueId) {
+                // 1. Are we in the CURRENT barber's list?
                 const amIInActiveQueue = queueData.some(entry => entry.id.toString() === currentQueueId);
 
+                // 2. If NOT in list, and no modals are open... check why.
                 if (!amIInActiveQueue && !isServiceCompleteModalOpen && !isCancelledModalOpen) {
-
+    
                     const investigateDisappearance = async () => {
+                        console.log("[Catcher] Entry missing from public list. Verifying with server...");
+
+                        // 1. SAFETY NET: Ask Supabase specifically for MY entry ID
+                        // This bypasses the public list "replication lag"
                         const { data: myEntry, error } = await supabase
                             .from('queue_entries')
                             .select('status, barber_id')
                             .eq('id', myQueueEntryId)
                             .maybeSingle();
 
-                        if (error) { return; }
+                        if (error) {
+                            console.warn("Network error checking status. Assuming safe.", error);
+                            return; // If internet is flaky, DO NOT kick the user out.
+                        }
 
+                        // 2. IF ENTRY EXISTS & ACTIVE: It was just lag. Do nothing.
                         if (myEntry && ['Waiting', 'Up Next', 'In Progress'].includes(myEntry.status)) {
+                            console.log("Entry still exists in DB. Ignoring public list lag.");
+                            
+                            // Optional: If the barber ID changed on the server but not locally, update it now
                             const currentStoredBarber = localStorage.getItem('joinedBarberId');
                             if (myEntry.barber_id.toString() !== currentStoredBarber) {
+                                console.log(`[Transfer] Detected move to Barber ${myEntry.barber_id}. Updating local state.`);
                                 localStorage.setItem('joinedBarberId', myEntry.barber_id.toString());
                                 setJoinedBarberId(myEntry.barber_id.toString());
                                 setMessage("🔄 You have been transferred to another barber.");
@@ -304,6 +294,8 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             return; 
                         }
 
+                        // 3. IF WE ARE HERE: The entry is genuinely gone (Deleted) or Finished.
+                        // Check if it was a "Done" or "Cancelled" event we missed.
                         const userId = session?.user?.id;
                         if (!userId) return;
 
@@ -312,6 +304,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             const eventType = response.data.event;
 
                             if (eventType === 'Done') {
+                                console.log("[Catcher] Confirmed 'Done'.");
                                 localStorage.setItem('pendingFeedback', JSON.stringify({
                                     barberId: joinedBarberId,
                                     queueId: myQueueEntryId, 
@@ -322,10 +315,16 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 localStorage.removeItem('joinedBarberId');
                                 localStorage.removeItem('stickyModal');
                             } else if (eventType === 'Cancelled') {
+                                console.log("[Catcher] Confirmed 'Cancelled'.");
                                 setIsCancelledModalOpen(true);
                                 localStorage.removeItem('myQueueEntryId');
                                 localStorage.removeItem('joinedBarberId');
                                 localStorage.removeItem('stickyModal');
+                            } else {
+                                // 4. FALLBACK: It was deleted manually (e.g. by Admin/Barber) without a status change
+                                console.warn("[Catcher] Entry disappeared completely.");
+                                setQueueMessage("Your queue entry was removed.");
+                                handleReturnToJoin(false); // Clean up local state
                             }
                         } catch (error) {
                             console.error("[Catcher] Error checking event:", error.message);
@@ -336,29 +335,25 @@ const fetchChatHistory = useCallback(async (queueId) => {
             }
 
         } catch (error) {
-            // --- GRACEFUL OFFLINE FALLBACK ---
-            if (!navigator.onLine) {
-                console.log("Offline: Serving last known queue data from Service Worker cache.");
-                // We keep the current liveQueue data so the UI doesn't flicker/empty
-                setQueueMessage("📴 Offline Mode: Showing last known queue status.");
-            } else {
-                console.error("Failed fetch public queue:", error);
-                setLiveQueue([]);
-                liveQueueRef.current = [];
-                setQueueMessage("Could not load queue data.");
-            }
+            console.error("Failed fetch public queue:", error);
+            setLiveQueue([]);
+            liveQueueRef.current = [];
+            setQueueMessage("Could not load queue data.");
         } finally {
             setIsQueueLoading(false);
         }
     }, [
-        session, 
-        isServiceCompleteModalOpen, 
-        isCancelledModalOpen, 
-        setLiveQueue, 
-        setQueueMessage, 
-        setJoinedBarberId,
-        myQueueEntryId,
-        joinedBarberId
+    session, 
+    isServiceCompleteModalOpen, 
+    isCancelledModalOpen, 
+    setLiveQueue, 
+    setQueueMessage, 
+    setIsServiceCompleteModalOpen, 
+    setIsCancelledModalOpen, 
+    setJoinedBarberId,
+    handleReturnToJoin,
+    myQueueEntryId,
+    joinedBarberId
     ]);
 
     const handleFileChange = (e) => {
@@ -442,6 +437,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
 
     const handleJoinQueue = async (e) => {
         e.preventDefault();
+        // 1. Check Service SPECIFICALLY first to show the red warning
         if (!selectedServiceId) {
             setMessage('⚠️ Please select a service before joining the queue.');
             return;
@@ -451,14 +447,20 @@ const fetchChatHistory = useCallback(async (queueId) => {
 
         setIsLoading(true); setMessage('Joining queue...');
         
+        // Get device fingerprint (generate if not exists and save to localStorage)
         let deviceFingerprint = localStorage.getItem('deviceFingerprint');
         if (!deviceFingerprint) {
             deviceFingerprint = getDeviceFingerprint();
             localStorage.setItem('deviceFingerprint', deviceFingerprint);
         }
 
+        // Determine the correct endpoint based on user type
         const isGuestUser = isGuest;
+        console.log("[JoinQueue] isGuest:", isGuestUser, "session:", session);
+        console.log("[JoinQueue] session.user:", session?.user);
+        console.log("[JoinQueue] is_guest value:", session?.user?.is_guest);
         
+        // Build request data based on user type
         const requestData = isGuestUser ? {
             name: customerName,
             barberId: selectedBarberId,
@@ -479,7 +481,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
             deviceFingerprint: deviceFingerprint || null
         };
 
+        // Try guest endpoint first, fallback to regular queue
         let endpoint = isGuestUser ? `${API_URL}/guest/join` : `${API_URL}/queue`;
+        console.log("[JoinQueue] Using endpoint:", endpoint);
 
         try {
             let response;
@@ -489,11 +493,14 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 response = await axios.post(endpoint, requestData);
                 newEntry = response.data.data || response.data;
             } catch (initialError) {
+                // If guest endpoint returns 404, try regular queue as fallback
                 if (isGuestUser && initialError.response && initialError.response.status === 404) {
+                    console.log("[JoinQueue] Guest endpoint not found (404), trying regular queue...");
                     endpoint = `${API_URL}/queue`;
                     response = await axios.post(endpoint, requestData);
                     newEntry = response.data;
                 } else {
+                    // Re-throw if it's not a 404
                     throw initialError;
                 }
             }
@@ -511,13 +518,20 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 setIsVIPToggled(false);
             } else { throw new Error("Invalid response from server."); }
         } catch (error) {
+        console.error('Failed to join queue:', error);
         
+        // Show more detailed error for debugging
+        const errorMessage = error.response?.data?.error || error.message;
+        console.log("[JoinQueue] Error details:", error.response?.status, errorMessage, error);
+        
+        // --- START: HANDLE 409 CONFLICT (AUTO-RECOVER) ---
         if (error.response && error.response.status === 409) {
+            // Check if 'details' actually exists before trying to read it
             const existing = error.response.data.details;
             
             if (existing && existing.id && existing.barber_id) {
-                // ✅ SUCCESSFUL RECOVERY LOGIC
-                setMessage(`⚠️ Active booking found! Recovering spot #${existing.id}...`);
+                // Scenario A: User is already in queue (Recovery)
+                setMessage(`⚠️ Found active booking! Recovering your spot (ID: #${existing.id})...`);
                 
                 localStorage.setItem('myQueueEntryId', existing.id.toString());
                 localStorage.setItem('joinedBarberId', existing.barber_id.toString());
@@ -526,13 +540,19 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 setJoinedBarberId(existing.barber_id.toString());
                 setIsChatOpen(true);
                 
-                // Refresh the queue view for the recovered barber
+                setSelectedBarberId('');
+                setSelectedServiceId('');
+                setReferenceImageUrl(existing.reference_image_url || '');
+
                 fetchPublicQueue(existing.barber_id.toString());
             } else {
+                // Scenario B: Database Error or Generic Conflict (Prevent Crash)
                 const errorMsg = error.response.data.error || "A conflict occurred.";
+                console.error("409 Error without details:", errorMsg);
                 setMessage(`Error: ${errorMsg}`);
             }
         }
+        // --- END: HANDLE 409 CONFLICT ---
         else {
             const errorMessage = error.response?.data?.error || error.message;
             setMessage(errorMessage.includes('unavailable') ? errorMessage : 'Failed to join. Try again.');
@@ -562,17 +582,18 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 scheduled_time: selectedSlot
             });
 
-            // 🟢 APPLYING THE FIX TO SUCCESS MESSAGE 🟢
-            setMessage(`Success! Appointment confirmed for ${formatNaiveTime(selectedSlot)}.`);
+            setMessage(`Success! Appointment confirmed for ${new Date(selectedSlot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}.`);
             
+            // Optional: Reset form or switch to history view
             setSelectedSlot(null);
             setAvailableSlots([]);
             setTimeout(() => {
                 setMessage('');
-                setViewMode('history'); 
+                setViewMode('history'); // Switch to history so they can see the booking? (Requires history update)
             }, 3000);
 
         } catch (error) {
+            console.error('Booking failed:', error);
             setMessage(error.response?.data?.error || 'Booking failed.');
         } finally {
             setIsLoading(false);
@@ -586,12 +607,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
             description: "Achieve that messy, beach-vibes texture instantly.",
             price: "₱200.00",
             badge: "BEST SELLER",
-            image: "/IMG_0616.PNG", 
+            image: "/IMG_0616.PNG", // REPLACE THIS URL
             theme: { 
-                background: 'linear-gradient(135deg, #fffbeb 0%, #fff3cd 100%)', 
+                background: 'linear-gradient(135deg, #fffbeb 0%, #fff3cd 100%)', // Gold Gradient
                 text: '#856404', 
                 border: '#ffeeba',
-                badgeBg: '#ff3b30' 
+                badgeBg: '#ff3b30' // Red Badge
             }
         },
         {
@@ -600,12 +621,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
             description: "Slick back style with high shine and all-day control.",
             price: "₱200.00",
             badge: "BARBER'S CHOICE",
-            image: "/IMG_0614.PNG", 
+            image: "/IMG_0614.PNG", // REPLACE THIS URL
             theme: { 
-                background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', 
+                background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', // Blue Gradient
                 text: '#0d47a1', 
                 border: '#90caf9',
-                badgeBg: '#2962ff' 
+                badgeBg: '#2962ff' // Dark Blue Badge
             }
         },
         {
@@ -614,12 +635,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
             description: "Instant Volume & Stronghold matte finish.",
             price: "₱100.00",
             badge: "NEW ARRIVAL",
-            image: "/IMG_0615.PNG", 
+            image: "/IMG_0615.PNG", // REPLACE THIS URL
             theme: { 
-                background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', 
+                background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', // Green Gradient
                 text: '#1b5e20', 
                 border: '#a5d6a7',
-                badgeBg: '#2e7d32' 
+                badgeBg: '#2e7d32' // Dark Green Badge
             }
         }
     ];
@@ -628,43 +649,94 @@ const fetchChatHistory = useCallback(async (queueId) => {
         name: "Safehouse Cafe",
         pitch: "Tired of standing? Wait here instead! nearby cafe",
         perks: "☕ Free WiFi  •   ₱159 Buy1Take1 Milktea  •  Board Games",
-        image: "/safehouselogo.jpg",
+        image: "/sahouselogo.jpg", // Replace with real cafe photo
+        // REPLACE WITH CAFE COORDINATES or Google Maps Link
         locationLink: "https://maps.app.goo.gl/ETUu5bxPA6t2yuSs6" 
     };
+
+    // --- Effects ---
+    
+    useEffect(() => {
+    // Only run if we are already in a queue and waiting
+    if (!myQueueEntryId || !joinedBarberId) return;
+
+        const checkOpportunities = async () => {
+            try {
+                // 1. Fetch all public barber statuses
+                const res = await axios.get(`${API_URL}/barbers`); //
+                const allBarbers = res.data;
+
+                // 2. Find a barber who is Active, Available, AND has a Rating > 4.0 (optional quality filter)
+                // Note: You might need to fetch their specific queue length if your /api/barbers doesn't return it.
+                // For now, let's assume you add a small check or rely on 'is_available'
+                
+                const currentBarberIdStr = joinedBarberId.toString();
+                
+                // Find someone else who is available
+                const opportunity = allBarbers.find(b => 
+                    b.id.toString() !== currentBarberIdStr && // Not my current barber
+                    b.is_active && 
+                    b.is_available // They are marked Online
+                );
+
+                // If found, set them as an opportunity
+                if (opportunity) {
+                    setFreeBarber(opportunity);
+                } else {
+                    setFreeBarber(null);
+                }
+            } catch (e) {
+                console.error("Opportunity check failed", e);
+            }
+        };
+
+        const interval = setInterval(checkOpportunities, 10000); // Check every 10s
+        return () => clearInterval(interval);
+    }, [myQueueEntryId, joinedBarberId]);
 
     const handleConfirmAttendance = async () => {
         try {
             await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
-            stopSound(queueNotificationSound); 
+            stopSound(queueNotificationSound); // Stop the noise
             stopBlinking();
             if (navigator.vibrate) navigator.vibrate(0);
             
+            // Optimistic update
             setOptimisticMessage("✅ Confirmed! Welcome to the shop.");
             setTimeout(() => setOptimisticMessage(null), 3000);
         } catch (e) { 
+            console.error(e);
             setMessage("Failed to confirm. Please try again.");
         }
     };
-
+     // FUNCTION: Handle the switch
     const handleSelfTransfer = async () => {
         if (!freeBarber) return;
         if (!window.confirm(`Switch to ${freeBarber.full_name}? You will lose your spot with your current barber.`)) return;
 
         setIsLoading(true);
         try {
-            await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); 
+            // OPTION A: The Clean Way (Requires new endpoint in server.js)
+            // await axios.post(`${API_URL}/queue/self-transfer`, { queueId: myQueueEntryId, targetBarberId: freeBarber.id });
             
+            // OPTION B: The "Hack" Way (Leave & Rejoin using existing endpoints)
+            // 1. Leave current queue
+            await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); //
+            
+            // 2. Join new barber (Re-using your join logic)
+            // Note: You'd need to refactor handleJoinQueue to accept params, or just manually call axios.post('/api/queue'...) here
             await axios.post(`${API_URL}/queue`, {
                 customer_name: customerName,
                 customer_email: customerEmail,
                 barber_id: freeBarber.id,
-                service_id: selectedServiceId || 1, 
+                service_id: selectedServiceId || 1, // You might need to save their service ID in localstorage to preserve it
                 user_id: session?.user?.id || null,
-                is_vip: false 
+                is_vip: false // Reset VIP on transfer?
             });
 
+            // 3. Force Reload / Reset State
             alert(`Switched to ${freeBarber.full_name}!`);
-            window.location.reload(); 
+            window.location.reload(); // Simplest way to reset state for now
             
         } catch (e) {
             alert("Failed to switch.");
@@ -673,19 +745,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
         }
     };
 
-    // 🟢 IMPROVED FOCUS HANDLER - now merges properly
-    useEffect(() => {
-        const handleFocus = () => {
-            if (myQueueEntryId && isChatOpen) {
-                console.log("Tab focused - gentle sync (merge only newer)...");
-                fetchChatHistory(myQueueEntryId);
-            }
-        };
-
-        window.addEventListener('focus', handleFocus);
-        return () => window.removeEventListener('focus', handleFocus);
-    }, [myQueueEntryId, isChatOpen, fetchChatHistory]);
-
+    // RECOVERY SYSTEM: Restore session if LocalStorage was wiped but DB entry exists
     useEffect(() => {
         if (viewMode === 'appointments') {
             fetchMyAppointments();
@@ -693,18 +753,10 @@ const fetchChatHistory = useCallback(async (queueId) => {
     }, [viewMode, fetchMyAppointments]);
 
     useEffect(() => {
-        const handleStatusChange = () => setIsOffline(!navigator.onLine);
-        window.addEventListener('online', handleStatusChange);
-        window.addEventListener('offline', handleStatusChange);
-        return () => {
-            window.removeEventListener('online', handleStatusChange);
-            window.removeEventListener('offline', handleStatusChange);
-        };
-    }, []);
-
-    useEffect(() => {
         const restoreSession = async () => {
+            // Only run if we don't have a local ID but we DO have a logged-in user
             if (!myQueueEntryId && session?.user?.id) {
+                console.log("[Recovery] Checking for lost tickets...");
                 try {
                     const { data: activeEntry, error } = await supabase
                         .from('queue_entries')
@@ -714,6 +766,8 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         .maybeSingle();
 
                     if (!error && activeEntry) {
+                        console.log(`[Recovery] Found active ticket #${activeEntry.id}. Restoring...`);
+                        // RESTORE STATE
                         localStorage.setItem('myQueueEntryId', activeEntry.id.toString());
                         localStorage.setItem('joinedBarberId', activeEntry.barber_id.toString());
                         setMyQueueEntryId(activeEntry.id.toString());
@@ -722,7 +776,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         setIsChatOpen(true);
                         fetchPublicQueue(activeEntry.barber_id.toString());
                     }
-                } catch (err) {}
+                } catch (err) {
+                    console.error("[Recovery] Failed to restore session:", err);
+                }
             }
         };
         restoreSession();
@@ -737,6 +793,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         const response = await axios.post(`${API_URL}/guest_login`, { guestId: storedGuestId });
                         if (response.data && response.data.activeQueueEntry) {
                             const entry = response.data.activeQueueEntry;
+                            console.log("[Guest Recovery] Restored guest session:", entry);
                             
                             localStorage.setItem('myQueueEntryId', entry.id.toString());
                             localStorage.setItem('joinedBarberId', entry.barber_id.toString());
@@ -751,7 +808,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
 
                             fetchPublicQueue(entry.barber_id.toString());
                         }
-                    } catch (err) {}
+                    } catch (err) {
+                        console.error("[Guest Recovery] Failed:", err);
+                    }
                 }
             }
         };
@@ -760,7 +819,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
 
     useEffect(() => {
         if (joinMode === 'later' && selectedBarberId && selectedServiceId && selectedDate) {
-            setAvailableSlots([]); 
+            setAvailableSlots([]); // Clear old slots while loading
             axios.get(`${API_URL}/appointments/slots`, {
                 params: { barberId: selectedBarberId, serviceId: selectedServiceId, date: selectedDate }
             })
@@ -776,12 +835,13 @@ const fetchChatHistory = useCallback(async (queueId) => {
     }, [viewMode, session?.user?.id, fetchLoyaltyHistory]);
     
     useEffect(() => { 
-        const BARBERSHOP_LAT = 16.414830; 
+        const BARBERSHOP_LAT = 16.414830; // Update with real coords
         const BARBERSHOP_LON = 120.597122;
         
-        const WARNING_DISTANCE = 300; 
-        const ARRIVAL_DISTANCE = 30;  
-        const WALKING_SPEED_MPM = 80; 
+        // 1. Distance Thresholds
+        const WARNING_DISTANCE = 300; // Meters to trigger "Too Far"
+        const ARRIVAL_DISTANCE = 30;  // Meters to trigger "Green Light"
+        const WALKING_SPEED_MPM = 80; // Approx 80 meters per minute (average walking speed)
 
         if (!myQueueEntryId || !('geolocation' in navigator) || isGuest) return;
 
@@ -790,26 +850,32 @@ const fetchChatHistory = useCallback(async (queueId) => {
             const currentDist = getDistanceInMeters(latitude, longitude, BARBERSHOP_LAT, BARBERSHOP_LON);
             const prevDist = lastDistanceRef.current;
 
+            // A. DIRECTION & VELOCITY LOGIC
             if (prevDist !== null) {
+                // If moved more than 3 meters (filter GPS jitter)
                 if (Math.abs(currentDist - prevDist) > 3) {
-                    if (currentDist < prevDist) setTravelDirection('closing'); 
-                    else setTravelDirection('away'); 
+                    if (currentDist < prevDist) setTravelDirection('closing'); // ⬇️ Getting closer
+                    else setTravelDirection('away'); // ⬆️ Moving away
                 }
             }
             lastDistanceRef.current = currentDist;
 
+            // B. ETA CALCULATION
+            // Simple formula: Distance / Speed
             const estimatedMins = Math.ceil(currentDist / WALKING_SPEED_MPM);
             setEtaMinutes(estimatedMins);
 
+            // C. ARRIVAL "GREEN LIGHT" DETECTION
             if (currentDist <= ARRIVAL_DISTANCE) {
                 if (!hasArrived) {
-                    setHasArrived(true); 
-                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+                    setHasArrived(true); // Unlock the button!
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Success buzz
                 }
             } else {
                 setHasArrived(false);
             }
 
+            // D. SERVER UPLOAD (Keep existing throttling)
             const now = Date.now();
             if (now - lastUploadTime.current > 60000) { 
                 axios.put(`${API_URL}/queue/location`, {
@@ -819,6 +885,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 lastUploadTime.current = now;
             }
 
+            // E. "TOO FAR" ALERT (Only if Up Next)
             const myEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
             if (myEntry && myEntry.status === 'Up Next' && currentDist > WARNING_DISTANCE) {
                 if (!isTooFarModalOpen && !isOnCooldown) {
@@ -842,11 +909,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
         };
     }, [myQueueEntryId, isTooFarModalOpen, isOnCooldown, hasArrived, isGuest]);
 
-    useEffect(() => { 
+    useEffect(() => { // First Time Instructions
         const pendingFeedback = localStorage.getItem('pendingFeedback');
         if (pendingFeedback) {
             const data = JSON.parse(pendingFeedback);
             setJoinedBarberId(data.barberId);
+            // FIX: Save the queue ID to state so the form can use it
             if (data.queueId) setMyQueueEntryId(data.queueId); 
             setIsServiceCompleteModalOpen(true);
         }
@@ -859,101 +927,57 @@ const fetchChatHistory = useCallback(async (queueId) => {
         }
     }, []);
     
-    useEffect(() => { 
+    useEffect(() => { // Fetch Services
         const fetchServices = async () => {
-            try { 
-                const response = await axios.get(`${API_URL}/services`); 
-                setServices(response.data || []); 
-            } catch (error) {
-                if (!navigator.onLine) {
-                    console.log("Offline: Services are being served from cache.");
-                } else {
-                    console.error("Error fetching services:", error);
-                }
-            }
+            try { const response = await axios.get(`${API_URL}/services`); setServices(response.data || []); }
+            catch (error) { console.error('Failed to fetch services:', error); }
         };
         fetchServices();
     }, []);
 
+    // Fetch VIP price on mount
     useEffect(() => {
         const fetchVipPrice = async () => {
             try {
                 const response = await axios.get(`${API_URL}/settings/vip-price`);
                 setVipPrice(response.data.vip_price || 100);
             } catch (error) {
-                if (!navigator.onLine) {
-                    console.log("Offline: Using last known VIP price from cache.");
-                }
+                console.error('Failed to fetch VIP price:', error);
             }
         };
         fetchVipPrice();
     }, []);
 
-    useEffect(() => { 
+    useEffect(() => { // Fetch Available Barbers
         const loadBarbers = async () => {
-            try { 
-                const response = await axios.get(`${API_URL}/barbers`); 
-                setBarbers(response.data || []); 
-            } catch (error) {
-                if (!navigator.onLine) {
-                    console.log("Offline: Barber list is being served from cache.");
-                } else {
-                    setBarbers([]); 
-                }
-            }
+            try { const response = await axios.get(`${API_URL}/barbers`); setBarbers(response.data || []); }
+            catch (error) { console.error('Failed fetch available barbers:', error); setMessage('Could not load barbers.'); setBarbers([]); }
         };
         loadBarbers();
-        const intervalId = setInterval(() => {
-            if (navigator.onLine) loadBarbers(); // Only auto-refresh if online
-        }, 15000);
+        const intervalId = setInterval(loadBarbers, 15000);
         return () => clearInterval(intervalId);
     }, []);
-
-    // Inside CustomerView.js
-    useEffect(() => {
-        const handleAppFocus = async () => {
-            const storedId = localStorage.getItem('myQueueEntryId');
-            if (!storedId) return;
-
-            try {
-                // Check if the entry still exists in active status
-                const { data: entry } = await supabase
-                    .from('queue_entries')
-                    .select('status')
-                    .eq('id', storedId)
-                    .single();
-
-                // If entry is gone or status is Done/Cancelled, trigger the modal
-                if (!entry || entry.status === 'Done' || entry.status === 'Cancelled') {
-                    const res = await axios.get(`${API_URL}/missed-event/${session.user.id}`);
-                    if (res.data.event === 'Done') {
-                        setIsServiceCompleteModalOpen(true);
-                    } else if (res.data.event === 'Cancelled') {
-                        setIsCancelledModalOpen(true);
-                    }
-                }
-            } catch (e) { console.error("Check missed event failed", e); }
-        };
-
-        window.addEventListener('focus', handleAppFocus);
-        handleAppFocus(); // Run on mount
-        return () => window.removeEventListener('focus', handleAppFocus);
-    }, [session]);
     
-    useEffect(() => { 
+    // Find this useEffect (around line 1073)
+    useEffect(() => { // Blinking Tab Listeners
         const handleFocus = () => stopBlinking();
         
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
                 stopBlinking();
                 
+                // Re-sync unread messages
                 const hasUnread = localStorage.getItem('hasUnreadFromBarber') === 'true';
                 setHasUnreadFromBarber(hasUnread);
 
+                // --- THIS IS THE FIX ---
+                // Immediately check queue status when user returns to the tab
                 const currentBarber = localStorage.getItem('joinedBarberId');
                 if (currentBarber) {
+                    console.log("Tab is visible, re-fetching queue status...");
                     fetchPublicQueue(currentBarber);
                 }
+                // --- END FIX ---
             }
         };
         
@@ -965,34 +989,30 @@ const fetchChatHistory = useCallback(async (queueId) => {
             document.removeEventListener("visibilitychange", handleVisibility); 
             stopBlinking(); 
         };
-    }, [fetchPublicQueue]); 
+    }, [fetchPublicQueue]); // <-- IMPORTANT: Add fetchPublicQueue as a dependency
 
-    useEffect(() => { 
+    useEffect(() => { // Realtime Subscription & Notifications
         if (joinedBarberId) { fetchPublicQueue(joinedBarberId); } else { setLiveQueue([]); setIsQueueLoading(false); }
         if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); }
         let queueChannel = null; let refreshInterval = null;
         if (joinedBarberId && myQueueEntryId && supabase?.channel) {
+            console.log(`Subscribing queue changes: barber ${joinedBarberId}`);
             queueChannel = supabase.channel(`public_queue_${joinedBarberId}`)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries'}, (payload) => {
-
-                    // ✅ CHECK THE BARBER ID OR EVENT TYPE MANUALLY
-                    const isOurBarber = payload.new?.barber_id?.toString() === joinedBarberId || 
-                                       payload.old?.barber_id?.toString() === joinedBarberId;
-                    
-                    // Always refresh on DELETE to ensure names disappear correctly
-                    if (isOurBarber || payload.eventType === 'DELETE') {
-                        console.log(`[Realtime] ${payload.eventType} detected. Refreshing list...`);
-                        fetchPublicQueue(joinedBarberId);
-                    }
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${joinedBarberId}` }, (payload) => {
+                    console.log("Realtime Update Received:", payload);
                     
                     if (payload.eventType === 'UPDATE' && payload.new.id.toString() === myQueueEntryId) {
                         const newStatus = payload.new.status;
-                        const isConfirmed = payload.new.is_confirmed; 
+                        const isConfirmed = payload.new.is_confirmed; // <--- Get confirmation status
+
+                        console.log(`My status updated to: ${newStatus} (Confirmed: ${isConfirmed})`);
                         
                         if (newStatus === 'Up Next') {
                             if (isConfirmed) {
+                                // If I just confirmed, STOP everything
                                 stopBlinking();
                             } else {
+                                // Only alert if NOT confirmed
                                 playSound(queueNotificationSound);
                                 startBlinking(NEXT_UP_TITLE);
                                 localStorage.setItem('stickyModal', 'yourTurn');
@@ -1000,6 +1020,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             }
                         }
                         else if (newStatus === 'In Progress') { 
+                            // ... (Keep existing logic) ...
                             playSound(queueNotificationSound);
                             startBlinking(TURN_TITLE);
                             localStorage.setItem('stickyModal', 'yourTurn');
@@ -1010,6 +1031,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             barberId: joinedBarberId,
                             timestamp: Date.now()
                         }));
+                        // --- FIX END ---
                         setIsServiceCompleteModalOpen(true); 
                         stopBlinking();
                         }
@@ -1020,23 +1042,30 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     }
                     fetchPublicQueue(joinedBarberId);
                 })
-                .subscribe();
-            refreshInterval = setInterval(() => { fetchPublicQueue(joinedBarberId); }, 15000);
+                .subscribe((status, err) => {
+                    if (status === 'SUBSCRIBED') { console.log('Subscribed to Realtime queue!'); setQueueMessage(''); fetchPublicQueue(joinedBarberId); }
+                    else { console.error('Supabase Realtime error:', status, err); setQueueMessage('Live updates unavailable.'); }
+                });
+            refreshInterval = setInterval(() => { console.log("Periodic refresh..."); fetchPublicQueue(joinedBarberId); }, 15000);
         }
         return () => {
-            if (queueChannel && supabase?.removeChannel) { supabase.removeChannel(queueChannel).catch(err => {}); }
+            console.log("Cleaning up queue subscription for barber:", joinedBarberId);
+            if (queueChannel && supabase?.removeChannel) { supabase.removeChannel(queueChannel).catch(err => console.error("Error removing channel:", err)); }
             if (refreshInterval) { clearInterval(refreshInterval); }
         };
     }, [joinedBarberId, myQueueEntryId, fetchPublicQueue]);
 
-    useEffect(() => { 
+    useEffect(() => { // Fetch feedback when barber is selected
         if (selectedBarberId) {
+            console.log(`Fetching feedback for barber ${selectedBarberId}`);
             setBarberFeedback([]);
             const fetchFeedback = async () => {
                 try {
                     const response = await axios.get(`${API_URL}/feedback/${selectedBarberId}`);
                     setBarberFeedback(response.data || []);
-                } catch (err) {}
+                } catch (err) {
+                    console.error("Failed to fetch barber feedback:", err);
+                }
             };
             fetchFeedback();
         } else {
@@ -1044,79 +1073,73 @@ const fetchChatHistory = useCallback(async (queueId) => {
         }
     }, [selectedBarberId]);
 
-    // Replace the existing chat useEffect in CustomerView.js
-    // 🟢 FIXED CHAT USEFFECT with polling backup
+    // --- FIND THIS useEffect INSIDE CustomerView (around line 1490) ---
     useEffect(() => { 
-        if (!session?.user?.id || !myQueueEntryId) return;
+        if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
 
-        let pollInterval;
+        console.log("Restoring chat history for Queue ID:", myQueueEntryId);
 
-        // Initial sync
+        // 1. Initial Load: Fetch History Immediately
         fetchChatHistory(myQueueEntryId);
 
-        // Realtime
-        const chatChannel = supabase.channel(`customer_chat_realtime_${myQueueEntryId}`) 
+        // 2. Subscribe to NEW messages
+        const chatChannel = supabase.channel(`customer_chat_fix_${myQueueEntryId}`) // Unique name
             .on(
                 'postgres_changes', 
                 { 
                     event: 'INSERT', 
                     schema: 'public', 
                     table: 'chat_messages', 
-                    filter: `queue_entry_id=eq.${myQueueEntryId}` 
+                    filter: `queue_entry_id=eq.${myQueueEntryId}` // Ensure this matches DB ID
                 }, 
                 (payload) => {
                     const newMsg = payload.new;
+                    console.log("[Customer] Message received:", newMsg);
 
+                    // Only add if it's NOT from me (prevent duplicates)
                     if (newMsg.sender_id !== session.user.id) {
                         setChatMessagesFromBarber(prev => {
-                            const normalizedMsg = { 
-                                id: newMsg.id,
-                                senderId: newMsg.sender_id,
-                                message: newMsg.message,
-                                created_at: newMsg.created_at
-                            };
-                            
-                            // Check exact timestamp match to prevent dupes
-                            if (prev.some(m => m.created_at === normalizedMsg.created_at)) {
+                            // Deduplication: Check if we already have this exact message content at the end
+                            // (Optional safety, but good for React strict mode)
+                            const lastMsg = prev[prev.length - 1];
+                            if (lastMsg && lastMsg.message === newMsg.message && lastMsg.senderId === newMsg.sender_id) {
                                 return prev;
                             }
                             
-                            return [...prev, normalizedMsg];
+                            return [...prev, { 
+                                senderId: newMsg.sender_id, 
+                                message: newMsg.message,
+                                created_at: newMsg.created_at
+                            }];
                         });
                         
                         playSound(messageNotificationSound);
                         
+                        // Handle Badge logic
                         if (!isChatOpen) {
                             setHasUnreadFromBarber(true);
                             localStorage.setItem('hasUnreadFromBarber', 'true');
                         } else {
-                            // Mark as read
-                            axios.put(`${API_URL}/chat/read`, { 
-                                queueId: myQueueEntryId, 
-                                readerId: session.user.id 
-                            }).catch(console.error);
+                            // If chat is open, mark read immediately
+                            axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                         }
                     }
                 }
             )
-            .subscribe();
-
-        // 🟢 POLLING BACKUP: Every 5s when chat is open
-        pollInterval = setInterval(() => {
-            if (isChatOpen) {
-                fetchChatHistory(myQueueEntryId);
-            }
-        }, 5000);
+            .subscribe((status) => {
+                    console.log(`[Customer Chat] Subscription status: ${status}`);
+            });
 
         return () => {
             supabase.removeChannel(chatChannel);
-            if (pollInterval) clearInterval(pollInterval);
         };
-    }, [session?.user?.id, myQueueEntryId, isChatOpen, fetchChatHistory]);
+    }, [session, joinedBarberId, myQueueEntryId, fetchChatHistory, isChatOpen]); // Added dependencies// Added isChatOpen dependency
 
+    // --- UPDATE SEND FUNCTION ---
     const sendCustomerMessage = async (recipientId, messageText) => {
         if (!messageText.trim()) return;
         
+        // Optimistic UI Update (Show immediately)
         const tempMsg = { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() };
         setChatMessagesFromBarber(prev => [...prev, tempMsg]);
 
@@ -1127,17 +1150,22 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 message: messageText
             });
         } catch (error) {
+            console.error("Failed to send message:", error);
             setMessage("Failed to send message. Profanity?");
+            // Rollback UI if needed, or just show error
         }
     };
 
-    useEffect(() => { 
+    useEffect(() => { // EWT Preview
         if (selectedBarberId) {
+            // 🟢 FIX: INSTANTLY CLEAR OLD DATA TO PREVENT GHOST NUMBERS
             setLiveQueue([]); 
             liveQueueRef.current = [];
-            setPeopleWaiting(0); 
-            setFinishTime(0);    
-            setIsQueueLoading(true); 
+            setPeopleWaiting(0); // Reset the count immediately
+            setFinishTime(0);    // Reset the time immediately
+            setIsQueueLoading(true); // Show loading skeleton immediately
+
+            console.log(`[EWT Preview] Fetching queue for barber ${selectedBarberId}`);
             fetchPublicQueue(selectedBarberId);
         } else {
             setLiveQueue([]);
@@ -1147,11 +1175,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
         }
     }, [selectedBarberId, fetchPublicQueue]);
 
-    useEffect(() => { 
+    useEffect(() => { // Smart EWT Calculation (Time-Adjusted)
         const calculateWaitTime = () => {
             const newQueue = liveQueue;
             const myIndexNew = newQueue.findIndex(e => e.id.toString() === myQueueEntryId);
             
+            // Determine who is ahead of us
             const peopleAheadNew = myIndexNew !== -1 ? newQueue.slice(0, myIndexNew) : newQueue;
             
             const relevantEntries = newQueue.filter(e => e.status === 'Waiting' || e.status === 'Up Next');
@@ -1159,11 +1188,13 @@ const fetchChatHistory = useCallback(async (queueId) => {
 
             const now = Date.now();
 
+            // --- THE NEW LOGIC ---
             const dbWaitMinutes = peopleAheadNew.reduce((sum, entry) => {
             const duration = entry.services?.duration_minutes || 30;
-            const heads = entry.head_count || 1; 
-            const totalDuration = duration * heads; 
+            const heads = entry.head_count || 1; // <--- Get group size
+            const totalDuration = duration * heads; // <--- Multiply!
 
+            // If In Progress, we assume (Total Duration - Time Elapsed)
             if (entry.status === 'In Progress' && entry.updated_at) {
                 const startTime = new Date(entry.updated_at).getTime();
                 const minutesElapsed = (now - startTime) / 60000;
@@ -1171,18 +1202,24 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 return sum + minutesRemaining;
             }
 
+            // If waiting, add full duration
             return sum + totalDuration;
         }, 0);
+            // ---------------------
 
             const calculatedTarget = now + (dbWaitMinutes * 60000);
 
+            // Logic Split: Browsing vs Joined
             if (!myQueueEntryId) {
+                // Browsing: Update strictly based on the new "Time-Adjusted" math
                 setFinishTime(calculatedTarget);
             } 
             else {
+                // Joined: Apply "Stickiness" to prevent minor jitters
                 const storedTarget = localStorage.getItem('targetFinishTime');
                 let currentTarget = storedTarget ? parseInt(storedTarget, 10) : 0;
 
+                // Update if: No target, Old target passed, or New calculation is FASTER
                 if (!currentTarget || currentTarget < now || calculatedTarget < currentTarget) {
                     currentTarget = calculatedTarget;
                     localStorage.setItem('targetFinishTime', currentTarget.toString());
@@ -1196,61 +1233,19 @@ const fetchChatHistory = useCallback(async (queueId) => {
             calculateWaitTime();
         }
     }, [liveQueue, myQueueEntryId]);
-
-    // Add this new useEffect anywhere in CustomerView.js
-    useEffect(() => {
-        const checkForMissedEvents = async () => {
-            const storedQueueId = localStorage.getItem('myQueueEntryId');
-            if (!storedQueueId || !session?.user?.id) return;
-
-            try {
-                // Check if the entry is still active in the database
-                const { data: entry } = await supabase
-                    .from('queue_entries')
-                    .select('status, barber_id')
-                    .eq('id', storedQueueId)
-                    .maybeSingle();
-
-                // If the entry is gone or status changed to 'Done'/'Cancelled'
-                if (!entry || entry.status === 'Done' || entry.status === 'Cancelled') {
-                    console.log("Detected service change after app focus. Checking missed events...");
-                    
-                    const res = await axios.get(`${API_URL}/missed-event/${session.user.id}`);
-                    
-                    if (res.data.event === 'Done') {
-                        // Set necessary IDs for the feedback form before opening
-                        setJoinedBarberId(entry?.barber_id?.toString() || localStorage.getItem('joinedBarberId'));
-                        setIsServiceCompleteModalOpen(true);
-                        
-                        // Clean up local storage as if the realtime event hit
-                        localStorage.removeItem('myQueueEntryId');
-                        localStorage.removeItem('joinedBarberId');
-                    } else if (res.data.event === 'Cancelled') {
-                        setIsCancelledModalOpen(true);
-                        localStorage.removeItem('myQueueEntryId');
-                    }
-                }
-            } catch (e) {
-                console.error("Focus re-sync failed:", e);
-            }
-        };
-
-        // Re-check every time the user brings the app to the foreground
-        window.addEventListener('focus', checkForMissedEvents);
-        return () => window.removeEventListener('focus', checkForMissedEvents);
-    }, [session, myQueueEntryId]);
-    
-    useEffect(() => { 
+    // ADD THIS ENTIRE BLOCK BACK
+    useEffect(() => { // Modal Button Countdown
         let timerId = null;
         let countdownInterval = null;
 
+        // We only check the modals that still exist
         if (isServiceCompleteModalOpen || isCancelledModalOpen || isTooFarModalOpen) {
             setIsModalButtonDisabled(true);
-            setModalCountdown(5); 
+            setModalCountdown(5); // Set to 5 seconds
 
             timerId = setTimeout(() => {
                 setIsModalButtonDisabled(false);
-            }, 5000); 
+            }, 5000); // 5 seconds
 
             countdownInterval = setInterval(() => {
                 setModalCountdown(prevCount => {
@@ -1266,21 +1261,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
             if (timerId) clearTimeout(timerId);
             if (countdownInterval) clearInterval(countdownInterval);
         };
-    }, [isServiceCompleteModalOpen, isCancelledModalOpen, isTooFarModalOpen]); 
+    }, [isServiceCompleteModalOpen, isCancelledModalOpen, isTooFarModalOpen]); // Dependencies are only for the remaining modals
 
     return (
         <div className="card">
-            {/* OFFLINE BADGE */}
-            {isOffline && (
-                <div style={{
-                    background: '#ff3b30', color: 'white', textAlign: 'center', 
-                    padding: '8px', fontSize: '0.85rem', fontWeight: 'bold',
-                    borderRadius: '12px 12px 0 0', animation: 'pulse-border 2s infinite'
-                }}>
-                    📴 You are currently offline. Using cached data.
-                </div>
-            )}
             
+            {/* Instructions Modal */}
             <div className="modal-overlay" style={{ display: isInstructionsModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content instructions-modal">
                     <div className="modal-body">
@@ -1297,6 +1283,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             </div>
             
+            {/* Service Complete Modal */}
             <div className="modal-overlay" style={{ display: isServiceCompleteModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     {!feedbackSubmitted ? (
@@ -1319,21 +1306,18 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     rating: customerRating,
                                     queue_id: myQueueEntryId
                                 }); 
-                                
-                                // 🟢 MOVE THESE INSIDE THE TRY BLOCK 🟢
-                                setFeedbackSubmitted(true);
-                                setMessage(''); 
-                                
                             } catch (err) { 
-                                console.error("Feedback error:", err);
-                                setMessage('Error: ' + (err.response?.data?.error || err.message || 'Failed to connect.'));
-                                return;
+                                console.error("Failed to submit feedback", err); 
+                                setMessage('Failed to submit feedback.');
                             }
+                            setFeedbackSubmitted(true);
+                            setMessage(''); 
                         }}>
                             <div className="modal-body">
                                 <h2>Service Complete!</h2>
                                 <p>Thank you! Please rate your experience with {currentBarberName}:</p>
                                 
+                                {/* NEW: Star Rating Input */}
                                 <div className="star-rating-input" style={{fontSize: '2rem', marginBottom: '15px'}}>
                                     {[1, 2, 3, 4, 5].map(star => (
                                         <span 
@@ -1345,7 +1329,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         </span>
                                     ))}
                                 </div>
+                                {/* END NEW STAR RATING INPUT */}
 
+                                {/* --- 💰 PRODUCT SHOWCASE (CLICKABLE) --- */}
                                 <div style={{
                                     margin: '20px 0',
                                     padding: '12px',
@@ -1363,7 +1349,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         {AD_INVENTORY.map((product) => (
                                             <div 
                                                 key={product.id} 
-                                                onClick={() => setViewProduct(product)} 
+                                                onClick={() => setViewProduct(product)} // <--- CLICK HANDLER
                                                 style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -1373,7 +1359,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                                     padding: '8px',
                                                     position: 'relative',
                                                     overflow: 'hidden',
-                                                    cursor: 'pointer', 
+                                                    cursor: 'pointer', // <--- HAND CURSOR
                                                     transition: 'transform 0.2s'
                                                 }}
                                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
@@ -1417,6 +1403,8 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         Tap a product to view details
                                     </p>
                                 </div>
+                                {/* ---------------------------------- */}
+                                {/* ▲▲▲ END AD ▲▲▲ */}
 
                                 <textarea 
                                     value={feedbackText} 
@@ -1424,18 +1412,18 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     placeholder="How was your cut? (Optional - e.g. 'Great fade!')"
                                     style={{
                                         width: '100%',
-                                        minHeight: '120px', 
+                                        minHeight: '120px', /* Reasonable height for typing */
                                         padding: '15px',
                                         marginTop: '15px',
                                         borderRadius: '12px',
                                         border: '1px solid var(--border-color)',
-                                        background: 'var(--bg-dark)', 
+                                        background: 'var(--bg-dark)', /* Blends with theme */
                                         color: 'var(--text-primary)',
                                         fontSize: '1rem',
                                         lineHeight: '1.5',
-                                        resize: 'none', 
+                                        resize: 'none', /* Prevents user from breaking layout */
                                         fontFamily: 'inherit',
-                                        boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.2)', 
+                                        boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.2)', /* Inner shadow depth */
                                         transition: 'all 0.2s ease'
                                     }}
                                     onFocus={(e) => {
@@ -1453,7 +1441,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 <button 
                                     type="button" 
                                     className="btn btn-secondary" 
-                                    onClick={() => { setFeedbackSubmitted(true); setCustomerRating(0); }} 
+                                    onClick={() => { setFeedbackSubmitted(true); setCustomerRating(0); }} // Skip button action
                                 >
                                     Skip
                                 </button>
@@ -1477,6 +1465,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             </div>
 
+            {/* Cancelled Modal */}
             <div className="modal-overlay" style={{ display: isCancelledModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body"><h2>Appointment Cancelled</h2><p>Your queue entry was cancelled.</p></div>
@@ -1488,6 +1477,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             </div>
             
+            {/* Too Far Modal */}
             <div className="modal-overlay" style={{ display: isTooFarModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body">
@@ -1509,12 +1499,17 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             </div>
 
+            {/* VIP Modal */}
             <div className="modal-overlay" style={{ display: isVIPModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body">
                         <h2>Priority Service Confirmation</h2>
-                        <p>You are booking for <strong>{headCount} person(s)</strong>.</p>
-                        <p>VIP priority incurs an additional <strong>₱{vipPrice} per head</strong> fee.</p>
+                        <p>
+                            You are booking for <strong>{headCount} person(s)</strong>.
+                        </p>
+                        <p>
+                            VIP priority incurs an additional <strong>₱{vipPrice} per head</strong> fee.
+                        </p>
                         <div style={{background:'rgba(255, 149, 0, 0.1)', padding:'10px', borderRadius:'8px', marginTop:'10px'}}>
                             <strong>Total VIP Surcharge: ₱{vipPrice * headCount}</strong>
                         </div>
@@ -1528,6 +1523,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             </div>
             
+            {/* Add this inside CustomerView return, maybe above the tabs */}
             {'Notification' in window && Notification.permission === 'default' && !isGuest && (
                 <div className="message warning small" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <span>Enable notifications for "Up Next" alerts?</span>
@@ -1548,6 +1544,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             )}
 
+            {/* --- MAIN CONTENT START --- */}
+            
+            {/* 1. View Toggle Tabs */}
             <div className="card-header customer-view-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
                 <button className={viewMode === 'join' ? 'active' : ''} onClick={() => setViewMode('join')} style={{ flex: '1 1 auto' }}>
                     Join Queue
@@ -1560,8 +1559,10 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </button>}
             </div>
 
+            {/* A. JOIN / BOOKING SECTION */}
             {viewMode === 'join' && !myQueueEntryId && (
                 <div className="card-body">
+                    {/* 1. SUB-TABS: NOW vs LATER */}
                     <div className="customer-view-tabs" style={{marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
                         <button 
                             className={joinMode === 'now' ? 'active' : ''} 
@@ -1570,6 +1571,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         >
                             ⚡ Join Queue Now
                         </button>
+                            {/* Book Appointment tab is hidden for guests */}
                             {!isGuest && <button 
                                 className={joinMode === 'later' ? 'active' : ''} 
                                 onClick={() => setJoinMode('later')}
@@ -1579,6 +1581,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             </button>}
                     </div>
 
+                    {/* 2. SHARED INPUTS (Name, Email) */}
                     <div className="form-group">
                         <label>Your Name:</label>
                         <input 
@@ -1592,12 +1595,15 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         />
                     </div>
 
+
+                    {/* --- OPTION A: JOIN NOW FORM (Full Logic) --- */}
                     {joinMode === 'now' && (
                         <form onSubmit={handleJoinQueue}>
                             <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                             <div className="form-group">
                                 <label>Group Size (Number of Heads):</label>
                                 
+                                {/* --- NEW STEPPER UI --- */}
                                 <div className="stepper-wrapper">
                                     <button 
                                         type="button" 
@@ -1616,6 +1622,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     </button>
                                 </div>
                                 
+                                {/* --- DYNAMIC INFO / WARNING --- */}
                                 <div style={{marginTop: '10px'}}>
                                     {headCount > 1 ? (
                                         <div className="message warning small" style={{textAlign:'left'}}>
@@ -1638,7 +1645,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     )}
                                 </div>
                             </div>
-                            
+                            {/* VIP Toggle - Hidden for guests */}
                             {selectedServiceId && !isGuest && (
                                 <div className="form-group vip-toggle-group">
                                     <label>Service Priority:</label>
@@ -1650,6 +1657,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 </div>
                             )}
                             
+                            {/* Photo Upload - Hidden for guests */}
 {!isGuest && (
                                 <div className="form-group photo-upload-group">
                                     <label>Desired Haircut Photo (Optional):</label>
@@ -1664,6 +1672,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 </div>
                             )}
 
+                            {/* Barber Selection */}
                             <div className="form-group">
                                 <label>Select Available Barber:</label>
                                 {barbers.length > 0 ? (
@@ -1683,6 +1692,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 <input type="hidden" value={selectedBarberId} required />
                             </div>
 
+                            {/* Feedback List */}
                             {selectedBarberId && (<div className="feedback-list-container customer-feedback">
                             <h3 className="feedback-subtitle">Recent Feedback</h3>
                             <ul className="feedback-list">
@@ -1705,6 +1715,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     </li>
                             ))) : (<p className="empty-text">No feedback yet for this barber.</p>)}</ul></div>)}
 
+                            {/* EWT Display */}
                             {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{margin:0, textAlign:'center', width:'100%', color:'var(--text-secondary)'}}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                 <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
                                 <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
@@ -1720,7 +1731,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         onClick={() => setShowIOSPrompt(false)}
                                         style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}
                                     >
-                                        ×
+                                        &times;
                                     </button>
                                 </div>
                             )}
@@ -1731,6 +1742,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         </form>
                     )}
 
+                    {/* --- OPTION B: BOOK LATER FORM (Hidden for guests) --- */}
                     {joinMode === 'later' && !isGuest && (
                         <form onSubmit={handleBooking}>
                             <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)} required><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
@@ -1750,7 +1762,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 <input 
                                     type="date" 
                                     value={selectedDate} 
-                                    min={getTomorrowDate()}   
+                                    min={getTomorrowDate()}   // <--- CHANGE THIS PART
                                     onChange={e => setSelectedDate(e.target.value)} 
                                     required 
                                 />
@@ -1762,8 +1774,6 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     <p className="message small">Select a Service and Barber to see times.</p>
                                 ) : (
                                     <div className="slots-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginTop: '10px'}}>
-                                        
-                                        {/* 🟢 THE TIMEZONE FIX FOR SLOTS 🟢 */}
                                         {availableSlots.length > 0 ? availableSlots.map(slot => (
                                             <button 
                                                 type="button" 
@@ -1772,7 +1782,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                                 onClick={() => setSelectedSlot(slot)}
                                                 style={{fontSize: '0.8rem', padding: '8px'}}
                                             >
-                                                {formatNaiveTime(slot)}
+                                                {new Date(slot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}
                                             </button>
                                         )) : (
                                             <p className="empty-text" style={{gridColumn: '1/-1'}}>No slots available for this date.</p>
@@ -1785,7 +1795,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 <div style={{
                                     marginTop: '15px',
                                     padding: '12px',
-                                    background: 'rgba(255, 149, 0, 0.1)', 
+                                    background: 'rgba(255, 149, 0, 0.1)', // Orange background
                                     border: '1px solid var(--primary-orange)',
                                     borderRadius: '8px',
                                     color: 'var(--primary-orange)',
@@ -1797,8 +1807,8 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         <strong>₱{services.find(s => s.id.toString() === selectedServiceId)?.price_php}</strong>
                                     </div>
                                     <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
-                                    <span>Appointment Fee:</span>
-                                    <strong>+ ₱{vipPrice}.00</strong>
+                                        <span>Appointment Fee:</span>
+                                        <strong>+ ₱{vipPrice}.00</strong>
                                     </div>
                                     <hr style={{borderColor: 'rgba(255, 149, 0, 0.3)', margin: '5px 0'}} />
                                     <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem'}}>
@@ -1818,6 +1828,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         </form>
                     )}
                     
+                    {/* FIX: improved message coloring logic */}
                     {message && (
                         <p className={`message ${
                             message.toLowerCase().includes('success') ? 'success' : 
@@ -1829,8 +1840,10 @@ const fetchChatHistory = useCallback(async (queueId) => {
                 </div>
             )}
 
+            {/* B. LIVE QUEUE VIEW (SHOWS WHEN IN JOIN MODE AND IN QUEUE) */}
             {viewMode === 'join' && myQueueEntryId && (
                 <div className="live-queue-view card-body">
+                    {/* --- YOUR LIVE QUEUE CONTENT GOES HERE --- */}
                     {myQueueEntry?.status === 'In Progress' && (<div className="status-banner in-progress-banner"><h2><IconCheck /> It's Your Turn!</h2><p>The barber is calling you now.</p></div>)}
                     {myQueueEntry?.status === 'Up Next' && (
                         <div className={`status-banner up-next-banner ${myQueueEntry.is_confirmed ? 'confirmed-pulse' : ''}`}>
@@ -1842,6 +1855,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 <p><strong>✅ Confirmed!</strong> Please sit in the waiting area.</p>
                             ) : (
                                 <>
+                                    {/* STATUS INDICATORS */}
                                     <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
                                         <span>
                                             {travelDirection === 'closing' ? '⬇️ Closing in...' : travelDirection === 'away' ? '⬆️ Moving away...' : '📍 Location active'}
@@ -1851,7 +1865,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         </span>
                                     </div>
 
+                                    {/* CONDITIONAL BUTTON */}
                                     {hasArrived ? (
+                                        // SCENARIO 1: AT THE SHOP (GREEN LIGHT)
                                         <div style={{animation: 'pulse-border 2s infinite', borderRadius:'6px'}}>
                                             <p style={{color: 'var(--success-color)', fontWeight:'bold', margin:'5px 0'}}>
                                                 🎯 You have arrived!
@@ -1861,6 +1877,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                             </button>
                                         </div>
                                     ) : (
+                                        // SCENARIO 2: FAR AWAY (LOCKED)
                                         <div style={{opacity: 0.8}}>
                                             <p style={{fontSize:'0.85rem', margin:'0 0 10px 0'}}>
                                                 Please move closer to the shop to check in.
@@ -1874,6 +1891,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             )}
                         </div>
                     )}
+                    {/* OPPORTUNITY BANNER */}
                     {freeBarber && (
                         <div style={{
                             background: 'linear-gradient(45deg, #ff9500, #ffcc00)',
@@ -1886,7 +1904,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             alignItems: 'center',
                             textAlign: 'center',
                             boxShadow: '0 4px 15px rgba(255, 149, 0, 0.3)',
-                            animation: 'pulse-border 2s infinite' 
+                            animation: 'pulse-border 2s infinite' // Reuse your existing animation
                         }}>
                             <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px'}}>
                                 <span style={{fontSize: '1.5rem'}}>⚡</span>
@@ -1928,7 +1946,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         onClick={() => window.open(CAFE_AD.locationLink, '_blank')}
                         style={{
                             margin: '15px 0',
-                            background: 'linear-gradient(to right, #3e2723, #5d4037)', 
+                            background: 'linear-gradient(to right, #3e2723, #5d4037)', // Coffee Brown Gradient
                             borderRadius: '8px',
                             overflow: 'hidden',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
@@ -1937,6 +1955,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             position: 'relative'
                         }}
                     >
+                        {/* "Partner" Badge */}
                         <div style={{
                             position: 'absolute', top: 10, right: 10,
                             background: '#ffc107', color: 'black',
@@ -1948,6 +1967,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                         </div>
 
                         <div style={{display: 'flex', alignItems: 'center'}}>
+                            {/* Left: Icon/Image */}
                             <div style={{
                                 width: '100px', 
                                 height: '100px', 
@@ -1955,13 +1975,14 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 flexShrink: 0
                             }}></div>
 
+                            {/* Right: Text */}
                             <div style={{padding: '10px 15px', textAlign: 'left', flex: 1}}>
                                 <h4 style={{
                                     margin: '0 0 4px 0', 
                                     color: '#fff', 
-                                    fontSize: '1.4rem', 
-                                    fontFamily: 'Blanka, sans-serif', 
-                                    letterSpacing: '2px', 
+                                    fontSize: '1.4rem', /* Increased size because Blanka is naturally small */
+                                    fontFamily: 'Blanka, sans-serif', /* <--- APPLY FONT HERE ONLY */
+                                    letterSpacing: '2px', /* Blanka looks better with spacing */
                                     textTransform: 'uppercase'
                                 }}>
                                     ☕ {CAFE_AD.name}
@@ -1978,6 +1999,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     {CAFE_AD.perks}
                                 </div>
                                 
+                                {/* CTA Button Lookalike */}
                                 <div style={{
                                     marginTop: '8px', 
                                     display: 'inline-block',
@@ -1999,14 +2021,13 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             <li className="empty-text">Queue is empty.</li>
                         ) : (
                             liveQueue.map((entry, index) => {
+                                // --- GHOST SLOT RENDER ---
                                 if (entry.is_ghost) {
                                     return (
                                         <li key={entry.id} className="queue-item ghost-slot" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px'}}>
                                             <div className="queue-item-info">
                                                 <span style={{color:'var(--text-secondary)', marginRight:'5px'}}>{index + 1}.</span>
-                                                
-                                                {/* 🟢 THE GHOST SLOT TIMEZONE FIX 🟢 */}
-                                                <strong style={{color:'var(--text-secondary)'}}>📅 {formatNaiveTime(entry.display_time)} - Reserved</strong>
+                                                <strong style={{color:'var(--text-secondary)'}}>📅 {entry.display_time} - Reserved</strong>
                                             </div>
                                             <span className="status-badge" style={{
                                                 background:'rgba(128, 128, 128, 0.1)', 
@@ -2022,6 +2043,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                     );
                                 }
 
+                                // --- STANDARD ENTRY RENDER ---
                                 return (
                                     <li key={entry.id} className={`${entry.id.toString() === myQueueEntryId ? 'my-position' : ''} ${entry.status === 'Up Next' ? 'up-next-public' : ''} ${entry.status === 'In Progress' ? 'in-progress-public' : ''} ${entry.is_vip ? 'vip-entry' : ''}`}>
                                         <div className="queue-item-info">
@@ -2052,13 +2074,13 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             {referenceImageUrl && referenceImageUrl !== myQueueEntry?.reference_image_url && <p className="success-message small">New photo uploaded.</p>}
                         </div>)}
                         <div className="chat-section">
-                            {!isChatOpen && myQueueEntryId && !isGuest && (
-                                <button onClick={async () => {
+                            {!isChatOpen && myQueueEntryId && !isGuest && (<button onClick={() => {
                                 if (currentChatTargetBarberUserId) {
-                                    await fetchChatHistory(myQueueEntryId);
+                                    // FIX: Fetch chat history immediately when opening chat
+                                    fetchChatHistory(myQueueEntryId);
                                     setIsChatOpen(true);
                                     setHasUnreadFromBarber(false);
-                                    await axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+                                    axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                                 } else { console.error("Barber user ID missing."); setMessage("Cannot initiate chat."); }
                             }} className="btn btn-secondary btn-full-width btn-icon-label chat-toggle-button">
                                 <IconChat />Chat with Barber{hasUnreadFromBarber && (<span className="notification-badge"></span>)}</button>)}
@@ -2068,11 +2090,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                                             <h4>Chat with {currentBarberName}</h4>
 
+                                            {/* --- REPORT BUTTON HERE --- */}
                                             <button
                                             onClick={() => setReportModalOpen(true)} 
                                                 className="btn btn-danger btn-icon" 
                                                 title="Report Issue / Help"
-                                                style={{padding: '2px', width: '24px', height: '24px'}} 
+                                                style={{padding: '2px', width: '24px', height: '24px'}} // Make it small
                                             >
                                                 ❓
                                             </button>
@@ -2090,6 +2113,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                         onSendMessage={sendCustomerMessage} 
                                     />
 
+                                    {/* --- ADD MODAL HERE --- */}
                                     <ReportModal 
                                         isOpen={isReportModalOpen} 
                                         onClose={() => setReportModalOpen(false)}
@@ -2104,6 +2128,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     <div className="danger-zone">
                         <button 
                             onClick={() => {
+                                // CONFIRMATION DIALOG ADDED HERE
                                 if (window.confirm("Are you sure? You will lose your spot in line and have to start over!")) {
                                     handleReturnToJoin(true);
                                 }
@@ -2120,6 +2145,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
             {/* C. HISTORY VIEW - Hidden for guests */}
             {viewMode === 'history' && !isGuest && (
                 <div className="card-body history-view">
+                    {/* Loyalty Stats Summary */}
                     {loyaltyData && (
                         <div style={{
                             marginBottom: '20px',
@@ -2189,12 +2215,15 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 const statusClass = entry.status === 'Done' ? 'done' : 'cancelled';
                                 const barberName = entry.barber_profiles?.full_name || 'Unrecorded Barber';
 
+                                // --- FIXED PRICE CALCULATION ---
                                 const basePrice = parseFloat(entry.services?.price_php || 0);
                                 const heads = entry.head_count || 1; 
                                 const vipFee = entry.is_vip ? 100 : 0;
                                 
+                                // Safety Check: Ensure tip is a number (defaults to 0 if null)
                                 const tip = entry.tip_amount ? parseFloat(entry.tip_amount) : 0;
 
+                                // Formula: (Service * Heads) + (VIP * Heads) + Tip
                                 const totalCost = (basePrice * heads) + (vipFee * heads) + tip;
 
                                 return (
@@ -2222,6 +2251,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                             </span>
                                         </div>
                                         
+                                        {/* Comment Section */}
                                         {entry.comments && entry.comments.trim().length > 0 && (
                                             <p className="feedback-comment" style={{paddingLeft: '0', fontStyle: 'normal', marginTop: '5px', color: 'var(--text-primary)'}}>
                                                 Comment: "{entry.comments}"
@@ -2233,9 +2263,11 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                                 {barberName}
                                             </span>
                                             
+                                            {/* TOTAL PRICE with Breakdown */}
                                             <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
                                                 <span style={{fontWeight:'bold'}}>₱{totalCost.toFixed(2)}</span>
                                                 
+                                                {/* Show details only if relevant */}
                                                 {(heads > 1 || tip > 0) && (
                                                     <small style={{fontSize:'0.7rem', color:'var(--text-secondary)'}}>
                                                         {heads > 1 ? `(${heads} pax)` : ''} 
@@ -2251,7 +2283,6 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     )}
                 </div>
             )}
-            
             {/* D. APPOINTMENTS VIEW - Hidden for guests */}
             {viewMode === 'appointments' && !isGuest && (
                 <div className="card-body">
@@ -2267,16 +2298,12 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     ) : (
                         <ul className="queue-list">
                             {myAppointments.map((appt) => {
-                                
-                                const safeDateString = appt.scheduled_time ? appt.scheduled_time.split('T')[0] : '';
-                                const dateObj = new Date(safeDateString + 'T00:00:00');
-                                
-                                const isPast = dateObj < new Date();
-                                const displayDate = dateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-                                
-                                // 🟢 THE TIMEZONE FIX FOR MY BOOKINGS 🟢
-                                const displayTime = appt.formatted_time || formatNaiveTime(appt.scheduled_time);
-                                
+                                const dateObj = new Date(appt.scheduled_time);
+                                // Use Philippines timezone for display
+                                const isPast = dateObj < new Date(new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
+                                const displayDate = dateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
+                                const displayTime = dateObj.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
+                                // Determine Badge Color
                                 let statusColor = 'var(--text-secondary)';
                                 let statusBg = 'rgba(0,0,0,0.05)';
                                 let statusText = appt.status;
@@ -2288,11 +2315,11 @@ const fetchChatHistory = useCallback(async (queueId) => {
                                 } else if (appt.status === 'confirmed') {
                                     statusColor = 'var(--success-color)';
                                     statusBg = 'rgba(52,199,89,0.1)';
-                                    statusText = 'CONFIRMED'; 
+                                    statusText = 'CONFIRMED'; //
                                 } else if (appt.status === 'pending') {
-                                    statusColor = '#FFD700'; 
+                                    statusColor = '#FFD700'; // Gold/Yellow
                                     statusBg = 'rgba(255, 215, 0, 0.1)';
-                                    statusText = 'WAITING FOR RESPONSE'; 
+                                    statusText = 'WAITING FOR RESPONSE'; // <--- New Status Text
                                 } else if (appt.status === 'cancelled') {
                                     statusColor = 'var(--error-color)';
                                     statusBg = 'rgba(255,59,48,0.1)';
@@ -2345,17 +2372,17 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     )}
                 </div>
             )}
-            
             <MyReportsModal 
                 isOpen={isMyReportsOpen} 
                 onClose={() => setIsMyReportsOpen(false)} 
                 userId={session?.user?.id} 
             />
-            {/* --- PRODUCT DETAIL MODAL --- */}
+            {/* --- PRODUCT DETAIL MODAL (POPS OVER EVERYTHING) --- */}
             {viewProduct && (
                 <div className="modal-overlay" style={{zIndex: 2000}} onClick={() => setViewProduct(null)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: '350px'}}>
                         
+                        {/* Header / Image Area */}
                         <div style={{
                             background: viewProduct.theme.background, 
                             padding: '20px', 
@@ -2396,6 +2423,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             </span>
                         </div>
 
+                        {/* Details Body */}
                         <div className="modal-body" style={{textAlign: 'left', padding: '20px'}}>
                             <p style={{fontSize: '1rem', lineHeight: '1.6', color: 'var(--text-primary)'}}>
                                 {viewProduct.description}
@@ -2422,6 +2450,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                             </p>
                         </div>
 
+                        {/* Footer */}
                         <div className="modal-footer single-action">
                             <button onClick={() => setViewProduct(null)} className="btn btn-primary btn-full-width">
                                 Close

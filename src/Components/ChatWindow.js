@@ -14,32 +14,40 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
         if (newMessage.trim() && onSendMessage) {
             onSendMessage(otherUser_id, newMessage);
             setNewMessage('');
+        } else {
+            console.warn("[ChatWindow] Cannot send message, handler missing or message empty.");
         }
     };
     
     return (
         <div className="chat-window">
             <div className="message-list">
-                {messages.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px' }}>No messages yet.</p>
-                ) : (
-                    messages.map((msg, index) => {
-                    // 🟢 Dito natin sinisiguro na kahit 'senderId' o 'sender_id' ang gamit, gagana siya
-                    const effectiveSenderId = msg.senderId || msg.sender_id;
-                    const isMe = effectiveSenderId === currentUser_id;
-                    
+                {messages.map((msg, index) => {
+                    const isMe = msg.senderId === currentUser_id;
                     return (
-                        <div key={msg.id || index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
-                            <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
+                        <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
+                        <div 
+                                className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}
+                                style={{ 
+                                    whiteSpace: 'pre-wrap', 
+                                    wordBreak: 'break-word', 
+                                    overflowWrap: 'break-word',
+                                    maxWidth: '85%', 
+                                    padding: '10px 14px', 
+                                    borderRadius: '18px', 
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                    wordSpacing: 'normal',
+                                    lineHeight: '1.4'
+                                }}
+                            >
                                 {msg.message}
                             </div>
                             <span className="message-timestamp">
-                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                             </span>
                         </div>
                     );
-                })
-                )}
+                })}
                 <div ref={messagesEndRef} />
             </div>
             <form onSubmit={handleSendMessage} className="message-input-form">
@@ -48,12 +56,11 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    autoComplete="off"
                 />
                 <button type="submit" disabled={!onSendMessage || !newMessage.trim()} className="btn btn-icon btn-send">
                     <IconSend />
                 </button>
             </form>
         </div>
-    );
-};
+    )
+}
