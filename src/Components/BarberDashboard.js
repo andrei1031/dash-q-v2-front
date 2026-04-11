@@ -176,32 +176,24 @@ useEffect(() => {
     if (!barberId || !supabase) return;
 
     const chatChannel = supabase.channel(`barber_global_chat_listener`)
-        .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-            (payload) => {
-                const newMsg = payload.new;
-                
-                // Ignore my own messages
-                if (newMsg.sender_id === session.user.id) return;
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+        const newMsg = payload.new;
+        if (newMsg.sender_id === session.user.id) return;
 
-                // 🟢 FIX: Index messages by queue_entry_id so Admin replies show up here too
-                const qId = newMsg.queue_entry_id;
+        const qId = newMsg.queue_entry_id; // 👈 Use this as the key
 
-                setChatMessages(prev => {
-                    const currentMsgs = prev[qId] || [];
-                    // Prevent duplicates
-                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
-
-                    return { 
-                        ...prev, 
-                        [qId]: [...currentMsgs, { 
-                            senderId: newMsg.sender_id, 
-                            message: newMsg.message, 
-                            created_at: newMsg.created_at 
-                        }] 
-                    };
-                });
+        setChatMessages(prev => {
+            const currentMsgs = prev[qId] || [];
+            if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
+            return { 
+                ...prev, 
+                [qId]: [...currentMsgs, { 
+                    senderId: newMsg.sender_id, 
+                    message: newMsg.message, 
+                    created_at: newMsg.created_at 
+                }] 
+            };
+        });
 
                 // 🟢 2. Notification Badge Logic (Always type-safe)
                 if (openChatQueueId?.toString() !== qId.toString()) {
@@ -418,15 +410,23 @@ useEffect(() => {
         }
     };
 
-    const openChat = async (customer) => {
-    const customerUserId = customer?.profiles?.id;
+    /**
+ * openChat - Handles opening the chat window and loading history
+ * @param {Object} customer - The customer object from the queue entry
+ */
+const openChat = async (customer) => {
+    // 1. Extract IDs (The queue ID is our unique "Room ID")
     const queueId = customer?.id;
+    const customerUserId = customer?.profiles?.id;
 
-    if (customerUserId && queueId) {
-        setOpenChatCustomerId(customerUserId);
+    if (queueId && customerUserId) {
+        console.log(`[openChat] Opening chat for Queue #${queueId}`);
+        
+        // 2. Update local state to show the window
         setOpenChatQueueId(queueId);
+        setOpenChatCustomerId(customerUserId);
 
-        // Fetch History IMMEDIATELY on open
+        // 3. Fetch History from Supabase
         try {
             const { data, error } = await supabase
                 .from('chat_messages')
@@ -436,24 +436,55 @@ useEffect(() => {
             
             if (error) throw error;
 
-            // Map results to ensure 'senderId' (camelCase) exists
-            const formattedHistory = data.map(msg => ({ 
+            // 4. Map results to use 'senderId' (matching ChatWindow expected format)
+            const history = data.map(msg => ({ 
                 senderId: msg.sender_id, 
                 message: msg.message,
                 created_at: msg.created_at
             }));
             
-            setChatMessages(prev => ({ 
-                ...prev, 
-                [customerUserId]: formattedHistory 
-            }));
+            // 5. MERGE: Combine background real-time messages with database history
+            // This ensures no message "disappears" if it arrives while the window is closed.
+            setChatMessages(prev => {
+                const existing = prev[queueId] || [];
+                
+                // Combine arrays, remove duplicates based on timestamp, and sort by time
+                const merged = [...existing, ...history].filter((msg, index, self) =>
+                    index === self.findIndex((m) => m.created_at === msg.created_at)
+                ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-            // Mark as read on server
-            axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
+                return { ...prev, [queueId]: merged };
+            });
+
+            // 6. Local UI: Reset the notification badge for this specific customer
+            setQueueDetails(prev => {
+                const updateEntry = (entry) => {
+                    // Using .toString() to avoid type-mismatch bugs (String vs Integer)
+                    if (entry && entry.id.toString() === queueId.toString()) {
+                        return { ...entry, unread_count: 0 };
+                    }
+                    return entry;
+                };
+
+                return {
+                    ...prev,
+                    inProgress: updateEntry(prev.inProgress),
+                    upNext: updateEntry(prev.upNext),
+                    waiting: prev.waiting.map(updateEntry)
+                };
+            });
+
+            // 7. API: Tell the server we have read these messages
+            await axios.put(`${API_URL}/chat/read`, { 
+                queueId: queueId, 
+                readerId: session.user.id 
+            });
 
         } catch (err) { 
-            console.error("Failed to load chat history:", err); 
+            console.error("Barber failed to load history:", err); 
         }
+    } else {
+        console.error("Cannot open chat: Missing Queue ID or Customer ID info.", customer);
     }
 };
 

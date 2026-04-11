@@ -145,28 +145,19 @@ export const CustomerView = ({ session }) => {
     }, []);
 
     const fetchChatHistory = useCallback(async (queueId) => {
-        if (!queueId) return;
-        try {
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .select('sender_id, message, created_at')
-                .eq('queue_entry_id', queueId)
-                .order('created_at', { ascending: true }); 
-            
-            if (error) throw error;
-            
-            if (data) {
-                const formattedHistory = data.map(msg => ({
-                    senderId: msg.sender_id,
-                    message: msg.message,
-                    created_at: msg.created_at
-                }));
-                setChatMessagesFromBarber(formattedHistory);
-            }
-        } catch (err) { 
-            console.error("Error fetching customer chat history:", err); 
+    if (!queueId) return;
+    try {
+        const { data } = await supabase.from('chat_messages').select('*').eq('queue_entry_id', queueId).order('created_at', { ascending: true });
+        if (data) {
+            const formatted = data.map(msg => ({ senderId: msg.sender_id, message: msg.message, created_at: msg.created_at }));
+            // 🟢 Merge with existing state to ensure no real-time messages are lost
+            setChatMessagesFromBarber(prev => {
+                const combined = [...prev, ...formatted];
+                return combined.filter((v, i, a) => a.findIndex(t => t.created_at === v.created_at) === i);
+            });
         }
-    }, []);
+    } catch (err) { console.error(err); }
+}, []);
 
     const handleCloseInstructions = () => {
         localStorage.setItem('hasSeenInstructions_v1', 'true');
