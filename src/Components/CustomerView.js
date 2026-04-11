@@ -674,17 +674,16 @@ export const CustomerView = ({ session }) => {
 
     useEffect(() => {
     const handleFocus = () => {
-        if (openChatQueueId) {
-            console.log("Tab focused, catching up on messages...");
-            // Trigger your history fetch to grab anything missed while backgrounded
-            // For Barber, call openChat with current customer info
-            // For Customer, call fetchChatHistory(myQueueEntryId)
-        }
-    };
+            // 🟢 FIX: Use myQueueEntryId instead of openChatQueueId
+            if (myQueueEntryId && isChatOpen) {
+                console.log("Customer returned to tab. Syncing chat history...");
+                fetchChatHistory(myQueueEntryId);
+            }
+        };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-}, [openChatQueueId]);
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [myQueueEntryId, isChatOpen, fetchChatHistory]);
 
     useEffect(() => {
         if (viewMode === 'appointments') {
