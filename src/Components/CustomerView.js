@@ -673,6 +673,20 @@ export const CustomerView = ({ session }) => {
     };
 
     useEffect(() => {
+    const handleFocus = () => {
+        if (openChatQueueId) {
+            console.log("Tab focused, catching up on messages...");
+            // Trigger your history fetch to grab anything missed while backgrounded
+            // For Barber, call openChat with current customer info
+            // For Customer, call fetchChatHistory(myQueueEntryId)
+        }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+}, [openChatQueueId]);
+
+    useEffect(() => {
         if (viewMode === 'appointments') {
             fetchMyAppointments();
         }

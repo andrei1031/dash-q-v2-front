@@ -145,7 +145,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         if (newMsg.sender_id === session.user.id) return;
 
         // 🟢 THE FIX: Always use queue_entry_id as the state key
-        const qId = newMsg.queue_entry_id.toString();
+        const qId = newMsg.queue_entry_id.toString(); 
 
         setChatMessages(prev => {
             const currentMsgs = prev[qId] || [];
@@ -154,8 +154,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
 
             return {
                 ...prev,
+                // qId is now a string, matching what openChatQueueId.toString() uses
                 [qId]: [...currentMsgs, {
-                    senderId: newMsg.sender_id, // Map to camelCase for ChatWindow
+                    senderId: newMsg.sender_id,
                     message: newMsg.message,
                     created_at: newMsg.created_at
                 }]
@@ -274,6 +275,20 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         };
     }, [barberId, fetchQueueDetails, onQueueUpdate, fetchAppointmentCount]); 
 
+    useEffect(() => {
+    const handleFocus = () => {
+        if (openChatQueueId) {
+            console.log("Tab focused, catching up on messages...");
+            // Trigger your history fetch to grab anything missed while backgrounded
+            // For Barber, call openChat with current customer info
+            // For Customer, call fetchChatHistory(myQueueEntryId)
+        }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+}, [openChatQueueId]);
+
     const closeModal = () => {
         setModalState({ type: null, data: null });
         setTipInput('');
@@ -384,38 +399,35 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
  */
 const openChat = async (customer) => {
     const queueId = customer?.id;
-    const customerUserId = customer?.profiles?.id;
+    if (!queueId) return;
 
-    if (queueId && customerUserId) {
-        setOpenChatQueueId(queueId);
-        setOpenChatCustomerId(customerUserId);
+    setOpenChatQueueId(queueId);
+    setOpenChatCustomerId(customer?.profiles?.id);
 
-        try {
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .select('*')
-                .eq('queue_entry_id', queueId)
-                .order('created_at', { ascending: true });
-            
-            if (error) throw error;
+    try {
+        const { data } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('queue_entry_id', queueId)
+            .order('created_at', { ascending: true });
+        
+        if (data) {
+            setChatMessages(prev => {
+                const qKey = queueId.toString();
+                const existing = prev[qKey] || [];
+                
+                // 🟢 MERGE: Keep background messages AND add database history
+                const combined = [...existing, ...data];
+                
+                // Remove duplicates based on timestamp
+                const unique = combined.filter((msg, idx, self) =>
+                    idx === self.findIndex((m) => m.created_at === msg.created_at)
+                ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-            if (data) {
-                // 🟢 FIX: MERGE history with existing Real-time messages
-                setChatMessages(prev => {
-                    const qKey = queueId.toString();
-                    const existingMsgs = prev[qKey] || [];
-                    
-                    // Combine them and remove duplicates based on timestamp
-                    const merged = [...existingMsgs, ...data].filter((msg, index, self) =>
-                        index === self.findIndex((m) => m.created_at === msg.created_at)
-                    ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-                    return { ...prev, [qKey]: merged };
-                });
-            }
-            axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
-        } catch (err) { console.error("Fetch failed", err); }
-    }
+                return { ...prev, [qKey]: unique };
+            });
+        }
+    } catch (err) { console.error(err); }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
