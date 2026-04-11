@@ -1,1 +1,10 @@
-# BarberDashboard Chat Fix Implementation - COMPLETE ✅\n\n## Implemented Fixes\n- [x] Original realtime useEffect + openChat replacements\n- [x] useRef stabilization for channel (prevents disappearing chat)\n- [x] Stable deps `[barberId, session?.user?.id]` (removed openChatQueueId loop)\n- [x] Fixed backend read marking + local badge reset\n- [x] Duplicate message prevention by timestamp\n- [x] Notification sound + badge increment logic\n\n## Required Backend Setup (Supabase Dashboard > SQL Editor)\n`\n-- Enable realtime for chat_messages table\nalter publication supabase_realtime add table chat_messages;\n\n-- Full record replication  \nalter table chat_messages replica identity full;\n`\n\n## Test Commands\n`bash\nyarn dev  # Restart dev server\n# Test: Open barber dashboard, send customer message, verify:\n# 1. No disappearing chat window\n# 2. Badges increment/decrement  \n# 3. Realtime messages (after Supabase SQL)\n# 4. History loads on openChat\n`\n\nAll frontend changes applied successfully to BarberDashboard.js.
+# Push Notifications VAPID Fix - TODO
+
+## Plan Implementation Steps
+
+- [x] Step 1: Edit `src/Components/notifications/EnhancedPushNotifications.js` - Replace REACT_APP_VAPID_KEY with REACT_APP_VAPID_PUBLIC_KEY
+- [ ] Step 2: User adds `REACT_APP_VAPID_PUBLIC_KEY=...` to `.env` + restarts dev server (`yarn start` or `npm start`)
+- [ ] Step 3: Test push registration in console: look for "Successfully subscribed to Dash-Q Push Notifications."
+- [ ] Step 4: Verify backend `/notifications/subscribe` endpoint works with subscription
+
+**Next**: Complete Step 1 via edit_file, then mark done and proceed.
