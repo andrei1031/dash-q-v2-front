@@ -195,19 +195,32 @@ export const useEnhancedNotifications = (userId) => {
 };
 
 // Helper function to convert VAPID key
+// src/Components/notifications/EnhancedPushNotifications.js
+
 function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
+    // Safety check to prevent .length error if variable is undefined
+    if (!base64String || typeof base64String !== 'string') {
+        console.warn("VAPID Public Key is missing or invalid. Check your .env file.");
+        return new Uint8Array();
     }
-    return outputArray;
+
+    try {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    } catch (error) {
+        console.error("Failed to convert VAPID key:", error);
+        return new Uint8Array();
+    }
 }
 
 // Detect iOS device
