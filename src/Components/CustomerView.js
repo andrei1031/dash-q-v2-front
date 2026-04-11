@@ -14,7 +14,7 @@ import axios from "axios";
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
-    const { registerServiceWorker } = useEnhancedNotifications(session?.user?.id);
+    const { requestPermission } = useEnhancedNotifications(session?.user?.id);
     
 const isGuest = session && session.user && session.user.is_guest === true;
 console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
@@ -657,12 +657,6 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
     // --- Effects ---
     
-    useEffect(() => {
-        if (session?.user?.id && Notification.permission === 'granted') {
-             registerServiceWorker();
-        }
-    }, [session, registerServiceWorker]);
-
     useEffect(() => {
     // Only run if we are already in a queue and waiting
     if (!myQueueEntryId || !joinedBarberId) return;
@@ -1535,14 +1529,11 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 <div className="message warning small" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                     <span>Enable notifications for "Up Next" alerts?</span>
                     <button 
-                        onClick={() => {
-                            Notification.requestPermission().then(perm => {
-                                if (perm === 'granted') {
-                                    // FIX: Call the function here
-                                    registerServiceWorker(); 
-                                    alert("Notifications Enabled!");
-                                }
-                            });
+                        onClick={async () => {
+                            const success = await requestPermission();
+                            if (success) {
+                                alert("Notifications Enabled!");
+                            }
                         }} 
                         className="btn btn-primary"
                     >

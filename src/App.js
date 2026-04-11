@@ -81,7 +81,7 @@ function App() {
     const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
     const [authRole, setAuthRole] = useState(null); // Track selected role for AuthForm
     const [installPrompt, setInstallPrompt] = useState(null); // For PWA install prompt
-    const { registerServiceWorker } = useEnhancedNotifications(session?.user?.id); // Get the registration function from our custom hook
+    useEnhancedNotifications(session?.user?.id); // Call the hook at the top level, it will handle its own logic
     
     // --- NEW STATE: Controls Landing Page visibility ---
     const [showLanding, setShowLanding] = useState(true); 
@@ -249,16 +249,6 @@ function App() {
         }
     }
             setLoadingRole(false);
-
-            // 3. SAFER NOTIFICATION CHECK (Prevents Mobile Crash)
-            // Only run if the browser actually supports it
-            if ('Notification' in window && 'serviceWorker' in navigator && existingSession?.user?.id) {
-                if (Notification.permission === 'granted') {
-                    // Only register if we ALREADY have permission. 
-                    // NEVER ask for permission here (it crashes mobile).
-                    registerServiceWorker();
-                }
-            }
         };
 
         initSession();
@@ -276,35 +266,6 @@ function App() {
 
         return () => subscription?.unsubscribe();
     }, [checkUserRole]);
-
-    useEffect(() => {
-        const initSession = async () => {
-            const { data: { session: existingSession } } = await supabase.auth.getSession();
-            
-            if (existingSession) {
-                setSession(existingSession);
-                checkUserRole(existingSession.user);
-
-                // 2. Use the function from the hook, NOT the hook itself
-                if ('Notification' in window && Notification.permission === 'granted') {
-                    registerServiceWorker(); 
-                }
-            }
-            setLoadingRole(false);
-        };
-        initSession();
-    }, [checkUserRole, registerServiceWorker]); // Add registerServiceWorker to dependency array
-
-    useEffect(() => {
-        const handleRegistration = async () => {
-            if (session?.user?.id && 'Notification' in window && Notification.permission === 'granted') {
-                console.log("[Push] Permission already granted, registering...");
-                // FIX: Call the function from the hook, not the hook itself!
-                await registerServiceWorker(); 
-            }
-        };
-        handleRegistration();
-    }, [session, registerServiceWorker]); // Add registerServiceWorker to dependencies
 
     useEffect(() => {
         if (!supabase?.auth) {
@@ -335,23 +296,6 @@ function App() {
 
         return () => subscription?.unsubscribe();
     }, [checkUserRole]);
-
-    useEffect(() => {
-        const handleRegistration = async () => {
-            // Check for valid session and browser support
-            if (session?.user?.id && 'Notification' in window && 'serviceWorker' in navigator) {
-                // To prevent mobile UI crashes, we only register if permission is already granted
-                if (Notification.permission === 'granted') {
-                    console.log("[Push] Permission already granted, registering...");
-                    await registerServiceWorker(session.user.id);
-                } 
-                // If permission is 'default', the user hasn't been asked yet.
-                // You may want to trigger a custom UI modal before calling Notification.requestPermission()
-            }
-        };
-
-        handleRegistration();
-    }, [session]);
 
     useEffect(() => {
         const handleBeforeInstallPrompt = (e) => {

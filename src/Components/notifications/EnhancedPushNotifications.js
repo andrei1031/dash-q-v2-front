@@ -69,33 +69,51 @@ export const useEnhancedNotifications = (userId) => {
     // src/Components/notifications/EnhancedPushNotifications.js
 
     const registerServiceWorker = useCallback(async () => {
-        try {
-            const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-            setIsRegistered(true);
+        if (!('serviceWorker' in navigator) || !navigator.onLine) return;
 
-            // 1. Check if the key exists before trying to use it
+        try {
+            // 1. Ensure the SW is fully active and ready
+            await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            const readyReg = await navigator.serviceWorker.ready;
+            
             const publicKey = process.env.REACT_APP_VAPID_PUBLIC_KEY;
             if (!publicKey) {
                 console.error("❌ PWA ERROR: REACT_APP_VAPID_PUBLIC_KEY is missing from environment variables.");
                 return false;
             }
 
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                // 2. FIX: Added the missing 'applicationServerKey' label
-                applicationServerKey: urlBase64ToUint8Array(publicKey)
-            });
+            // 2. Check for existing subscription first
+            let subscription = await readyReg.pushManager.getSubscription();
+            
+            if (!subscription) {
+                // 3. This is where AbortError usually happens. 
+                // We add a tiny delay to ensure the push service is reachable.
+                await new Promise(res => setTimeout(res, 100));
+                
+                subscription = await readyReg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(publicKey)
+                });
+            }
 
-            if (userId) {
+            if (userId && subscription) {
                 await axios.post(`${API_URL}/notifications/subscribe`, { userId, subscription });
             }
+            setIsRegistered(true);
             return true;
         } catch (err) {
-            console.error('Service Worker registration failed:', err);
+            console.error('Push Registration Error:', err.name, err.message);
             setError(err.message);
             return false;
         }
     }, [userId]);
+
+    // Automatically trigger if permission is already granted
+    useEffect(() => {
+        if ('Notification' in window && Notification.permission === 'granted' && userId) {
+            registerServiceWorker();
+        }
+    }, [userId, registerServiceWorker]);
 
     // Send local notification (works offline)
     const sendLocalNotification = useCallback(async (title, options = {}) => {
@@ -286,4 +304,3 @@ export const NotificationPermissionPrompt = ({ onPermissionGranted }) => {
 };
 
 export default useEnhancedNotifications;
-
