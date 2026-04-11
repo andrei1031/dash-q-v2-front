@@ -177,50 +177,50 @@ useEffect(() => {
 
     const chatChannel = supabase.channel(`barber_global_chat_listener`)
         .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-            (payload) => {
-                const newMsg = payload.new;
-                if (newMsg.sender_id === session.user.id) return;
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+    (payload) => {
+        const newMsg = payload.new;
+        if (newMsg.sender_id === session.user.id) return;
 
-                const qId = newMsg.queue_entry_id;
+        // 🟢 THE FIX: Always use queue_entry_id as the state key
+        const qId = newMsg.queue_entry_id;
 
-                // 🟢 FIX: Save message to state immediately, even if window is closed
-                setChatMessages(prev => {
-                    const currentMsgs = prev[qId] || [];
-                    // Prevent duplicates
-                    if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
+        setChatMessages(prev => {
+            const currentMsgs = prev[qId] || [];
+            // Prevent duplicates
+            if (currentMsgs.some(m => m.created_at === newMsg.created_at)) return prev;
 
-                    return { 
-                        ...prev, 
-                        [qId]: [...currentMsgs, { 
-                            senderId: newMsg.sender_id, 
-                            message: newMsg.message, 
-                            created_at: newMsg.created_at 
-                        }] 
-                    };
-                });
+            return {
+                ...prev,
+                [qId]: [...currentMsgs, {
+                    senderId: newMsg.sender_id, // Map to camelCase for ChatWindow
+                    message: newMsg.message,
+                    created_at: newMsg.created_at
+                }]
+            };
+        });
 
-                // Handle badge updates
-                if (openChatQueueId?.toString() !== qId.toString()) {
-                    setQueueDetails(prev => {
-                        const incrementBadge = (entry) => {
-                            if (entry && entry.id.toString() === qId.toString()) {
-                                return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
-                            }
-                            return entry;
-                        };
-                        return {
-                            ...prev,
-                            inProgress: incrementBadge(prev.inProgress),
-                            upNext: incrementBadge(prev.upNext),
-                            waiting: prev.waiting.map(incrementBadge)
-                        };
-                    });
-                    playSound(messageNotificationSound);
-                }
-            }
-        )
+        // Badge logic (Compare strings to be safe)
+        if (openChatQueueId?.toString() !== qId.toString()) {
+            setQueueDetails(prev => {
+                const incrementBadge = (entry) => {
+                    if (entry && entry.id.toString() === qId.toString()) {
+                        return { ...entry, unread_count: (entry.unread_count || 0) + 1 };
+                    }
+                    return entry;
+                };
+                return {
+                    ...prev,
+                    inProgress: incrementBadge(prev.inProgress),
+                    upNext: incrementBadge(prev.upNext),
+                    waiting: prev.waiting.map(incrementBadge)
+                };
+            });
+            playSound(messageNotificationSound);
+        }
+    }
+)
         .subscribe();
 
     return () => { supabase.removeChannel(chatChannel); };
@@ -229,18 +229,18 @@ useEffect(() => {
     const sendBarberMessage = async (recipientId, messageText) => {
     if (!messageText.trim() || !openChatQueueId) return;
 
-    // 🟢 FIX: Save using openChatQueueId
-    setChatMessages(prev => {
-        const msgs = prev[openChatQueueId] || [];
-        return { 
-            ...prev, 
-            [openChatQueueId]: [...msgs, { 
+    // 🟢 THE FIX: Save your reply using openChatQueueId
+    setChatMessages(prev => ({
+        ...prev,
+        [openChatQueueId]: [
+            ...(prev[openChatQueueId] || []),
+            { 
                 senderId: session.user.id, 
                 message: messageText, 
                 created_at: new Date().toISOString() 
-            }] 
-        };
-    });
+            }
+        ]
+    }));
 
     try {
         await axios.post(`${API_URL}/chat/send`, {
@@ -248,7 +248,9 @@ useEffect(() => {
             queueId: openChatQueueId,
             message: messageText
         });
-    } catch (error) { console.error("Send failed:", error); }
+    } catch (error) {
+        console.error("Barber send failed:", error);
+    }
 };
 
     useEffect(() => {
@@ -667,9 +669,10 @@ const openChat = async (customer) => {
                                 <ChatWindow
                                     currentUser_id={session.user.id}
                                     otherUser_id={openChatCustomerId}
-                                    // 🟢 FIX: Retrieve from chatMessages using openChatQueueId
+                                    // 🟢 THE FIX: Use openChatQueueId instead of openChatCustomerId
                                     messages={chatMessages[openChatQueueId] || []} 
                                     onSendMessage={sendBarberMessage}
+                                    isVisible={!!openChatCustomerId}
                                 />
                                 <button onClick={closeChat} className="btn btn-secondary btn-full-width">Close Chat</button>
                             </div>

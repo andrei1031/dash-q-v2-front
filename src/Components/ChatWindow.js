@@ -26,7 +26,7 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
                     messages.map((msg, index) => {
                     // 🟢 ROBUST FIX: Check both senderId and sender_id
                     const msgSenderId = msg.senderId || msg.sender_id;
-                    const isMe = msgSenderId === currentUser_id;
+                    const isMe = (msg.senderId || msg.sender_id) === currentUser_id;
                     
                     return (
                         <div key={index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
