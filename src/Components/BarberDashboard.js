@@ -39,10 +39,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [vipPrice, setVipPrice] = useState(100); 
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     
-    const inProgress = queueDetails?.inProgress || null;
-    const upNext = queueDetails?.upNext || null;
-    const waiting = queueDetails?.waiting || [];
-    const nextAppointment = queueDetails?.nextAppointment || null;
+    const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); 
 
     const fetchBarberAppointments = async () => {
@@ -124,7 +121,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setFetchError('');
         try {
             const response = await axios.get(`${API_URL}/queue/details/${barberId}`);
-            setQueueDetails(response.data || { waiting: [], inProgress: null, upNext: null, nextAppointment: null });
+            setQueueDetails(response.data);
         } catch (err) {
             if (!navigator.onLine) {
                 console.log("Barber is offline. Serving cached queue details.");
@@ -158,7 +155,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                         
                         // Normalize and check dupe by exact timestamp
                         const normalizedMsg = {
-                            id: newMsg.id,
                             senderId: newMsg.sender_id,
                             message: newMsg.message,
                             created_at: newMsg.created_at
@@ -185,35 +181,15 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                             };
                             return {
                                 ...prev,
-                                inProgress: incrementBadge(prev?.inProgress),
-                                upNext: incrementBadge(prev?.upNext),
-                                waiting: (prev?.waiting || []).map(incrementBadge)
+                                inProgress: incrementBadge(prev.inProgress),
+                                upNext: incrementBadge(prev.upNext),
+                                waiting: prev.waiting.map(incrementBadge)
                             };
                         });
                         playSound(messageNotificationSound);
-                    } else {
-                        // Automatically mark as read if the chat is currently open
-                        axios.put(`${API_URL}/chat/read`, {
-                            queueId: qId,
-                            readerId: session.user.id
-                        }).catch(console.error);
                     }
                 }
             )
-            .subscribe();
-
-        // 🟢 POLLING when specific chat open
-        if (openChatQueueId) {
-            pollInterval = setInterval(() => {
-                fetchBarberChatHistory(openChatQueueId);
-            }, 5000);
-        }
-
-        return () => { 
-            supabase.removeChannel(chatChannel); 
-            if (pollInterval) clearInterval(pollInterval);
-        };
-    }, [barberId, openChatQueueId, session.user.id, fetchBarberChatHistory]);
 
     const sendBarberMessage = async (recipientId, messageText) => {
     if (!messageText.trim() || !openChatQueueId) return;
@@ -306,13 +282,15 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const handleFocus = () => {
         if (openChatQueueId) {
             console.log("Tab focused, catching up on messages...");
-            fetchBarberChatHistory(openChatQueueId);
+            // Trigger your history fetch to grab anything missed while backgrounded
+            // For Barber, call openChat with current customer info
+            // For Customer, call fetchChatHistory(myQueueEntryId)
         }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-}, [openChatQueueId, fetchBarberChatHistory]);
+}, [openChatQueueId]);
 
     const closeModal = () => {
         setModalState({ type: null, data: null });
@@ -320,7 +298,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setModalError('');
     };
     const handleNextCustomer = async () => {
-        const nextAppt = nextAppointment; 
+        const nextAppt = queueDetails.nextAppointment; 
         if (nextAppt) {
             const apptTime = new Date(nextAppt.scheduled_time);
             const now = new Date();
@@ -332,13 +310,13 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             }
         }
 
-        const next = upNext || (waiting.length > 0 ? waiting[0] : null);
+        const next = queueDetails.upNext || (queueDetails.waiting.length > 0 ? queueDetails.waiting[0] : null);
         if (!next) {
             setModalState({ type: 'alert', data: { title: 'Queue Empty', message: 'There are no customers waiting to be called.' } });
             return;
         }
-        if (inProgress) {
-            setModalState({ type: 'alert', data: { title: 'Action Required', message: `Please complete ${inProgress.customer_name} first before calling the next customer.` } });
+        if (queueDetails.inProgress) {
+            setModalState({ type: 'alert', data: { title: 'Action Required', message: `Please complete ${queueDetails.inProgress.customer_name} first before calling the next customer.` } });
             return;
         }
         setError('');
@@ -346,8 +324,8 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         catch (err) { console.error('Failed next customer:', err); setError(err.response?.data?.error || 'Failed call next.'); }
     };
     const handleCompleteCut = async () => {
-        if (!inProgress) return;
-        setModalState({ type: 'tipPrompt', data: inProgress });
+        if (!queueDetails.inProgress) return;
+        setModalState({ type: 'tipPrompt', data: queueDetails.inProgress });
         setModalError('');
         setTipInput('');
     };
@@ -418,46 +396,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         }
     };
 
-    const fetchBarberChatHistory = useCallback(async (qId) => {
-        if (!qId) return;
-        try {
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .select('*')
-                .eq('queue_entry_id', qId)
-                .order('created_at', { ascending: true });
-
-            if (error) throw error;
-
-            if (data) {
-                setChatMessages(prev => {
-                    const normalizedData = data.map(msg => ({
-                        id: msg.id,
-                        senderId: msg.sender_id || msg.senderId,
-                        message: msg.message,
-                        created_at: msg.created_at
-                    })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-                    const existing = prev[qId] || [];
-                    const dbMessages = normalizedData;
-                    const latestDbTime = dbMessages.length > 0 ? new Date(dbMessages[dbMessages.length - 1].created_at).getTime() : 0;
-
-                    const optimisticMessages = existing.filter(msg => !msg.id && new Date(msg.created_at).getTime() > latestDbTime);
-
-                    const merged = [...dbMessages, ...optimisticMessages];
-                    const unique = Array.from(new Map(merged.map(m => [m.created_at, m])).values());
-
-                    return {
-                        ...prev,
-                        [qId]: unique.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                    };
-                });
-            }
-        } catch (err) {
-            console.error("History fetch failed:", err);
-        }
-    }, []);
-
     /**
  * openChat - Handles opening the chat window and loading history
  * @param {Object} customer - The customer object from the queue entry
@@ -471,7 +409,49 @@ const openChat = async (customer) => {
     setOpenChatQueueId(qId);
     setOpenChatCustomerId(customer?.profiles?.id);
 
-    await fetchBarberChatHistory(qId);
+    try {
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('queue_entry_id', qId)
+            .order('created_at', { ascending: true });
+        
+        if (error) throw error;
+
+        if (data) {
+            console.log(`BARBER: Found ${data.length} messages in DB for ID ${qId}`);
+            
+            // 🟢 MERGE LOGIC: Preserve any realtime messages, only add from history what's missing/newer
+            setChatMessages(prev => {
+                const normalizedData = data.map(msg => ({
+                    senderId: msg.sender_id || msg.senderId,
+                    message: msg.message,
+                    created_at: msg.created_at
+                })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                
+                const existing = prev[qId] || [];
+                const latestTime = existing.length > 0 ? 
+                    new Date(existing[existing.length - 1].created_at).getTime() : 0;
+                
+                // Merge: keep existing + add newer from history
+                const newMessages = normalizedData.filter(msg => 
+                    !existing.some(existingMsg => existingMsg.created_at === msg.created_at) &&
+                    new Date(msg.created_at).getTime() > latestTime
+                );
+                
+                if (newMessages.length > 0) {
+                    console.log(`BARBER MERGE: Adding ${newMessages.length} new messages`);
+                }
+                
+                return {
+                    ...prev,
+                    [qId]: [...existing, ...newMessages]
+                };
+            });
+        }
+    } catch (err) { 
+        console.error("History fetch failed:", err); 
+    }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };
@@ -510,28 +490,28 @@ const openChat = async (customer) => {
                 {!fetchError && (
                     <>
                         <div className="current-serving-display" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                            <div className="serving-item now-serving" style={{ flex: '1 1 150px' }}><span>Now Serving</span><strong>{inProgress ? `Customer #${inProgress.id}` : '---'}</strong></div>
-                            <div className="serving-item up-next" style={{ flex: '1 1 150px' }}><span>Up Next</span><strong>{upNext ? `Customer #${upNext.id}` : '---'}</strong></div>
+                            <div className="serving-item now-serving" style={{ flex: '1 1 150px' }}><span>Now Serving</span><strong>{queueDetails.inProgress ? `Customer #${queueDetails.inProgress.id}` : '---'}</strong></div>
+                            <div className="serving-item up-next" style={{ flex: '1 1 150px' }}><span>Up Next</span><strong>{queueDetails.upNext ? `Customer #${queueDetails.upNext.id}` : '---'}</strong></div>
                         </div>
                         {error && !fetchError && <p className="error-message">{error}</p>}
                         
                         <div className="action-buttons-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-                            {inProgress ? (
+                            {queueDetails.inProgress ? (
                                 <>
                                     <button onClick={handleCompleteCut} disabled={isOffline} className="btn btn-success btn-full-width btn-icon-label">
-                                        <IconCheck /> Complete: #{inProgress.id} - {inProgress.customer_name}
+                                        <IconCheck /> Complete: #{queueDetails.inProgress.id} - {queueDetails.inProgress.customer_name}
                                     </button>
-                                    <button onClick={() => handleCancel(inProgress)} disabled={isOffline} className="btn btn-danger btn-full-width btn-icon-label">
+                                    <button onClick={() => handleCancel(queueDetails.inProgress)} disabled={isOffline} className="btn btn-danger btn-full-width btn-icon-label">
                                         <IconX /> Cancel / No-Show
                                     </button>
                                 </>
-                            ) : upNext ? (
+                            ) : queueDetails.upNext ? (
                                 <button onClick={handleNextCustomer} disabled={isOffline} className="btn btn-primary btn-full-width btn-icon-label">
-                                    <IconNext /> Call: #{upNext.id} - {upNext.customer_name}
+                                    <IconNext /> Call: #{queueDetails.upNext.id} - {queueDetails.upNext.customer_name}
                                 </button>
-                            ) : waiting.length > 0 ? (
+                            ) : queueDetails.waiting.length > 0 ? (
                                 <button onClick={handleNextCustomer} className="btn btn-primary btn-full-width btn-icon-label">
-                                    <IconNext /> Call: #{waiting[0].id} - {waiting[0].customer_name}
+                                    <IconNext /> Call: #{queueDetails.waiting[0].id} - {queueDetails.waiting[0].customer_name}
                                 </button>
                             ) : (<button onClick={handleNextCustomer} className="btn btn-primary btn-full-width btn-icon-label">
                                 <IconNext /> Call Next Customer
@@ -540,16 +520,16 @@ const openChat = async (customer) => {
                         </div>
 
                         <h3 className="queue-subtitle">In Chair</h3>
-                        {inProgress ? (
+                        {queueDetails.inProgress ? (
                             <ul className="queue-list">
-                                <li className={`in-progress ${inProgress.is_vip ? 'vip-entry' : ''}`}>
+                                <li className={`in-progress ${queueDetails.inProgress.is_vip ? 'vip-entry' : ''}`}>
                                     <div className="queue-item-info">
-                                        <strong>#{inProgress.daily_number || inProgress.id} - {inProgress.customer_name}</strong>
+                                        <strong>#{queueDetails.inProgress.daily_number || queueDetails.inProgress.id} - {queueDetails.inProgress.customer_name}</strong>
 
-                                        <DistanceBadge meters={inProgress.current_distance_meters} />
-                                        <PhotoDisplay entry={inProgress} label="In Chair" />
+                                        <DistanceBadge meters={queueDetails.inProgress.current_distance_meters} />
+                                        <PhotoDisplay entry={queueDetails.inProgress} label="In Chair" />
                                         <button 
-                                            onClick={() => handleLoyaltyCheck(inProgress)} 
+                                            onClick={() => handleLoyaltyCheck(queueDetails.inProgress)} 
                                             className="btn btn-link-style" 
                                             title="Check Customer Loyalty History"
                                             style={{padding: '5px 0'}}
@@ -558,16 +538,16 @@ const openChat = async (customer) => {
                                         </button>
                                     </div>
                                     <button 
-                                        onClick={() => openChat(inProgress)} 
+                                        onClick={() => openChat(queueDetails.inProgress)} 
                                         className="btn btn-icon" 
                                         title="Chat"
-                                        disabled={!inProgress.profiles?.id}
+                                        disabled={!queueDetails.inProgress.profiles?.id}
                                         style={{position: 'relative'}}
                                     >
                                         <IconChat />
-                                        {inProgress.unread_count > 0 && (
+                                        {queueDetails.inProgress.unread_count > 0 && (
                                             <span className="notification-badge">
-                                                {inProgress.unread_count}
+                                                {queueDetails.inProgress.unread_count}
                                             </span>
                                         )}
                                     </button>
@@ -638,7 +618,7 @@ const openChat = async (customer) => {
                         )}
 
                         <h3 className="queue-subtitle">Waiting</h3>
-                        <ul className="queue-list">{waiting.length === 0 ? (<li className="empty-text">Waiting queue empty.</li>) : (waiting.map(c => (
+                        <ul className="queue-list">{queueDetails.waiting.length === 0 ? (<li className="empty-text">Waiting queue empty.</li>) : (queueDetails.waiting.map(c => (
                             <li key={c.id} className={c.is_vip ? 'vip-entry' : ''}>
                                 <div className="queue-item-info">
                                     <span>#{c.id} - {c.customer_name}</span>
