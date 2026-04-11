@@ -1,9 +1,15 @@
 // src/Components/notifications/registerPushNotifications.js
 import apiClient from '../http-commons';
 
-const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY;// Get this from your backend config
+const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY; 
 
 export const registerPushNotifications = async (userId) => {
+    // 2. Add this safety check to stop the function if the key is missing
+    if (!VAPID_PUBLIC_KEY) {
+        console.error("Push registration failed: REACT_APP_VAPID_PUBLIC_KEY is undefined. Check your .env file and RESTART your server.");
+        return;
+    }
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn("Push notifications not supported on this browser.");
         return;
@@ -12,7 +18,6 @@ export const registerPushNotifications = async (userId) => {
     try {
         const registration = await navigator.serviceWorker.ready;
         
-        // Check for existing subscription
         let subscription = await registration.pushManager.getSubscription();
 
         if (!subscription) {
@@ -22,7 +27,6 @@ export const registerPushNotifications = async (userId) => {
             });
         }
 
-        // Send subscription to your backend
         await apiClient.post('/notifications/subscribe', {
             userId,
             subscription
@@ -34,8 +38,9 @@ export const registerPushNotifications = async (userId) => {
     }
 };
 
-// Helper function to convert VAPID key
+// Helper function where the crash was happening
 function urlBase64ToUint8Array(base64String) {
+    // The error happened here because base64String was undefined
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
