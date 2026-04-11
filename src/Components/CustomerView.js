@@ -337,7 +337,6 @@ export const CustomerView = ({ session }) => {
         setLiveQueue, 
         setQueueMessage, 
         setJoinedBarberId,
-        handleReturnToJoin,
         myQueueEntryId,
         joinedBarberId
     ]);
