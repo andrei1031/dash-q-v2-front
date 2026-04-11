@@ -155,6 +155,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                         
                         // Normalize and check dupe by exact timestamp
                         const normalizedMsg = {
+                            id: newMsg.id,
                             senderId: newMsg.sender_id,
                             message: newMsg.message,
                             created_at: newMsg.created_at
@@ -187,6 +188,12 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                             };
                         });
                         playSound(messageNotificationSound);
+                    } else {
+                        // Automatically mark as read if the chat is currently open
+                        axios.put(`${API_URL}/chat/read`, {
+                            queueId: qId,
+                            readerId: session.user.id
+                        }).catch(console.error);
                     }
                 }
             )
@@ -195,7 +202,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         // 🟢 POLLING when specific chat open
         if (openChatQueueId) {
             pollInterval = setInterval(() => {
-                openChat({ id: openChatQueueId });
+                fetchBarberChatHistory(openChatQueueId);
             }, 5000);
         }
 
@@ -203,7 +210,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             supabase.removeChannel(chatChannel); 
             if (pollInterval) clearInterval(pollInterval);
         };
-    }, [barberId, openChatQueueId, session.user.id]);
+    }, [barberId, openChatQueueId, session.user.id, fetchBarberChatHistory]);
 
     const sendBarberMessage = async (recipientId, messageText) => {
     if (!messageText.trim() || !openChatQueueId) return;
@@ -296,15 +303,13 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const handleFocus = () => {
         if (openChatQueueId) {
             console.log("Tab focused, catching up on messages...");
-            // Trigger your history fetch to grab anything missed while backgrounded
-            // For Barber, call openChat with current customer info
-            // For Customer, call fetchChatHistory(myQueueEntryId)
+            fetchBarberChatHistory(openChatQueueId);
         }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-}, [openChatQueueId]);
+}, [openChatQueueId, fetchBarberChatHistory]);
 
     const closeModal = () => {
         setModalState({ type: null, data: null });
@@ -410,6 +415,46 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         }
     };
 
+    const fetchBarberChatHistory = useCallback(async (qId) => {
+        if (!qId) return;
+        try {
+            const { data, error } = await supabase
+                .from('chat_messages')
+                .select('*')
+                .eq('queue_entry_id', qId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            if (data) {
+                setChatMessages(prev => {
+                    const normalizedData = data.map(msg => ({
+                        id: msg.id,
+                        senderId: msg.sender_id || msg.senderId,
+                        message: msg.message,
+                        created_at: msg.created_at
+                    })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+                    const existing = prev[qId] || [];
+                    const dbMessages = normalizedData;
+                    const latestDbTime = dbMessages.length > 0 ? new Date(dbMessages[dbMessages.length - 1].created_at).getTime() : 0;
+
+                    const optimisticMessages = existing.filter(msg => !msg.id && new Date(msg.created_at).getTime() > latestDbTime);
+
+                    const merged = [...dbMessages, ...optimisticMessages];
+                    const unique = Array.from(new Map(merged.map(m => [m.created_at, m])).values());
+
+                    return {
+                        ...prev,
+                        [qId]: unique.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                    };
+                });
+            }
+        } catch (err) {
+            console.error("History fetch failed:", err);
+        }
+    }, []);
+
     /**
  * openChat - Handles opening the chat window and loading history
  * @param {Object} customer - The customer object from the queue entry
@@ -423,49 +468,7 @@ const openChat = async (customer) => {
     setOpenChatQueueId(qId);
     setOpenChatCustomerId(customer?.profiles?.id);
 
-    try {
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('queue_entry_id', qId)
-            .order('created_at', { ascending: true });
-        
-        if (error) throw error;
-
-        if (data) {
-            console.log(`BARBER: Found ${data.length} messages in DB for ID ${qId}`);
-            
-            // 🟢 MERGE LOGIC: Preserve any realtime messages, only add from history what's missing/newer
-            setChatMessages(prev => {
-                const normalizedData = data.map(msg => ({
-                    senderId: msg.sender_id || msg.senderId,
-                    message: msg.message,
-                    created_at: msg.created_at
-                })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                
-                const existing = prev[qId] || [];
-                const latestTime = existing.length > 0 ? 
-                    new Date(existing[existing.length - 1].created_at).getTime() : 0;
-                
-                // Merge: keep existing + add newer from history
-                const newMessages = normalizedData.filter(msg => 
-                    !existing.some(existingMsg => existingMsg.created_at === msg.created_at) &&
-                    new Date(msg.created_at).getTime() > latestTime
-                );
-                
-                if (newMessages.length > 0) {
-                    console.log(`BARBER MERGE: Adding ${newMessages.length} new messages`);
-                }
-                
-                return {
-                    ...prev,
-                    [qId]: [...existing, ...newMessages]
-                };
-            });
-        }
-    } catch (err) { 
-        console.error("History fetch failed:", err); 
-    }
+    await fetchBarberChatHistory(qId);
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };

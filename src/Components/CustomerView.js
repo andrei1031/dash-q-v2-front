@@ -161,29 +161,26 @@ const fetchChatHistory = useCallback(async (queueId) => {
         if (data) {
             console.log(`CUSTOMER: Found ${data.length} messages in DB for ID ${queueId}`);
             
-            // 🟢 MERGE LOGIC: Only add newer messages, preserve realtime ones
             setChatMessagesFromBarber((prevMessages) => {
                 const normalizedData = data.map(msg => ({
+                    id: msg.id,
                     senderId: msg.sender_id || msg.senderId,
                     message: msg.message,
                     created_at: msg.created_at
                 })).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
                 
-                // Filter out duplicates and only add messages newer than current latest
-                const latestTime = prevMessages.length > 0 ? 
-                    new Date(prevMessages[prevMessages.length - 1].created_at).getTime() : 0;
+                const dbMessages = normalizedData;
+                const latestDbTime = dbMessages.length > 0 ? 
+                    new Date(dbMessages[dbMessages.length - 1].created_at).getTime() : 0;
                 
-                const newMessages = normalizedData.filter(msg => 
-                    new Date(msg.created_at).getTime() > latestTime
+                const optimisticMessages = prevMessages.filter(msg => 
+                    !msg.id && new Date(msg.created_at).getTime() > latestDbTime
                 );
                 
-                if (newMessages.length > 0) {
-                    console.log(`MERGE: Adding ${newMessages.length} new messages`);
-                    return [...prevMessages, ...newMessages];
-                }
+                const merged = [...dbMessages, ...optimisticMessages];
+                const unique = Array.from(new Map(merged.map(item => [item.created_at, item])).values());
                 
-                console.log('MERGE: No new messages found');
-                return prevMessages;
+                return unique.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             });
         }
     } catch (err) { 
@@ -635,37 +632,6 @@ const fetchChatHistory = useCallback(async (queueId) => {
         locationLink: "https://maps.app.goo.gl/ETUu5bxPA6t2yuSs6" 
     };
 
-    useEffect(() => {
-        if (!myQueueEntryId || !supabase) return;
-
-        const channel = supabase.channel(`customer_chat_${myQueueEntryId}`)
-            .on('postgres_changes', { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'chat_messages', 
-                filter: `queue_entry_id=eq.${myQueueEntryId}` 
-            }, (payload) => {
-                const newMsg = payload.new;
-
-                // Huwag i-add kung ikaw ang nag-send (optimistic update handle na 'to)
-                if (newMsg.sender_id !== session.user.id) {
-                    setChatMessagesFromBarber(prev => {
-                        // Iwas duplicate pag-refresh
-                        if (prev.some(m => m.created_at === newMsg.created_at)) return prev;
-                        return [...prev, newMsg];
-                    });
-
-                    if (!isChatOpen) {
-                        setHasUnreadFromBarber(true);
-                        playSound(messageNotificationSound);
-                    }
-                }
-            })
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [myQueueEntryId, isChatOpen, session.user.id]);
-
     const handleConfirmAttendance = async () => {
         try {
             await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
@@ -1081,7 +1047,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
     // Replace the existing chat useEffect in CustomerView.js
     // 🟢 FIXED CHAT USEFFECT with polling backup
     useEffect(() => { 
-        if (!session?.user?.id || !myQueueEntryId || !isChatOpen) return;
+        if (!session?.user?.id || !myQueueEntryId) return;
 
         let pollInterval;
 
@@ -1104,6 +1070,7 @@ const fetchChatHistory = useCallback(async (queueId) => {
                     if (newMsg.sender_id !== session.user.id) {
                         setChatMessagesFromBarber(prev => {
                             const normalizedMsg = { 
+                                id: newMsg.id,
                                 senderId: newMsg.sender_id,
                                 message: newMsg.message,
                                 created_at: newMsg.created_at
@@ -1136,7 +1103,9 @@ const fetchChatHistory = useCallback(async (queueId) => {
 
         // 🟢 POLLING BACKUP: Every 5s when chat is open
         pollInterval = setInterval(() => {
-            fetchChatHistory(myQueueEntryId);
+            if (isChatOpen) {
+                fetchChatHistory(myQueueEntryId);
+            }
         }, 5000);
 
         return () => {
