@@ -102,13 +102,18 @@ self.addEventListener('fetch', (event) => {
 });
 
 // 4. PUSH NOTIFICATIONS: The "Gmail Killer" system
-// public/sw.js
 self.addEventListener('push', (event) => {
-    const data = event.data ? event.data.json() : { title: 'Dash-Q Update', body: 'You have a new update!' };
+    let data;
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (err) {
+        console.error("Push payload was not JSON", err);
+        data = { title: 'Dash-Q Update', body: event.data.text() };
+    }
 
     const options = {
-        body: data.body,
-        icon: '/logo192.png', // Path from your public folder
+        body: data.body || 'You have a new update!',
+        icon: '/logo192.png',
         badge: '/favicon.ico',
         vibrate: [100, 50, 100],
         data: {
@@ -120,17 +125,10 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
+        self.registration.showNotification(data.title || 'Dash-Q Update', options)
     );
 });
 
-// Handle notification clicks
-self.addEventListener('notificationclick', (event) => {
-    event.notification.close();
-    event.waitUntil(
-        clients.openWindow(event.notification.data.url)
-    );
-});
 
 // 5. NOTIFICATION INTERACTION: Focus app on click
 self.addEventListener('notificationclick', (event) => {

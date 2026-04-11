@@ -1,7 +1,7 @@
 // src/Components/notifications/registerPushNotifications.js
 import apiClient from '../http-commons';
 
-const VAPID_PUBLIC_KEY = "process.env.VAPID_PUBLIC_KEY"; // Get this from your backend config
+const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY;// Get this from your backend config
 
 export const registerPushNotifications = async (userId) => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {

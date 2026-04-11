@@ -85,7 +85,7 @@ export const useEnhancedNotifications = (userId) => {
             if (userId) {
                 await axios.post(`${API_URL}/notifications/subscribe`, {
                     userId,
-                    subscription: JSON.stringify(subscription)
+                    subscription: subscription
                 });
             }
 
