@@ -15,8 +15,6 @@ import { LandingPage } from './Components/LandingPage';
 // HTTP-COMMONS (apiClient used directly)
 // SUPABASE
 import { supabase } from './Components/supabase';
-// NOTIFICATIONS
-import { registerPushNotifications } from './Components/notifications/registerPushNotifications';
 // AUTHENTICATIONS
 import { AuthForm } from './Components/authentication/AuthForm';
 import { UpdatePasswordForm } from './Components/authentication/UpdatePasswordForm';
@@ -256,7 +254,7 @@ function App() {
                 if (Notification.permission === 'granted') {
                     // Only register if we ALREADY have permission. 
                     // NEVER ask for permission here (it crashes mobile).
-                    registerPushNotifications(existingSession.user.id);
+                    useEnhancedNotifications(existingSession.user.id);
                 }
             }
         };
@@ -314,7 +312,7 @@ function App() {
                 // To prevent mobile UI crashes, we only register if permission is already granted
                 if (Notification.permission === 'granted') {
                     console.log("[Push] Permission already granted, registering...");
-                    await registerPushNotifications(session.user.id);
+                    await useEnhancedNotifications(session.user.id);
                 } 
                 // If permission is 'default', the user hasn't been asked yet.
                 // You may want to trigger a custom UI modal before calling Notification.requestPermission()
