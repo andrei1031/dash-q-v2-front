@@ -145,25 +145,26 @@ export const CustomerView = ({ session }) => {
     }, []);
 
     const fetchChatHistory = useCallback(async (queueId) => {
-        if (!queueId) return;
-        try {
-            console.log("Fetching latest history for queue:", queueId);
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .select('*')
-                .eq('queue_entry_id', queueId)
-                .order('created_at', { ascending: true });
+    if (!queueId) return;
+    
+    // 🟢 DEBUG LOG:
+    console.log("CUSTOMER: Fetching History for ID:", queueId);
 
-            if (error) throw error;
+    try {
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('queue_entry_id', queueId)
+            .order('created_at', { ascending: true });
 
-            if (data) {
-                // 🟢 Ito ang magsisiguro na ang latest messages ang nasa screen
-                setChatMessagesFromBarber(data); 
-            }
-        } catch (err) {
-            console.error("Customer history sync error:", err);
+        if (error) throw error;
+
+        if (data) {
+            console.log(`CUSTOMER: Found ${data.length} messages in DB for ID ${queueId}`);
+            setChatMessagesFromBarber(data);
         }
-    }, []);
+    } catch (err) { console.error("Customer sync error:", err); }
+}, []);
 
     const handleCloseInstructions = () => {
         localStorage.setItem('hasSeenInstructions_v1', 'true');

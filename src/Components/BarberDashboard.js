@@ -401,14 +401,13 @@ const openChat = async (customer) => {
     const qId = customer?.id;
     if (!qId) return;
 
-    // 🟢 Siguraduhin na String ang ID para sa state key
-    const stringQId = qId.toString();
+    // 🟢 DEBUG LOG: Tignan natin sa Console (F12) kung anong ID ito
+    console.log("BARBER: Opening Chat Room ID:", qId);
 
     setOpenChatQueueId(qId);
     setOpenChatCustomerId(customer?.profiles?.id);
 
     try {
-        // Magdagdag ng timestamp para iwasan ang browser caching
         const { data, error } = await supabase
             .from('chat_messages')
             .select('*')
@@ -418,13 +417,12 @@ const openChat = async (customer) => {
         if (error) throw error;
 
         if (data) {
-            console.log(`[openChat] Loaded ${data.length} messages for Queue ${stringQId}`);
+            console.log(`BARBER: Found ${data.length} messages in DB for ID ${qId}`);
             setChatMessages(prev => ({
                 ...prev,
-                [stringQId]: data // 🟢 I-overwrite ang luma ng bagong history
+                [qId.toString()]: data 
             }));
         }
-        axios.put(`${API_URL}/chat/read`, { queueId: qId, readerId: session.user.id });
     } catch (err) { console.error("History fetch failed:", err); }
 };
 
