@@ -226,24 +226,35 @@ useEffect(() => {
 }, [barberId, openChatQueueId, session.user.id]);
 
     const sendBarberMessage = async (recipientId, messageText) => {
+    // 🟢 FIX: Ensure we have the Queue ID before attempting to update state
     if (!messageText.trim() || !openChatQueueId) return;
 
-    // Optimistic Update using queue ID
-    setChatMessages(prev => ({
-        ...prev,
-        [openChatQueueId]: [
-            ...(prev[openChatQueueId] || []),
-            { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() }
-        ]
-    }));
+    // 1. Optimistic Update: Save using openChatQueueId as the key
+    setChatMessages(prev => {
+        const msgs = prev[openChatQueueId] || [];
+        return { 
+            ...prev, 
+            [openChatQueueId]: [
+                ...msgs, 
+                { 
+                    senderId: session.user.id, 
+                    message: messageText, 
+                    created_at: new Date().toISOString() 
+                }
+            ] 
+        };
+    });
 
     try {
+        // 2. Send to backend using the queue context
         await axios.post(`${API_URL}/chat/send`, {
             senderId: session.user.id,
             queueId: openChatQueueId,
             message: messageText
         });
-    } catch (error) { console.error("Send failed:", error); }
+    } catch (error) {
+        console.error("Failed to send barber message:", error);
+    }
 };
 
     useEffect(() => {
@@ -415,18 +426,14 @@ useEffect(() => {
  * @param {Object} customer - The customer object from the queue entry
  */
 const openChat = async (customer) => {
-    // 1. Extract IDs (The queue ID is our unique "Room ID")
-    const queueId = customer?.id;
     const customerUserId = customer?.profiles?.id;
+    const queueId = customer?.id;
 
-    if (queueId && customerUserId) {
-        console.log(`[openChat] Opening chat for Queue #${queueId}`);
-        
-        // 2. Update local state to show the window
-        setOpenChatQueueId(queueId);
+    if (customerUserId && queueId) {
         setOpenChatCustomerId(customerUserId);
+        setOpenChatQueueId(queueId);
 
-        // 3. Fetch History from Supabase
+        // Fetch History IMMEDIATELY on open
         try {
             const { data, error } = await supabase
                 .from('chat_messages')
@@ -436,55 +443,25 @@ const openChat = async (customer) => {
             
             if (error) throw error;
 
-            // 4. Map results to use 'senderId' (matching ChatWindow expected format)
-            const history = data.map(msg => ({ 
+            // Map results to ensure 'senderId' (camelCase) exists for the ChatWindow
+            const formattedHistory = data.map(msg => ({ 
                 senderId: msg.sender_id, 
                 message: msg.message,
                 created_at: msg.created_at
             }));
             
-            // 5. MERGE: Combine background real-time messages with database history
-            // This ensures no message "disappears" if it arrives while the window is closed.
-            setChatMessages(prev => {
-                const existing = prev[queueId] || [];
-                
-                // Combine arrays, remove duplicates based on timestamp, and sort by time
-                const merged = [...existing, ...history].filter((msg, index, self) =>
-                    index === self.findIndex((m) => m.created_at === msg.created_at)
-                ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            // 🟢 FIX: Store history using queueId as the key
+            setChatMessages(prev => ({ 
+                ...prev, 
+                [queueId]: formattedHistory 
+            }));
 
-                return { ...prev, [queueId]: merged };
-            });
-
-            // 6. Local UI: Reset the notification badge for this specific customer
-            setQueueDetails(prev => {
-                const updateEntry = (entry) => {
-                    // Using .toString() to avoid type-mismatch bugs (String vs Integer)
-                    if (entry && entry.id.toString() === queueId.toString()) {
-                        return { ...entry, unread_count: 0 };
-                    }
-                    return entry;
-                };
-
-                return {
-                    ...prev,
-                    inProgress: updateEntry(prev.inProgress),
-                    upNext: updateEntry(prev.upNext),
-                    waiting: prev.waiting.map(updateEntry)
-                };
-            });
-
-            // 7. API: Tell the server we have read these messages
-            await axios.put(`${API_URL}/chat/read`, { 
-                queueId: queueId, 
-                readerId: session.user.id 
-            });
+            // Mark as read on server
+            axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
 
         } catch (err) { 
-            console.error("Barber failed to load history:", err); 
+            console.error("Barber failed to load chat history:", err); 
         }
-    } else {
-        console.error("Cannot open chat: Missing Queue ID or Customer ID info.", customer);
     }
 };
 
@@ -701,10 +678,11 @@ const openChat = async (customer) => {
                                 <p className="chat-warning">Hey there! Just a friendly nudge to keep the chat open even when your phone’s screen is off.</p>
                                 <ChatWindow
                                     currentUser_id={session.user.id}
-                                    otherUser_id={openChatCustomerId}
-                                    messages={chatMessages[openChatCustomerId] || []}
+                                    // 🟢 FIX: Pass openChatQueueId as the source of truth
+                                    queueId={openChatQueueId} 
+                                    // 🟢 FIX: Retrieve messages using the queueId key
+                                    messages={chatMessages[openChatQueueId] || []} 
                                     onSendMessage={sendBarberMessage}
-                                    isVisible={!!openChatCustomerId}
                                 />
                                 <button onClick={closeChat} className="btn btn-secondary btn-full-width">Close Chat</button>
                             </div>
