@@ -604,32 +604,35 @@ export const CustomerView = ({ session }) => {
     };
 
     useEffect(() => {
-    if (!myQueueEntryId || !joinedBarberId) return;
+        if (!myQueueEntryId || !supabase) return;
 
-        const checkOpportunities = async () => {
-            try {
-                const res = await axios.get(`${API_URL}/barbers`); 
-                const allBarbers = res.data;
+        const channel = supabase.channel(`customer_chat_${myQueueEntryId}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'chat_messages', 
+                filter: `queue_entry_id=eq.${myQueueEntryId}` 
+            }, (payload) => {
+                const newMsg = payload.new;
 
-                const currentBarberIdStr = joinedBarberId.toString();
-                
-                const opportunity = allBarbers.find(b => 
-                    b.id.toString() !== currentBarberIdStr && 
-                    b.is_active && 
-                    b.is_available 
-                );
+                // Huwag i-add kung galing sa sarili (kasi handled na ng optimistic update)
+                if (newMsg.sender_id !== session.user.id) {
+                    setChatMessagesFromBarber(prev => {
+                        // Check kung existing na para iwas duplicate
+                        if (prev.some(m => m.created_at === newMsg.created_at)) return prev;
+                        return [...prev, newMsg]; // 🟢 I-save ang buong payload (nandito na ang sender_id)
+                    });
 
-                if (opportunity) {
-                    setFreeBarber(opportunity);
-                } else {
-                    setFreeBarber(null);
+                    if (!isChatOpen) {
+                        setHasUnreadFromBarber(true);
+                        playSound(messageNotificationSound);
+                    }
                 }
-            } catch (e) {}
-        };
+            })
+            .subscribe();
 
-        const interval = setInterval(checkOpportunities, 10000); 
-        return () => clearInterval(interval);
-    }, [myQueueEntryId, joinedBarberId]);
+        return () => { supabase.removeChannel(channel); };
+    }, [myQueueEntryId, isChatOpen, session.user.id]);
 
     const handleConfirmAttendance = async () => {
         try {

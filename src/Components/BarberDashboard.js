@@ -398,43 +398,26 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
  * @param {Object} customer - The customer object from the queue entry
  */
 const openChat = async (customer) => {
-    const queueId = customer?.id;
-    const customerUserId = customer?.profiles?.id;
+    const qId = customer?.id;
+    if (!qId) return;
 
-    if (queueId && customerUserId) {
-        setOpenChatQueueId(queueId);
-        setOpenChatCustomerId(customerUserId);
+    setOpenChatQueueId(qId);
+    setOpenChatCustomerId(customer?.profiles?.id);
 
-        try {
-            // Fetch history from DB
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .select('*')
-                .eq('queue_entry_id', queueId)
-                .order('created_at', { ascending: true });
-            
-            if (error) throw error;
-
-            if (data) {
-                setChatMessages(prev => {
-                    const qKey = queueId.toString();
-                    const existing = prev[qKey] || [];
-                    
-                    // 🟢 MERGE: Combine background messages with database history
-                    // This prevents the "empty list" from deleting new messages
-                    const merged = [...existing, ...data].filter((msg, idx, self) =>
-                        idx === self.findIndex((m) => m.created_at === msg.created_at)
-                    ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-                    return { ...prev, [qKey]: merged };
-                });
-            }
-            
-            axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
-        } catch (err) { 
-            console.error("Barber refresh error:", err); 
+    try {
+        const { data } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('queue_entry_id', qId)
+            .order('created_at', { ascending: true });
+        
+        if (data) {
+            setChatMessages(prev => ({
+                ...prev,
+                [qId.toString()]: data // 🟢 Laging string ang key para walang mismatch
+            }));
         }
-    }
+    } catch (err) { console.error(err); }
 };
 
     const closeChat = () => { setOpenChatCustomerId(null); setOpenChatQueueId(null); };

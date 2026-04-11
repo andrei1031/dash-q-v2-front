@@ -24,25 +24,21 @@ export const ChatWindow = ({ currentUser_id, otherUser_id, messages = [], onSend
                     <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px' }}>No messages yet.</p>
                 ) : (
                     messages.map((msg, index) => {
-                        // Check both senderId and sender_id to ensure compatibility
-                        const isMe = (msg.senderId || msg.sender_id) === currentUser_id;
-                        
-                        return (
-                            <div 
-                                key={msg.id || index} 
-                                className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}
-                            >
-                                <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
-                                    {msg.message}
-                                </div>
-                                <span className="message-timestamp">
-                                    {msg.created_at 
-                                        ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                                        : ''}
-                                </span>
+                    
+                    const effectiveSenderId = msg.senderId || msg.sender_id;
+                    const isMe = effectiveSenderId === currentUser_id;
+                    
+                    return (
+                        <div key={msg.id || index} className={`message-container ${isMe ? 'my-message-container' : 'other-message-container'}`}>
+                            <div className={`message-bubble ${isMe ? 'my-message' : 'other-message'}`}>
+                                {msg.message}
                             </div>
-                        );
-                    })
+                            <span className="message-timestamp">
+                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                        </div>
+                    );
+                })
                 )}
                 <div ref={messagesEndRef} />
             </div>
