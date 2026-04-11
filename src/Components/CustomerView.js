@@ -907,6 +907,37 @@ export const CustomerView = ({ session }) => {
         }, 15000);
         return () => clearInterval(intervalId);
     }, []);
+
+    // Inside CustomerView.js
+    useEffect(() => {
+        const handleAppFocus = async () => {
+            const storedId = localStorage.getItem('myQueueEntryId');
+            if (!storedId) return;
+
+            try {
+                // Check if the entry still exists in active status
+                const { data: entry } = await supabase
+                    .from('queue_entries')
+                    .select('status')
+                    .eq('id', storedId)
+                    .single();
+
+                // If entry is gone or status is Done/Cancelled, trigger the modal
+                if (!entry || entry.status === 'Done' || entry.status === 'Cancelled') {
+                    const res = await axios.get(`${API_URL}/missed-event/${session.user.id}`);
+                    if (res.data.event === 'Done') {
+                        setIsServiceCompleteModalOpen(true);
+                    } else if (res.data.event === 'Cancelled') {
+                        setIsCancelledModalOpen(true);
+                    }
+                }
+            } catch (e) { console.error("Check missed event failed", e); }
+        };
+
+        window.addEventListener('focus', handleAppFocus);
+        handleAppFocus(); // Run on mount
+        return () => window.removeEventListener('focus', handleAppFocus);
+    }, [session]);
     
     useEffect(() => { 
         const handleFocus = () => stopBlinking();
@@ -1012,11 +1043,14 @@ export const CustomerView = ({ session }) => {
         }
     }, [selectedBarberId]);
 
+    // Replace the existing chat useEffect in CustomerView.js
     useEffect(() => { 
-        if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
+        if (!session?.user?.id || !myQueueEntryId) return;
+
+        // Fetch initial history once
         fetchChatHistory(myQueueEntryId);
 
-        const chatChannel = supabase.channel(`customer_chat_fix_${myQueueEntryId}`) 
+        const chatChannel = supabase.channel(`customer_chat_realtime_${myQueueEntryId}`) 
             .on(
                 'postgres_changes', 
                 { 
@@ -1028,12 +1062,14 @@ export const CustomerView = ({ session }) => {
                 (payload) => {
                     const newMsg = payload.new;
 
+                    // 1. Only add if it's NOT from the customer (prevents local echoing)
                     if (newMsg.sender_id !== session.user.id) {
                         setChatMessagesFromBarber(prev => {
-                            const lastMsg = prev[prev.length - 1];
-                            if (lastMsg && lastMsg.message === newMsg.message && lastMsg.senderId === newMsg.sender_id) {
-                                return prev;
-                            }
+                            // 2. Prevent duplicate messages if re-fetch and realtime collide
+                            const isDuplicate = prev.some(m => 
+                                m.created_at === newMsg.created_at && m.message === newMsg.message
+                            );
+                            if (isDuplicate) return prev;
                             
                             return [...prev, { 
                                 senderId: newMsg.sender_id, 
@@ -1044,11 +1080,16 @@ export const CustomerView = ({ session }) => {
                         
                         playSound(messageNotificationSound);
                         
+                        // 3. Handle badge vs immediate read
                         if (!isChatOpen) {
                             setHasUnreadFromBarber(true);
                             localStorage.setItem('hasUnreadFromBarber', 'true');
                         } else {
-                            axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+                            // If chat is open, immediately tell the server it's read
+                            axios.put(`${API_URL}/chat/read`, { 
+                                queueId: myQueueEntryId, 
+                                readerId: session.user.id 
+                            }).catch(() => {});
                         }
                     }
                 }
@@ -1058,7 +1099,7 @@ export const CustomerView = ({ session }) => {
         return () => {
             supabase.removeChannel(chatChannel);
         };
-    }, [session, joinedBarberId, myQueueEntryId, fetchChatHistory, isChatOpen]); 
+    }, [session, myQueueEntryId, isChatOpen, fetchChatHistory]); // Dependencies added for stability
 
     const sendCustomerMessage = async (recipientId, messageText) => {
         if (!messageText.trim()) return;

@@ -132,40 +132,45 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         }
     }, [barberId]);
 
-    useEffect(() => {
-        if (!openChatQueueId) return;
+    // Inside BarberDashboard.js
+useEffect(() => {
+    if (!openChatQueueId) return;
 
-        console.log(`[Barber] Subscribing to chat for Queue #${openChatQueueId}`);
-        
-        const chatChannel = supabase.channel(`barber_chat_${openChatQueueId}`)
-            .on(
-                'postgres_changes', 
-                { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'chat_messages', 
-                    filter: `queue_entry_id=eq.${openChatQueueId}` 
-                }, 
-                (payload) => {
-                    const newMsg = payload.new;
+    const chatChannel = supabase.channel(`barber_chat_${openChatQueueId}`)
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'chat_messages', 
+            filter: `queue_entry_id=eq.${openChatQueueId}` 
+        }, (payload) => {
+            const newMsg = payload.new;
+            
+            // Only add if it's NOT from the current user (optimistic update handles own messages)
+            if (newMsg.sender_id !== session.user.id) {
+                setChatMessages(prev => {
+                    const recipientId = openChatCustomerId; 
+                    const currentMsgs = prev[recipientId] || [];
                     
-                    if (newMsg.sender_id !== session.user.id) {
-                        setChatMessages(prev => {
-                            const customerId = openChatCustomerId; 
-                            const msgs = prev[customerId] || [];
-                            return { ...prev, [customerId]: [...msgs, { senderId: newMsg.sender_id, message: newMsg.message, created_at: newMsg.created_at }] };
-                        });
+                    // Prevent duplicate messages if re-fetch happens simultaneously
+                    const isDuplicate = currentMsgs.some(m => m.created_at === newMsg.created_at && m.message === newMsg.message);
+                    if (isDuplicate) return prev;
 
-                        playSound(messageNotificationSound);
-                    }
-                }
-            )
-            .subscribe();
+                    return { 
+                        ...prev, 
+                        [recipientId]: [...currentMsgs, { 
+                            senderId: newMsg.sender_id, 
+                            message: newMsg.message, 
+                            created_at: newMsg.created_at 
+                        }] 
+                    };
+                });
+                playSound(messageNotificationSound);
+            }
+        })
+        .subscribe();
 
-        return () => {
-            supabase.removeChannel(chatChannel);
-        };
-    }, [openChatQueueId, openChatCustomerId, session]);
+    return () => { supabase.removeChannel(chatChannel); };
+}, [openChatQueueId, openChatCustomerId, session.user.id]);
 
     useEffect(() => {
         if (!barberId || !supabase) return;
