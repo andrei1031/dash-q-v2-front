@@ -1183,6 +1183,49 @@ export const CustomerView = ({ session }) => {
             calculateWaitTime();
         }
     }, [liveQueue, myQueueEntryId]);
+
+    // Add this new useEffect anywhere in CustomerView.js
+    useEffect(() => {
+        const checkForMissedEvents = async () => {
+            const storedQueueId = localStorage.getItem('myQueueEntryId');
+            if (!storedQueueId || !session?.user?.id) return;
+
+            try {
+                // Check if the entry is still active in the database
+                const { data: entry, error } = await supabase
+                    .from('queue_entries')
+                    .select('status, barber_id')
+                    .eq('id', storedQueueId)
+                    .maybeSingle();
+
+                // If the entry is gone or status changed to 'Done'/'Cancelled'
+                if (!entry || entry.status === 'Done' || entry.status === 'Cancelled') {
+                    console.log("Detected service change after app focus. Checking missed events...");
+                    
+                    const res = await axios.get(`${API_URL}/missed-event/${session.user.id}`);
+                    
+                    if (res.data.event === 'Done') {
+                        // Set necessary IDs for the feedback form before opening
+                        setJoinedBarberId(entry?.barber_id?.toString() || localStorage.getItem('joinedBarberId'));
+                        setIsServiceCompleteModalOpen(true);
+                        
+                        // Clean up local storage as if the realtime event hit
+                        localStorage.removeItem('myQueueEntryId');
+                        localStorage.removeItem('joinedBarberId');
+                    } else if (res.data.event === 'Cancelled') {
+                        setIsCancelledModalOpen(true);
+                        localStorage.removeItem('myQueueEntryId');
+                    }
+                }
+            } catch (e) {
+                console.error("Focus re-sync failed:", e);
+            }
+        };
+
+        // Re-check every time the user brings the app to the foreground
+        window.addEventListener('focus', checkForMissedEvents);
+        return () => window.removeEventListener('focus', checkForMissedEvents);
+    }, [session, myQueueEntryId]);
     
     useEffect(() => { 
         let timerId = null;
