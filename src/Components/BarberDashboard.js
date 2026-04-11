@@ -133,45 +133,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     }, [barberId]);
 
     // Inside BarberDashboard.js
-useEffect(() => {
-    if (!openChatQueueId) return;
-
-    const chatChannel = supabase.channel(`barber_chat_${openChatQueueId}`)
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'chat_messages', 
-            filter: `queue_entry_id=eq.${openChatQueueId}` 
-        }, (payload) => {
-            const newMsg = payload.new;
-            
-            // Only add if it's NOT from the current user (optimistic update handles own messages)
-            if (newMsg.sender_id !== session.user.id) {
-                setChatMessages(prev => {
-                    const recipientId = openChatCustomerId; 
-                    const currentMsgs = prev[recipientId] || [];
-                    
-                    // Prevent duplicate messages if re-fetch happens simultaneously
-                    const isDuplicate = currentMsgs.some(m => m.created_at === newMsg.created_at && m.message === newMsg.message);
-                    if (isDuplicate) return prev;
-
-                    return { 
-                        ...prev, 
-                        [recipientId]: [...currentMsgs, { 
-                            senderId: newMsg.sender_id, 
-                            message: newMsg.message, 
-                            created_at: newMsg.created_at 
-                        }] 
-                    };
-                });
-                playSound(messageNotificationSound);
-            }
-        })
-        .subscribe();
-
-    return () => { supabase.removeChannel(chatChannel); };
-}, [openChatQueueId, openChatCustomerId, session.user.id]);
-
     useEffect(() => {
     if (!barberId || !supabase) return;
 
@@ -184,7 +145,7 @@ useEffect(() => {
         if (newMsg.sender_id === session.user.id) return;
 
         // 🟢 THE FIX: Always use queue_entry_id as the state key
-        const qId = newMsg.queue_entry_id;
+        const qId = newMsg.queue_entry_id.toString();
 
         setChatMessages(prev => {
             const currentMsgs = prev[qId] || [];
@@ -432,26 +393,28 @@ const openChat = async (customer) => {
         try {
             const { data, error } = await supabase
                 .from('chat_messages')
-                .select('sender_id, message, created_at')
+                .select('*')
                 .eq('queue_entry_id', queueId)
                 .order('created_at', { ascending: true });
             
             if (error) throw error;
 
-            const history = data.map(msg => ({ 
-                senderId: msg.sender_id, 
-                message: msg.message,
-                created_at: msg.created_at
-            }));
-            
-            // 🟢 FIX: Store history using the Queue ID as the key
-            setChatMessages(prev => ({ 
-                ...prev, 
-                [queueId]: history 
-            }));
+            if (data) {
+                // 🟢 FIX: MERGE history with existing Real-time messages
+                setChatMessages(prev => {
+                    const qKey = queueId.toString();
+                    const existingMsgs = prev[qKey] || [];
+                    
+                    // Combine them and remove duplicates based on timestamp
+                    const merged = [...existingMsgs, ...data].filter((msg, index, self) =>
+                        index === self.findIndex((m) => m.created_at === msg.created_at)
+                    ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+                    return { ...prev, [qKey]: merged };
+                });
+            }
             axios.put(`${API_URL}/chat/read`, { queueId, readerId: session.user.id });
-        } catch (err) { console.error("History fetch failed:", err); }
+        } catch (err) { console.error("Fetch failed", err); }
     }
 };
 
@@ -669,10 +632,9 @@ const openChat = async (customer) => {
                                 <ChatWindow
                                     currentUser_id={session.user.id}
                                     otherUser_id={openChatCustomerId}
-                                    // 🟢 THE FIX: Use openChatQueueId instead of openChatCustomerId
-                                    messages={chatMessages[openChatQueueId] || []} 
+                                    // 🟢 FIX: Pull messages using the queue ID key
+                                    messages={chatMessages[openChatQueueId?.toString()] || []} 
                                     onSendMessage={sendBarberMessage}
-                                    isVisible={!!openChatCustomerId}
                                 />
                                 <button onClick={closeChat} className="btn btn-secondary btn-full-width">Close Chat</button>
                             </div>
