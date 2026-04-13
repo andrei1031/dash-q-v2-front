@@ -11,8 +11,7 @@ export const ThemeProvider = ({ children }) => {
             document.documentElement.classList.add('light-mode');
             document.body.classList.remove('light-mode');
         } else {
-            document.documentElement.classList.remove('light-mode');
-            document.body.classList.remove('light-mode');
+    document.documentElement.classList.remove('light-mode');
         }
         localStorage.setItem('theme', theme);
     }, [theme]);
