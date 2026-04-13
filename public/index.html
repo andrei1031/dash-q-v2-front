@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#ff9500" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Dash-Q" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="description" content="Dash-Q - Smart Queue Management System for Barbershops. Join queues, book appointments, and track your position in real-time." />
@@ -53,29 +53,58 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       </style>
-      <div class="pre-loader">
+      <div class="pre-loader" id="preloader">
         <div class="pre-spinner"></div>
         <h2>Dash-Q</h2>
+        <p style="font-size: 0.9rem; opacity: 0.8;">Loading app...</p>
       </div>
     </div>
     
-    <!-- Service Worker Registration -->
+    <!-- Enhanced Pre-loader + Mobile-Safe SW -->
     <script>
-      // Register service worker
+      // 1. Hide pre-loader safely
+      const hidePreloader = () => {
+        const preloader = document.getElementById('preloader');
+        if (preloader) {
+          preloader.style.opacity = '0';
+          preloader.style.transition = 'opacity 0.5s ease-out';
+          setTimeout(() => {
+            preloader.style.display = 'none';
+          }, 500);
+        }
+      };
+
+      // Hide after timeout or when React mounts
+      setTimeout(hidePreloader, 3000);
+      window.addEventListener('DOMContentLoaded', hidePreloader);
+      document.addEventListener('readystatechange', () => {
+        if (document.readyState === 'interactive') hidePreloader();
+      });
+
+      // 2. Mobile-Safe Service Worker (only non-iOS or dev)
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-        
-        // Handle service worker updates
+        // Skip aggressive SW on iOS Safari (common black screen cause)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+          console.log('iOS detected - skipping SW for better compatibility');
+        } else {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+              .then((registration) => {
+                console.log('SW registered: ', registration);
+              })
+              .catch((registrationError) => {
+                console.warn('SW registration failed (ok on first load): ', registrationError);
+              });
+          });
+        }
+
+        // Softer update handling
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          window.location.reload();
+          console.log('New SW active - soft reload');
+          if (confirm('New version available. Reload?')) {
+            window.location.reload();
+          }
         });
       }
     </script>

@@ -44,6 +44,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Mobile-safe: Skip aggressive caching on iOS UA
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || /iPad|iPhone|iPod/.test(event.request.headers.get('User-Agent') || '');
+    if (isIOS) {
+      event.respondWith(fetch(event.request));
+      return;
+    }
+
     const { request } = event;
     const url = new URL(request.url);
 

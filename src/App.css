@@ -129,7 +129,7 @@ html, body {
   margin: 0;
   padding: 0;
   /* 🟢 FIX 1: Prevent Android's bouncy pull-to-refresh for a native app feel */
-  overscroll-behavior-y: none; 
+  overscroll-behavior-y: contain; 
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2529,24 +2529,21 @@ html {
 
 /* 1. Lock horizontal width, but EXPLICITLY allow vertical scrolling */
 html, body, #root {
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;           /* <-- SCROLL FIX */
-  overscroll-behavior-y: auto !important;/* <-- SCROLL FIX */
-  touch-action: pan-y !important;        /* <-- SCROLL FIX (Allows up/down swipe) */
-  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y pinch-zoom;
   margin: 0;
   padding: 0;
 }
 
 /* 2. Lock layout wrappers, but DO NOT hide overflow here (this is what froze the screen) */
 .app-layout, .main-content, .container, .auth-page-container {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  overflow-x: visible !important;        /* <-- SCROLL FIX */
-  overflow-y: visible !important;        /* <-- SCROLL FIX */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 3. Fix the container padding and alignment */
