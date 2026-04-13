@@ -3,8 +3,6 @@ import axios from 'axios';
 import { API_URL } from '../http-commons';
 import { supabase } from '../supabase';
 
-// Enhanced Push Notifications Service
-// Handles iOS, Android, and Desktop notifications
 export const useEnhancedNotifications = (userId) => {
     const [isSupported, setIsSupported] = useState(false);
     const [permission, setPermission] = useState('default');
@@ -12,16 +10,20 @@ export const useEnhancedNotifications = (userId) => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Check if notifications are supported
-        const supported = 'Notification' in window || 'serviceWorker' in navigator;
+        // SAFE CHECK: Ensure window and navigator exist, and APIs are present
+        const supported = typeof window !== 'undefined' && 
+                          'Notification' in window && 
+                          'serviceWorker' in navigator;
+        
         setIsSupported(supported);
 
         if (supported) {
             setPermission(Notification.permission);
+        } else {
+            console.log("Push notifications not supported on this browser/device.");
         }
     }, []);
 
-    // Request permission with iOS fallback
     const requestPermission = useCallback(async () => {
         if (!isSupported) {
             setError('Notifications not supported');
@@ -29,37 +31,21 @@ export const useEnhancedNotifications = (userId) => {
         }
 
         try {
-            // Try native push notifications first
             if ('Notification' in window) {
                 const result = await Notification.requestPermission();
                 setPermission(result);
 
                 if (result === 'granted') {
-                    await registerServiceWorker();
+                    // Make sure registerServiceWorker is defined or imported
+                    await registerServiceWorker(); 
                     return true;
                 } else if (result === 'denied') {
                     setError('Notification permission denied');
                     return false;
                 }
             }
-
-            // iOS Safari fallback - use local notifications via service worker
-            if (isIOS()) {
-                const registration = await navigator.serviceWorker.ready;
-                if (registration) {
-                    // iOS requires using the service worker for notifications
-                    await registration.showNotification('Dash-Q', {
-                        body: 'Notifications enabled!',
-                        icon: '/logo192.png'
-                    });
-                    setPermission('granted');
-                    return true;
-                }
-            }
-
-            return false;
         } catch (err) {
-            console.error('Error requesting notification permission:', err);
+            console.error("Error requesting permission:", err);
             setError(err.message);
             return false;
         }
