@@ -202,7 +202,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                     // 2. Ignore if I already have this specific chat window OPEN
                     if (openChatQueueId === newMsg.queue_entry_id) {
                         // Optional: Mark as read immediately since we are looking at it
-                        axios.put(`${API_URL}/chat/read`, { 
+                        apiClient.put(`/chat/read`, { 
                             queueId: newMsg.queue_entry_id, 
                             readerId: session.user.id 
                         });
@@ -248,7 +248,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         });
 
         try {
-            await axios.post(`${API_URL}/chat/send`, {
+            await apiClient.post(`/chat/send`, {
                 senderId: session.user.id,
                 queueId: openChatQueueId,
                 message: messageText
@@ -331,7 +331,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             return;
         }
         setError('');
-        try { await axios.put(`${API_URL}/queue/next`, { queue_id: next.id, barber_id: barberId }); }
+        try { await apiClient.put(`/queue/next`, { queue_id: next.id, barber_id: barberId }); }
         catch (err) { console.error('Failed next customer:', err); setError(err.response?.data?.error || 'Failed call next.'); }
     };
     const handleCompleteCut = async () => {
@@ -371,7 +371,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setError('');
         
         try {
-            await axios.post(`${API_URL}/queue/complete`, {
+            await apiClient.post(`/queue/complete`, {
                 queue_id: queueId,
                 barber_id: barberId,
                 tip_amount: parsedTip,
@@ -401,7 +401,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         console.log("[handleCancel] Sending PUT request to /api/queue/cancel", { queue_id: customerToCancel.id, barber_id: barberId });
         setError('');
         try {
-            await axios.put(`${API_URL}/queue/cancel`, {
+            await apiClient.put(`/queue/cancel`, {
                 queue_id: customerToCancel.id,
                 barber_id: barberId
             });
@@ -423,7 +423,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             setOpenChatQueueId(queueId);
 
             // 1. SERVER: Mark messages as Read
-            axios.put(`${API_URL}/chat/read`, { 
+            apiClient.put(`/chat/read`, { 
                 queueId: queueId, 
                 readerId: session.user.id 
             }).catch(err => console.error("Failed to mark messages as read:", err));
@@ -1004,7 +1004,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                                         <button 
                                                             onClick={async () => {
                                                                 try {
-                                                                    await axios.put(`${API_URL}/appointments/approve`, { appointmentId: appt.id });
+                                                                    await apiClient.put(`/appointments/approve`, { appointmentId: appt.id });
                                                                     alert("Appointment Approved!");
                                                                     fetchBarberAppointments();
                                                                 } catch(e) { alert("Error approving."); }
