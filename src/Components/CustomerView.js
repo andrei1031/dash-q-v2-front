@@ -483,7 +483,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         };
 
         // Try guest endpoint first, fallback to regular queue
-        let endpoint = isGuestUser ? `${API_URL}/guest/join` : `${API_URL}/queue`;
+        let endpoint = isGuestUser ? `/guest/join` : `/queue`;
         console.log("[JoinQueue] Using endpoint:", endpoint);
 
         try {
