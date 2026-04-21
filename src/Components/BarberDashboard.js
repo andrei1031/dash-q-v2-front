@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { DistanceBadge } from "./Partials/DistanceBadge";
 import { ChatWindow } from "./ChatWindow";
@@ -15,7 +14,7 @@ import {
 } from "./assets/Icon";
 import { playSound } from "./helpers/utils";
 import { messageNotificationSound } from "../App";
-import axios from "axios";
+import apiClient from "./http-commons";
 
 export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, onQueueUpdate }) => {
 
@@ -44,7 +43,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const fetchBarberAppointments = async () => {
         setLoadingAppts(true);
         try {
-            const res = await axios.get(`${API_URL}/appointments/barber/${barberId}`);
+            const res = await apiClient.get(`/appointments/barber/${barberId}`);
             const data = res.data || [];
             setBarberAppointments(data);
             setPendingApptCount(data.filter(a => a.status === 'pending').length);
@@ -60,7 +59,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         if (!reason) return; // Stop if they cancel the prompt
 
         try {
-            await axios.put(`${API_URL}/appointments/reject`, {
+            await apiClient.put(`/appointments/reject`,{
                 appointmentId: apptId,
                 reason: reason
             });
@@ -82,7 +81,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setModalState({ type: 'loyaltyLoading', data: { name: customer.customer_name } });
 
         try {
-            const response = await axios.get(`${API_URL}/barber/customer-loyalty/${customer.customer_email}`);
+            const response = await apiClient.get(`/barber/customer-loyalty/${customer.customer_email}`);
 
             setModalState({ 
                 type: 'loyaltyResult', 
@@ -106,7 +105,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const fetchAppointmentCount = useCallback(async () => {
         if (!barberId) return;
         try {
-            const res = await axios.get(`${API_URL}/appointments/barber/${barberId}`);
+            const res = await apiClient.get(`/appointments/barber/${barberId}`);
             const appts = res.data || [];
             const pending = appts.filter(a => a.status === 'pending').length;
             setPendingApptCount(pending);
@@ -120,7 +119,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         if (!barberId) return;
         setFetchError('');
         try {
-            const response = await axios.get(`${API_URL}/queue/details/${barberId}`);
+            const response = await apiClient.get(`/queue/details/${barberId}`);
             let data = response.data;
 
             // --- 🟢 FIX START: Force Badge to 0 if Chat is Open ---
@@ -266,7 +265,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         // Fetch VIP price on mount
         const fetchVipPrice = async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/vip-price`);
+                const response = await apiClient.get(`/settings/vip-price`);
                 setVipPrice(response.data.vip_price || 100);
             } catch (error) {
                 console.error('Failed to fetch VIP price:', error);
@@ -295,19 +294,8 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 }
             });
 
-        // --- START OF FIX ---
-        dashboardRefreshInterval = setInterval(() => { 
-            console.log('Dashboard periodic refresh...'); 
-            fetchQueueDetails(); 
-            fetchAppointmentCount();
-            
-            if (onQueueUpdate) onQueueUpdate(); 
-        }, 15000);
-        // --- END OF FIX ---
-
         return () => {
             if (channel) supabase.removeChannel(channel);
-            if (dashboardRefreshInterval) clearInterval(dashboardRefreshInterval);
         };
     }, [barberId, fetchQueueDetails, onQueueUpdate, fetchAppointmentCount]); // <-- Add setUnreadMessages here
 

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getDistanceInMeters, getTomorrowDate, isIOsDevice, NEXT_UP_TITLE, playSound, startBlinking, stopBlinking, stopSound, TURN_TITLE } from "./helpers/utils";
 import { getDeviceFingerprint } from "./helpers/deviceFingerprint";
-import { API_URL } from "./http-commons";
 import { supabase } from "./supabase";
 import { messageNotificationSound, queueNotificationSound } from "../App";
 import { useEnhancedNotifications } from "./notifications/EnhancedPushNotifications";
@@ -9,7 +8,7 @@ import { IconChat, IconCheck, IconNext, IconRefresh, IconUpload, IconX } from ".
 import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
 import { MyReportsModal } from "./modals/MyReportsModal";
-import axios from "axios";
+import apiClient from "./http-commons";
 
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
@@ -102,7 +101,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         if (!session?.user?.id) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/appointments/my/${session.user.id}`);
+            const response = await apiClient.get(`/appointments/my/${session.user.id}`);
             setMyAppointments(response.data || []);
         } catch (err) {
             console.error("Failed to load appointments", err);
@@ -114,7 +113,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     const fetchLoyaltyHistory = useCallback(async (userId) => {
         if (!userId) return;
         try {
-            const response = await axios.get(`${API_URL}/customer/history/${userId}`);
+            const response = await apiClient.get(`/customer/history/${userId}`);
             // Handle new response format with both history and loyalty data
             const data = response.data;
             if (data && data.history) {
@@ -208,7 +207,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         setIsQueueLoading(true);
         
         try {
-            const response = await axios.get(`${API_URL}/queue/public/${barberId}`);
+            const response = await apiClient.get(`/queue/public/${barberId}`);
             const queueData = response.data || [];
             setLiveQueue(queueData);
             liveQueueRef.current = queueData;
@@ -302,7 +301,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         if (!userId) return;
 
                         try {
-                            const response = await axios.get(`${API_URL}/missed-event/${userId}`);
+                            const response = await apiClient.get(`/missed-event/${userId}`);
                             const eventType = response.data.event;
 
                             if (eventType === 'Done') {
@@ -665,7 +664,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         const checkOpportunities = async () => {
             try {
                 // 1. Fetch all public barber statuses
-                const res = await axios.get(`${API_URL}/barbers`); //
+                const res = await apiClient.get(`/barbers`); //
                 const allBarbers = res.data;
 
                 // 2. Find a barber who is Active, Available, AND has a Rating > 4.0 (optional quality filter)
@@ -822,7 +821,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     useEffect(() => {
         if (joinMode === 'later' && selectedBarberId && selectedServiceId && selectedDate) {
             setAvailableSlots([]); // Clear old slots while loading
-            axios.get(`${API_URL}/appointments/slots`, {
+            apiClient.get(`/appointments/slots`, {
                 params: { barberId: selectedBarberId, serviceId: selectedServiceId, date: selectedDate }
             })
             .then(res => setAvailableSlots(res.data))
@@ -931,7 +930,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     
     useEffect(() => { // Fetch Services
         const fetchServices = async () => {
-            try { const response = await axios.get(`${API_URL}/services`); setServices(response.data || []); }
+            try { const response = await apiClient.get(`/services`); setServices(response.data || []); }
             catch (error) { console.error('Failed to fetch services:', error); }
         };
         fetchServices();
@@ -941,7 +940,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     useEffect(() => {
         const fetchVipPrice = async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/vip-price`);
+                const response = await apiClient.get(`/settings/vip-price`);
                 setVipPrice(response.data.vip_price || 100);
             } catch (error) {
                 console.error('Failed to fetch VIP price:', error);
@@ -952,12 +951,11 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
     useEffect(() => { // Fetch Available Barbers
         const loadBarbers = async () => {
-            try { const response = await axios.get(`${API_URL}/barbers`); setBarbers(response.data || []); }
+            try { const response = await apiClient.get(`/barbers`); setBarbers(response.data || []); }
             catch (error) { console.error('Failed fetch available barbers:', error); setMessage('Could not load barbers.'); setBarbers([]); }
         };
         loadBarbers();
-        const intervalId = setInterval(loadBarbers, 15000);
-        return () => clearInterval(intervalId);
+        
     }, []);
     
     // Find this useEffect (around line 1073)
@@ -996,7 +994,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     useEffect(() => { // Realtime Subscription & Notifications
         if (joinedBarberId) { fetchPublicQueue(joinedBarberId); } else { setLiveQueue([]); setIsQueueLoading(false); }
         if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); }
-        let queueChannel = null; let refreshInterval = null;
+        let queueChannel = null;
         if (joinedBarberId && myQueueEntryId && supabase?.channel) {
             console.log(`Subscribing queue changes: barber ${joinedBarberId}`);
             queueChannel = supabase.channel(`public_queue_${joinedBarberId}`)
@@ -1053,7 +1051,6 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         return () => {
             console.log("Cleaning up queue subscription for barber:", joinedBarberId);
             if (queueChannel && supabase?.removeChannel) { supabase.removeChannel(queueChannel).catch(err => console.error("Error removing channel:", err)); }
-            if (refreshInterval) { clearInterval(refreshInterval); }
         };
     }, [joinedBarberId, myQueueEntryId, fetchPublicQueue]);
 
@@ -1063,7 +1060,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             setBarberFeedback([]);
             const fetchFeedback = async () => {
                 try {
-                    const response = await axios.get(`${API_URL}/feedback/${selectedBarberId}`);
+                    const response = await apiClient.get(`/feedback/${selectedBarberId}`);
                     setBarberFeedback(response.data || []);
                 } catch (err) {
                     console.error("Failed to fetch barber feedback:", err);

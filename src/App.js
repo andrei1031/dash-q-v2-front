@@ -37,7 +37,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 // Add this inside App() or specific layouts (BarberAppLayout / CustomerAppLayout)
 
 export const handleLogout = async (userId) => {
-    // 1. Clear Server Availability Flag (Barbers only)
     if (userId) {
         try {
             await apiClient.put('/logout/flag', { userId });
@@ -47,8 +46,6 @@ export const handleLogout = async (userId) => {
         }
     }
 
-    // 2. CHECK SESSION BEFORE SIGNING OUT
-    // This prevents the "403 Forbidden" error if the token is already dead.
     const { data: { session } } = await supabase.auth.getSession();
 
     if (session) {
@@ -60,13 +57,10 @@ export const handleLogout = async (userId) => {
         console.log("Session already expired. Clearing local state only.");
     }
 
-    // 3. Force Local Cleanup (Always do this)
-    localStorage.clear(); // Clear all app state (IDs, queue position, etc)
+    localStorage.clear(); 
     
-    // Force a "hard" session clear in Supabase client just in case
-    await supabase.auth.setSession({ access_token: 'expired', refresh_token: 'expired' });
+    // FIX: Removed the failing fake setSession crash code
     
-    // Reload to reset all React states cleanly
     window.location.reload();
 };
 
@@ -253,44 +247,22 @@ function App() {
 
         initSession();
 
-        // 3. Listen for Auth Changes (Login/Logout)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-            setSession(currentSession);
-            if (currentSession?.user) {
-                checkUserRole(currentSession.user);
-            } else {
-                setUserRole('customer'); // Default reset
-                setBarberProfile(null);
-            }
-        });
-
-        return () => subscription?.unsubscribe();
-    }, [checkUserRole]);
-
-    useEffect(() => {
-        if (!supabase?.auth) {
-            setLoadingRole(false);
-            return;
-        }
-
+        // FIX: Merged the two duplicate onAuthStateChange hooks into ONE efficient listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
             if (_event === 'PASSWORD_RECOVERY') {
                 setIsUpdatingPassword(true);
             }
-
+            
             setSession(currentSession);
-
+            
             if (currentSession?.user) {
-                // User is logged in, hide landing page immediately
                 setShowLanding(false); 
                 checkUserRole(currentSession.user);
             } else {
-                setUserRole('customer');
+                setUserRole('customer'); // Default reset
                 setBarberProfile(null);
                 setLoadingRole(false);
                 setIsUpdatingPassword(false);
-                // Note: We do NOT reset showLanding to true here. 
-                // If they logout, we show AuthForm (Login) by default, unless they refresh.
             }
         });
 
