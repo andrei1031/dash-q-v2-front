@@ -167,7 +167,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         if (userInitiated && myQueueEntryId) {
             setIsLoading(true);
             try {
-                await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, {
+                await apiClient.delete(`/queue/${myQueueEntryId}`, {
                     data: { userId: session?.user?.id || null }
                 });
                 setMessage("You left the queue.");
@@ -394,7 +394,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 setReferenceImageUrl(imageUrl);
                 setMessage('Photo uploaded. Ready to join queue.');
             } else {
-                const updateResponse = await axios.put(`${API_URL}/queue/photo`, {
+                const updateResponse = await apiClient.put(`/queue/photo`, {
                     queueId: targetQueueId,
                     barberId: joinedBarberId,
                     referenceImageUrl: imageUrl
@@ -491,14 +491,14 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             let newEntry;
             
             try {
-                response = await axios.post(endpoint, requestData);
+                response = await apiClient.post(endpoint, requestData);
                 newEntry = response.data.data || response.data;
             } catch (initialError) {
                 // If guest endpoint returns 404, try regular queue as fallback
                 if (isGuestUser && initialError.response && initialError.response.status === 404) {
                     console.log("[JoinQueue] Guest endpoint not found (404), trying regular queue...");
-                    endpoint = `${API_URL}/queue`;
-                    response = await axios.post(endpoint, requestData);
+                    endpoint = `/queue`;
+                    response = await apiClient.post(endpoint, requestData);
                     newEntry = response.data;
                 } else {
                     // Re-throw if it's not a 404
@@ -574,7 +574,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         setMessage('Booking appointment...');
 
         try {
-            await axios.post(`${API_URL}/appointments/book`, {
+            await apiClient.post(`/appointments/book`, {
                 customer_name: customerName,
                 customer_email: customerEmail,
                 user_id: session?.user?.id,
@@ -697,7 +697,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
     const handleConfirmAttendance = async () => {
         try {
-            await axios.put(`${API_URL}/queue/confirm`, { queueId: myQueueEntryId });
+            await apiClient.put(`/queue/confirm`, { queueId: myQueueEntryId });
             stopSound(queueNotificationSound); // Stop the noise
             stopBlinking();
             if (navigator.vibrate) navigator.vibrate(0);
@@ -717,16 +717,10 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
         setIsLoading(true);
         try {
-            // OPTION A: The Clean Way (Requires new endpoint in server.js)
-            // await axios.post(`${API_URL}/queue/self-transfer`, { queueId: myQueueEntryId, targetBarberId: freeBarber.id });
+            await apiClient.delete(`/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); //
             
-            // OPTION B: The "Hack" Way (Leave & Rejoin using existing endpoints)
-            // 1. Leave current queue
-            await axios.delete(`${API_URL}/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); //
-            
-            // 2. Join new barber (Re-using your join logic)
-            // Note: You'd need to refactor handleJoinQueue to accept params, or just manually call axios.post('/api/queue'...) here
-            await axios.post(`${API_URL}/queue`, {
+           
+            await apiClient.post(`/queue`, {
                 customer_name: customerName,
                 customer_email: customerEmail,
                 barber_id: freeBarber.id,
@@ -791,7 +785,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 const storedGuestId = localStorage.getItem('guestId');
                 if (storedGuestId) {
                     try {
-                        const response = await axios.post(`${API_URL}/guest_login`, { guestId: storedGuestId });
+                        const response = await apiClient.post(`/guest_login`, { guestId: storedGuestId });
                         if (response.data && response.data.activeQueueEntry) {
                             const entry = response.data.activeQueueEntry;
                             console.log("[Guest Recovery] Restored guest session:", entry);
@@ -879,7 +873,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             // D. SERVER UPLOAD (Keep existing throttling)
             const now = Date.now();
             if (now - lastUploadTime.current > 60000) { 
-                axios.put(`${API_URL}/queue/location`, {
+                apiClient.put(`/queue/location`, {
                     queueId: myQueueEntryId,
                     distance: currentDist
                 }).catch(e => console.error("Loc upload fail"));
@@ -1046,7 +1040,6 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     if (status === 'SUBSCRIBED') { console.log('Subscribed to Realtime queue!'); setQueueMessage(''); fetchPublicQueue(joinedBarberId); }
                     else { console.error('Supabase Realtime error:', status, err); setQueueMessage('Live updates unavailable.'); }
                 });
-            refreshInterval = setInterval(() => { console.log("Periodic refresh..."); fetchPublicQueue(joinedBarberId); }, 15000);
         }
         return () => {
             console.log("Cleaning up queue subscription for barber:", joinedBarberId);
@@ -1120,7 +1113,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             localStorage.setItem('hasUnreadFromBarber', 'true');
                         } else {
                             // If chat is open, mark read immediately
-                            axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+                            apiClient.put(`/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                         }
                     }
                 }
@@ -1143,7 +1136,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         setChatMessagesFromBarber(prev => [...prev, tempMsg]);
 
         try {
-            await axios.post(`${API_URL}/chat/send`, {
+            await apiClient.post(`/chat/send`, {
                 senderId: session.user.id,
                 queueId: myQueueEntryId,
                 message: messageText
@@ -1298,7 +1291,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             }
                             
                             try { 
-                                await axios.post(`${API_URL}/feedback`, { 
+                                await apiClient.post(`/feedback`, { 
                                     barber_id: joinedBarberId, 
                                     customer_name: customerName, 
                                     comments: feedbackText.trim(), 
@@ -2076,7 +2069,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     fetchChatHistory(myQueueEntryId);
                                     setIsChatOpen(true);
                                     setHasUnreadFromBarber(false);
-                                    axios.put(`${API_URL}/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
+                                    apiClient.put(`/chat/read`, { queueId: myQueueEntryId, readerId: session.user.id });
                                 } else { console.error("Barber user ID missing."); setMessage("Cannot initiate chat."); }
                             }} className="btn btn-secondary btn-full-width btn-icon-label chat-toggle-button">
                                 <IconChat />Chat with Barber{hasUnreadFromBarber && (<span className="notification-badge"></span>)}</button>)}
