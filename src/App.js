@@ -119,29 +119,37 @@ function App() {
     if (!user || !user.id) return;
     setLoadingRole(true);
     try {
-        // FIX: Check is_banned status during role check
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('role, is_banned')
             .eq('id', user.id)
             .single();
         
+        if (profileError) throw profileError;
+        
         if (profileData?.is_banned) {
             alert("Your account has been suspended.");
-            handleLogout(user.id); // Force logout for banned users
+            handleLogout(user.id);
             return;
         }
 
-        // Optimization: Use the role directly if found
         if (profileData) {
             setUserRole(profileData.role);
+            
             if (profileData.role === 'barber') {
-                const response = await apiClient.get(`/barber/profile/${user.id}`);
-                setBarberProfile(response.data);
+                // Wrap the API call in its own try/catch so it doesn't break the role
+                try {
+                    const response = await apiClient.get(`/barber/profile/${user.id}`);
+                    setBarberProfile(response.data);
+                } catch (apiError) {
+                    console.error("Barber recognized, but failed to load profile details:", apiError);
+                    alert("Logged in as Barber, but couldn't load your shop profile. Please refresh.");
+                }
             }
         }
     } catch (error) {
-        setUserRole('customer');
+        console.error("Critical role check failed:", error);
+        setUserRole('customer'); // Only downgrade if Supabase completely fails
     } finally {
         setLoadingRole(false);
     }
