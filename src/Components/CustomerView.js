@@ -2287,11 +2287,20 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     ) : (
                         <ul className="queue-list">
                             {myAppointments.map((appt) => {
-                                const dateObj = new Date(appt.scheduled_time);
-                                // Use Philippines timezone for display
-                                const isPast = dateObj < new Date(new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
-                                const displayDate = dateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
-                                const displayTime = dateObj.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
+                                const dateString = appt.scheduled_time.split('T')[0]; // "2026-04-24"
+                                const [year, month, day] = dateString.split('-');
+                                const safeDateObj = new Date(year, month - 1, day);
+
+                                // 2. Use the safe date object for display Date
+                                const displayDate = safeDateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
+
+                                // 3. USE THE PRE-FORMATTED TIME FROM THE BACKEND (Bypasses all JS Timezone issues)
+                                const displayTime = appt.formatted_time; 
+
+                                // 4. Check if past (Naive string comparison is safer here)
+                                const nowPH = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
+                                const todayStr = `${nowPH.getUTCFullYear()}-${String(nowPH.getUTCMonth()+1).padStart(2,'0')}-${String(nowPH.getUTCDate()).padStart(2,'0')}T${String(nowPH.getUTCHours()).padStart(2,'0')}:${String(nowPH.getUTCMinutes()).padStart(2,'0')}:00`;
+                                const isPast = appt.scheduled_time < todayStr;
                                 // Determine Badge Color
                                 let statusColor = 'var(--text-secondary)';
                                 let statusBg = 'rgba(0,0,0,0.05)';
