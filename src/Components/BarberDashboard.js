@@ -957,9 +957,20 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                             ) : (
                                 <ul className="queue-list">
                                     {barberAppointments.map((appt) => {
-                                        const dateObj = new Date(appt.scheduled_time);
-                                        // Highlight "Today"
-                                        const isToday = new Date().toDateString() === dateObj.toDateString();
+                                        // 1. Extract the literal date safely
+                                        const dateString = appt.scheduled_time.split('T')[0];
+                                        const [year, month, day] = dateString.split('-');
+                                        const safeDateObj = new Date(year, month - 1, day);
+                                        
+                                        const displayDate = safeDateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
+                                        
+                                        // 2. Use backend pre-formatted time to avoid timezone shifts
+                                        const displayTime = appt.formatted_time;
+
+                                        // 3. Highlight "Today" safely using literal PH string comparison
+                                        const nowPH = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
+                                        const todayStr = `${nowPH.getUTCFullYear()}-${String(nowPH.getUTCMonth()+1).padStart(2,'0')}-${String(nowPH.getUTCDate()).padStart(2,'0')}`;
+                                        const isToday = dateString === todayStr;
                                         
                                         return (
                                             <li key={appt.id} style={{
@@ -977,10 +988,10 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                             {/* Date & Time */}
                                             <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap: '10px'}}>
                                                 <strong style={{fontSize:'1.1rem', color: isToday ? 'var(--primary-orange)' : 'var(--text-primary)'}}>
-                                                    {dateObj.toLocaleDateString([], {weekday: 'short', month:'short', day:'numeric'})}
+                                                    {displayDate}
                                                 </strong>
                                                 <span style={{fontSize:'1.1rem', fontWeight:'bold'}}>
-                                                    {dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    {displayTime}
                                                 </span>
                                             </div>
                                             
