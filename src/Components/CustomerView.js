@@ -943,17 +943,28 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         fetchVipPrice();
     }, []);
 
-    useEffect(() => { // Fetch Available Barbers
+    useEffect(() => {
         const loadBarbers = async () => {
-            try { const response = await apiClient.get(`/barbers`); setBarbers(response.data || []); }
-            catch (error) { console.error('Failed fetch available barbers:', error); setMessage('Could not load barbers.'); setBarbers([]); }
+            try {
+                const response = await apiClient.get(`/barbers`);
+                setBarbers(response.data || []);
+            } catch (error) {
+                console.error('Failed fetch available barbers:', error);
+                setMessage('Could not load barbers.');
+                setBarbers([]);
+            }
         };
+
         loadBarbers();
-        
-    }, []);
+
+        // Refresh barber list every 30 seconds to catch status/rating changes
+        const interval = setInterval(loadBarbers, 30000); 
+
+        return () => clearInterval(interval);
+    }, []); //
     
     // Find this useEffect (around line 1073)
-    useEffect(() => { // Blinking Tab Listeners
+    useEffect(() => {
         const handleFocus = () => stopBlinking();
         
         const handleVisibility = () => {
@@ -964,14 +975,20 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 const hasUnread = localStorage.getItem('hasUnreadFromBarber') === 'true';
                 setHasUnreadFromBarber(hasUnread);
 
-                // --- THIS IS THE FIX ---
-                // Immediately check queue status when user returns to the tab
+                // RE-FETCH BARBER LIST ON TAB FOCUS
+                const loadBarbers = async () => {
+                    try {
+                        const response = await apiClient.get(`/barbers`);
+                        setBarbers(response.data || []);
+                    } catch (e) { console.error("Focus re-sync failed", e); }
+                };
+                loadBarbers();
+
+                // Existing queue re-fetch logic
                 const currentBarber = localStorage.getItem('joinedBarberId');
                 if (currentBarber) {
-                    console.log("Tab is visible, re-fetching queue status...");
                     fetchPublicQueue(currentBarber);
                 }
-                // --- END FIX ---
             }
         };
         
@@ -983,7 +1000,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             document.removeEventListener("visibilitychange", handleVisibility); 
             stopBlinking(); 
         };
-    }, [fetchPublicQueue]); // <-- IMPORTANT: Add fetchPublicQueue as a dependency
+    }, [fetchPublicQueue]); //// <-- IMPORTANT: Add fetchPublicQueue as a dependency
 
     useEffect(() => { // Realtime Subscription & Notifications
         if (joinedBarberId) { fetchPublicQueue(joinedBarberId); } else { setLiveQueue([]); setIsQueueLoading(false); }
