@@ -13,14 +13,14 @@ import apiClient from "./http-commons";
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
     const [selectedBarberId, setSelectedBarberId] = useState('');
-    
+
     const { requestPermission } = useEnhancedNotifications(session?.user?.id);
-    
-const isGuest = session && session.user && session.user.is_guest === true;
-console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
+
+    const isGuest = session && session.user && session.user.is_guest === true;
+    console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', isGuest, 'is_guest:', session?.user?.is_guest);
     const [guestName, setGuestName] = useState(() => session?.user?.nickname || session?.user?.user_metadata?.full_name || '');
     const [guestEmail, setGuestEmail] = useState('');
-    
+
     const [message, setMessage] = useState('');
     const [myQueueEntryId, setMyQueueEntryId] = useState(() => localStorage.getItem('myQueueEntryId') || null);
     const [joinedBarberId, setJoinedBarberId] = useState(() => localStorage.getItem('joinedBarberId') || null);
@@ -78,7 +78,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     const currentChatTargetBarberUserId = targetBarber?.user_id;
 
     const myQueueEntry = liveQueue.find(e => e.id.toString() === myQueueEntryId);
-// const isQueueUpdateAllowed = myQueueEntry && (myQueueEntry.status === 'Waiting' || myQueueEntry.status === 'Up Next');
+    // const isQueueUpdateAllowed = myQueueEntry && (myQueueEntry.status === 'Waiting' || myQueueEntry.status === 'Up Next');
     const [customerRating, setCustomerRating] = useState(0);
     const [joinMode, setJoinMode] = useState('now'); // 'now' or 'later'
 
@@ -141,9 +141,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 .select('sender_id, message, created_at')
                 .eq('queue_entry_id', queueId)
                 .order('created_at', { ascending: true }); // Oldest first
-            
+
             if (error) throw error;
-            
+
             if (data) {
                 const formattedHistory = data.map(msg => ({
                     senderId: msg.sender_id,
@@ -152,8 +152,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 }));
                 setChatMessagesFromBarber(formattedHistory);
             }
-        } catch (err) { 
-            console.error("Error fetching customer chat history:", err); 
+        } catch (err) {
+            console.error("Error fetching customer chat history:", err);
         }
     }, []);
 
@@ -177,9 +177,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         }
         setIsServiceCompleteModalOpen(false); setIsCancelledModalOpen(false);
         stopBlinking();
-        localStorage.removeItem('myQueueEntryId'); 
+        localStorage.removeItem('myQueueEntryId');
         localStorage.removeItem('joinedBarberId');
-        localStorage.removeItem('targetFinishTime'); 
+        localStorage.removeItem('targetFinishTime');
         localStorage.removeItem('pendingFeedback');// <-- ADD THIS
         setMyQueueEntryId(null); setJoinedBarberId(null);
         setLiveQueue([]); setQueueMessage(''); setSelectedBarberId('');
@@ -205,7 +205,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             return;
         }
         setIsQueueLoading(true);
-        
+
         try {
             const response = await apiClient.get(`/queue/public/${barberId}`);
             const queueData = response.data || [];
@@ -213,7 +213,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             liveQueueRef.current = queueData;
 
             const currentQueueId = localStorage.getItem('myQueueEntryId');
-            
+
             // --- NOTIFICATION LOGIC (Your Turn / Up Next) ---
             // --- NOTIFICATION LOGIC (Your Turn / Up Next) ---
             if (currentQueueId) {
@@ -237,7 +237,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             }
                         }
                         // --- ✅ FIX END ---
-                    } 
+                    }
                     // 2. "IN PROGRESS" LOGIC
                     else if (myEntry.status === 'In Progress') {
                         const modalFlag = localStorage.getItem('stickyModal');
@@ -246,12 +246,12 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             startBlinking(TURN_TITLE);
                             localStorage.setItem('stickyModal', 'yourTurn');
                         }
-                    } 
+                    }
                     // 3. "WAITING" LOGIC
                     else if (myEntry.status === 'Waiting') {
                         stopBlinking();
                         if (localStorage.getItem('stickyModal') === 'yourTurn') {
-                                localStorage.removeItem('stickyModal');
+                            localStorage.removeItem('stickyModal');
                         }
                     }
                 }
@@ -263,7 +263,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
                 // 2. If NOT in list, and no modals are open... check why.
                 if (!amIInActiveQueue && !isServiceCompleteModalOpen && !isCancelledModalOpen) {
-    
+
                     const investigateDisappearance = async () => {
                         console.log("[Catcher] Entry missing from public list. Verifying with server...");
 
@@ -283,7 +283,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         // 2. IF ENTRY EXISTS & ACTIVE: It was just lag. Do nothing.
                         if (myEntry && ['Waiting', 'Up Next', 'In Progress'].includes(myEntry.status)) {
                             console.log("Entry still exists in DB. Ignoring public list lag.");
-                            
+
                             // Optional: If the barber ID changed on the server but not locally, update it now
                             const currentStoredBarber = localStorage.getItem('joinedBarberId');
                             if (myEntry.barber_id.toString() !== currentStoredBarber) {
@@ -292,7 +292,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 setJoinedBarberId(myEntry.barber_id.toString());
                                 setMessage("🔄 You have been transferred to another barber.");
                             }
-                            return; 
+                            return;
                         }
 
                         // 3. IF WE ARE HERE: The entry is genuinely gone (Deleted) or Finished.
@@ -308,7 +308,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 console.log("[Catcher] Confirmed 'Done'.");
                                 localStorage.setItem('pendingFeedback', JSON.stringify({
                                     barberId: joinedBarberId,
-                                    queueId: myQueueEntryId, 
+                                    queueId: myQueueEntryId,
                                     timestamp: Date.now()
                                 }));
                                 setIsServiceCompleteModalOpen(true);
@@ -344,17 +344,17 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             setIsQueueLoading(false);
         }
     }, [
-    session, 
-    isServiceCompleteModalOpen, 
-    isCancelledModalOpen, 
-    setLiveQueue, 
-    setQueueMessage, 
-    setIsServiceCompleteModalOpen, 
-    setIsCancelledModalOpen, 
-    setJoinedBarberId,
-    handleReturnToJoin,
-    myQueueEntryId,
-    joinedBarberId
+        session,
+        isServiceCompleteModalOpen,
+        isCancelledModalOpen,
+        setLiveQueue,
+        setQueueMessage,
+        setIsServiceCompleteModalOpen,
+        setIsCancelledModalOpen,
+        setJoinedBarberId,
+        handleReturnToJoin,
+        myQueueEntryId,
+        joinedBarberId
     ]);
 
     const handleFileChange = (e) => {
@@ -416,7 +416,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             setIsUploading(false);
         }
     };
-    
+
     const handleVIPToggle = (e) => {
         const isChecked = e.target.checked;
         if (isChecked) {
@@ -446,66 +446,78 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         if (myQueueEntryId) { setMessage('You are already checked in!'); return; }
         if (selectedFile && !referenceImageUrl) { setMessage('Please click "Upload Photo" first!'); return; }
 
-        setIsLoading(true); setMessage('Joining queue...');
-        
-        // Get device fingerprint (generate if not exists and save to localStorage)
-        let deviceFingerprint = localStorage.getItem('deviceFingerprint');
-        if (!deviceFingerprint) {
-            deviceFingerprint = getDeviceFingerprint();
-            localStorage.setItem('deviceFingerprint', deviceFingerprint);
-        }
-
-        // Determine the correct endpoint based on user type
-        const isGuestUser = isGuest;
-        console.log("[JoinQueue] isGuest:", isGuestUser, "session:", session);
-        console.log("[JoinQueue] session.user:", session?.user);
-        console.log("[JoinQueue] is_guest value:", session?.user?.is_guest);
-        
-        // Build request data based on user type
-        const requestData = isGuestUser ? {
-            name: customerName,
-            barberId: selectedBarberId,
-            serviceId: selectedServiceId,
-            headCount: headCount,
-            referenceImageUrl: referenceImageUrl || null,
-            guestId: localStorage.getItem('guestId') || null,
-            deviceFingerprint: deviceFingerprint || null
-        } : {
-            customer_name: customerName,
-            customer_email: customerEmail,
-            barber_id: selectedBarberId,
-            reference_image_url: referenceImageUrl || null,
-            service_id: selectedServiceId,
-            user_id: session?.user?.id || null,
-            is_vip: isVIPToggled,
-            head_count: headCount,
-            deviceFingerprint: deviceFingerprint || null
-        };
-
-        // Try guest endpoint first, fallback to regular queue
-        let endpoint = isGuestUser ? `/guest/join` : `/queue`;
-        console.log("[JoinQueue] Using endpoint:", endpoint);
+        setIsLoading(true);
+        setMessage('Verifying barber availability...');
 
         try {
+            // --- START: PRE-CHECK VERIFICATION ---
+            // Fetch the latest status of all barbers to ensure the selected one is still available
+            const statusRes = await apiClient.get(`/barbers`);
+            const currentBarber = statusRes.data.find(b => b.id.toString() === selectedBarberId);
+
+            // If the barber went offline or is no longer available, stop the process
+            if (!currentBarber || !currentBarber.is_active || !currentBarber.is_available) {
+                setMessage('❌ Sorry, this barber just went offline. Please choose another.');
+                setIsLoading(false);
+                // Refresh the local barber list so the UI updates immediately
+                setBarbers(statusRes.data || []);
+                return;
+            }
+            // --- END: PRE-CHECK VERIFICATION ---
+
+            setMessage('Joining queue...');
+
+            // Get device fingerprint (generate if not exists and save to localStorage)
+            let deviceFingerprint = localStorage.getItem('deviceFingerprint');
+            if (!deviceFingerprint) {
+                deviceFingerprint = getDeviceFingerprint();
+                localStorage.setItem('deviceFingerprint', deviceFingerprint);
+            }
+
+            // Determine the correct endpoint based on user type
+            const isGuestUser = isGuest;
+
+            // Build request data based on user type
+            const requestData = isGuestUser ? {
+                name: customerName,
+                barberId: selectedBarberId,
+                serviceId: selectedServiceId,
+                headCount: headCount,
+                referenceImageUrl: referenceImageUrl || null,
+                guestId: localStorage.getItem('guestId') || null,
+                deviceFingerprint: deviceFingerprint || null
+            } : {
+                customer_name: customerName,
+                customer_email: customerEmail,
+                barber_id: selectedBarberId,
+                reference_image_url: referenceImageUrl || null,
+                service_id: selectedServiceId,
+                user_id: session?.user?.id || null,
+                is_vip: isVIPToggled,
+                head_count: headCount,
+                deviceFingerprint: deviceFingerprint || null
+            };
+
+            // Try guest endpoint first, fallback to regular queue
+            let endpoint = isGuestUser ? `/guest/join` : `/queue`;
+
             let response;
             let newEntry;
-            
+
             try {
                 response = await apiClient.post(endpoint, requestData);
                 newEntry = response.data.data || response.data;
             } catch (initialError) {
                 // If guest endpoint returns 404, try regular queue as fallback
                 if (isGuestUser && initialError.response && initialError.response.status === 404) {
-                    console.log("[JoinQueue] Guest endpoint not found (404), trying regular queue...");
                     endpoint = `/queue`;
                     response = await apiClient.post(endpoint, requestData);
                     newEntry = response.data;
                 } else {
-                    // Re-throw if it's not a 404
                     throw initialError;
                 }
             }
-            
+
             if (newEntry && newEntry.id) {
                 setMessage(`Success! You are #${newEntry.id} in the queue.`);
                 localStorage.setItem('myQueueEntryId', newEntry.id.toString());
@@ -513,61 +525,52 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 setMyQueueEntryId(newEntry.id.toString());
                 setJoinedBarberId(newEntry.barber_id.toString());
                 setIsChatOpen(true);
-                setSelectedBarberId(''); setSelectedServiceId('');
+                setSelectedBarberId('');
+                setSelectedServiceId('');
                 setReferenceImageUrl(newEntry.reference_image_url || '');
                 fetchPublicQueue(newEntry.barber_id.toString());
                 setIsVIPToggled(false);
-            } else { throw new Error("Invalid response from server."); }
-        } catch (error) {
-        console.error('Failed to join queue:', error);
-        
-        // Show more detailed error for debugging
-        const errorMessage = error.response?.data?.error || error.message;
-        console.log("[JoinQueue] Error details:", error.response?.status, errorMessage, error);
-        
-        // --- START: HANDLE 409 CONFLICT (AUTO-RECOVER) ---
-        if (error.response && error.response.status === 409) {
-            // Check if 'details' actually exists before trying to read it
-            const existing = error.response.data.details;
-            
-            if (existing && existing.id && existing.barber_id) {
-                // Scenario A: User is already in queue (Recovery)
-                setMessage(`⚠️ Found active booking! Recovering your spot (ID: #${existing.id})...`);
-                
-                localStorage.setItem('myQueueEntryId', existing.id.toString());
-                localStorage.setItem('joinedBarberId', existing.barber_id.toString());
-
-                setMyQueueEntryId(existing.id.toString());
-                setJoinedBarberId(existing.barber_id.toString());
-                setIsChatOpen(true);
-                
-                setSelectedBarberId('');
-                setSelectedServiceId('');
-                setReferenceImageUrl(existing.reference_image_url || '');
-
-                fetchPublicQueue(existing.barber_id.toString());
             } else {
-                // Scenario B: Database Error or Generic Conflict (Prevent Crash)
-                const errorMsg = error.response.data.error || "A conflict occurred.";
-                console.error("409 Error without details:", errorMsg);
-                setMessage(`Error: ${errorMsg}`);
+                throw new Error("Invalid response from server.");
             }
-        }
-        // --- END: HANDLE 409 CONFLICT ---
-        else {
+        } catch (error) {
+            console.error('Failed to join queue:', error);
+
             const errorMessage = error.response?.data?.error || error.message;
-            setMessage(errorMessage.includes('unavailable') ? errorMessage : 'Failed to join. Try again.');
+
+            // Handle 409 Conflict (Auto-recovery)
+            if (error.response && error.response.status === 409) {
+                const existing = error.response.data.details;
+
+                if (existing && existing.id && existing.barber_id) {
+                    setMessage(`⚠️ Found active booking! Recovering your spot (ID: #${existing.id})...`);
+
+                    localStorage.setItem('myQueueEntryId', existing.id.toString());
+                    localStorage.setItem('joinedBarberId', existing.barber_id.toString());
+                    setMyQueueEntryId(existing.id.toString());
+                    setJoinedBarberId(existing.barber_id.toString());
+                    setIsChatOpen(true);
+                    setSelectedBarberId('');
+                    setSelectedServiceId('');
+                    setReferenceImageUrl(existing.reference_image_url || '');
+                    fetchPublicQueue(existing.barber_id.toString());
+                } else {
+                    const errorMsg = error.response.data.error || "A conflict occurred.";
+                    setMessage(`Error: ${errorMsg}`);
+                }
+            } else {
+                setMessage(errorMessage.includes('unavailable') ? errorMessage : 'Failed to join. Try again.');
+            }
+        } finally {
+            setIsLoading(false);
         }
-    } finally { 
-        setIsLoading(false); 
-    }
     };
 
     const handleBooking = async (e) => {
         e.preventDefault();
-        if (!customerName || !selectedBarberId || !selectedServiceId || !selectedSlot) { 
-            setMessage('All fields including a Time Slot are required.'); 
-            return; 
+        if (!customerName || !selectedBarberId || !selectedServiceId || !selectedSlot) {
+            setMessage('All fields including a Time Slot are required.');
+            return;
         }
 
         setIsLoading(true);
@@ -583,8 +586,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 scheduled_time: selectedSlot
             });
 
-            setMessage(`Success! Appointment confirmed for ${new Date(selectedSlot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}.`);
-            
+            setMessage(`Success! Appointment confirmed for ${new Date(selectedSlot).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' })}.`);
+
             // Optional: Reset form or switch to history view
             setSelectedSlot(null);
             setAvailableSlots([]);
@@ -609,9 +612,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             price: "₱200.00",
             badge: "BEST SELLER",
             image: "/IMG_0616.PNG", // REPLACE THIS URL
-            theme: { 
+            theme: {
                 background: 'linear-gradient(135deg, #fffbeb 0%, #fff3cd 100%)', // Gold Gradient
-                text: '#856404', 
+                text: '#856404',
                 border: '#ffeeba',
                 badgeBg: '#ff3b30' // Red Badge
             }
@@ -623,9 +626,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             price: "₱200.00",
             badge: "BARBER'S CHOICE",
             image: "/IMG_0614.PNG", // REPLACE THIS URL
-            theme: { 
+            theme: {
                 background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', // Blue Gradient
-                text: '#0d47a1', 
+                text: '#0d47a1',
                 border: '#90caf9',
                 badgeBg: '#2962ff' // Dark Blue Badge
             }
@@ -637,9 +640,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             price: "₱100.00",
             badge: "NEW ARRIVAL",
             image: "/IMG_0615.PNG", // REPLACE THIS URL
-            theme: { 
+            theme: {
                 background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', // Green Gradient
-                text: '#1b5e20', 
+                text: '#1b5e20',
                 border: '#a5d6a7',
                 badgeBg: '#2e7d32' // Dark Green Badge
             }
@@ -652,14 +655,14 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         perks: "☕ Free WiFi  •   ₱159 Buy1Take1 Milktea  •  Board Games",
         image: "/sahouselogo.jpg", // Replace with real cafe photo
         // REPLACE WITH CAFE COORDINATES or Google Maps Link
-        locationLink: "https://maps.app.goo.gl/ETUu5bxPA6t2yuSs6" 
+        locationLink: "https://maps.app.goo.gl/ETUu5bxPA6t2yuSs6"
     };
 
     // --- Effects ---
-    
+
     useEffect(() => {
-    // Only run if we are already in a queue and waiting
-    if (!myQueueEntryId || !joinedBarberId) return;
+        // Only run if we are already in a queue and waiting
+        if (!myQueueEntryId || !joinedBarberId) return;
 
         const checkOpportunities = async () => {
             try {
@@ -670,13 +673,13 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 // 2. Find a barber who is Active, Available, AND has a Rating > 4.0 (optional quality filter)
                 // Note: You might need to fetch their specific queue length if your /api/barbers doesn't return it.
                 // For now, let's assume you add a small check or rely on 'is_available'
-                
+
                 const currentBarberIdStr = joinedBarberId.toString();
-                
+
                 // Find someone else who is available
-                const opportunity = allBarbers.find(b => 
+                const opportunity = allBarbers.find(b =>
                     b.id.toString() !== currentBarberIdStr && // Not my current barber
-                    b.is_active && 
+                    b.is_active &&
                     b.is_available // They are marked Online
                 );
 
@@ -701,16 +704,16 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             stopSound(queueNotificationSound); // Stop the noise
             stopBlinking();
             if (navigator.vibrate) navigator.vibrate(0);
-            
+
             // Optimistic update
             setOptimisticMessage("✅ Confirmed! Welcome to the shop.");
             setTimeout(() => setOptimisticMessage(null), 3000);
-        } catch (e) { 
+        } catch (e) {
             console.error(e);
             setMessage("Failed to confirm. Please try again.");
         }
     };
-     // FUNCTION: Handle the switch
+    // FUNCTION: Handle the switch
     const handleSelfTransfer = async () => {
         if (!freeBarber) return;
         if (!window.confirm(`Switch to ${freeBarber.full_name}? You will lose your spot with your current barber.`)) return;
@@ -718,8 +721,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         setIsLoading(true);
         try {
             await apiClient.delete(`/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); //
-            
-           
+
+
             await apiClient.post(`/queue`, {
                 customer_name: customerName,
                 customer_email: customerEmail,
@@ -732,7 +735,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             // 3. Force Reload / Reset State
             alert(`Switched to ${freeBarber.full_name}!`);
             window.location.reload(); // Simplest way to reset state for now
-            
+
         } catch (e) {
             alert("Failed to switch.");
         } finally {
@@ -778,7 +781,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         };
         restoreSession();
     }, [session, myQueueEntryId, fetchPublicQueue]);
-    
+
     useEffect(() => {
         const restoreGuestSession = async () => {
             if (isGuest && !myQueueEntryId) {
@@ -789,15 +792,15 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         if (response.data && response.data.activeQueueEntry) {
                             const entry = response.data.activeQueueEntry;
                             console.log("[Guest Recovery] Restored guest session:", entry);
-                            
+
                             localStorage.setItem('myQueueEntryId', entry.id.toString());
                             localStorage.setItem('joinedBarberId', entry.barber_id.toString());
-                            
+
                             setMyQueueEntryId(entry.id.toString());
                             setJoinedBarberId(entry.barber_id.toString());
                             setReferenceImageUrl(entry.reference_image_url || '');
                             setIsChatOpen(true);
-                            
+
                             if (entry.customer_name) setGuestName(entry.customer_name);
                             if (entry.customer_email) setGuestEmail(entry.customer_email);
 
@@ -818,8 +821,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             apiClient.get(`/appointments/slots`, {
                 params: { barberId: selectedBarberId, serviceId: selectedServiceId, date: selectedDate }
             })
-            .then(res => setAvailableSlots(res.data))
-            .catch(err => console.error(err));
+                .then(res => setAvailableSlots(res.data))
+                .catch(err => console.error(err));
         }
     }, [joinMode, selectedBarberId, selectedServiceId, selectedDate]);
 
@@ -828,11 +831,11 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             fetchLoyaltyHistory(session.user.id);
         }
     }, [viewMode, session?.user?.id, fetchLoyaltyHistory]);
-    
-    useEffect(() => { 
+
+    useEffect(() => {
         const BARBERSHOP_LAT = 16.414830; // Update with real coords
         const BARBERSHOP_LON = 120.597122;
-        
+
         // 1. Distance Thresholds
         const WARNING_DISTANCE = 300; // Meters to trigger "Too Far"
         const ARRIVAL_DISTANCE = 30;  // Meters to trigger "Green Light"
@@ -872,7 +875,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
             // D. SERVER UPLOAD (Keep existing throttling)
             const now = Date.now();
-            if (now - lastUploadTime.current > 60000) { 
+            if (now - lastUploadTime.current > 60000) {
                 apiClient.put(`/queue/location`, {
                     queueId: myQueueEntryId,
                     distance: currentDist
@@ -892,7 +895,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         };
 
         const onError = (err) => console.warn("GPS Error:", err);
-        
+
         locationWatchId.current = navigator.geolocation.watchPosition(onPositionUpdate, onError, {
             enableHighAccuracy: true,
             maximumAge: 0,
@@ -910,18 +913,18 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             const data = JSON.parse(pendingFeedback);
             setJoinedBarberId(data.barberId);
             // FIX: Save the queue ID to state so the form can use it
-            if (data.queueId) setMyQueueEntryId(data.queueId); 
+            if (data.queueId) setMyQueueEntryId(data.queueId);
             setIsServiceCompleteModalOpen(true);
         }
     }, []);
-    
+
     useEffect(() => {
         const modalFlag = localStorage.getItem('stickyModal');
         if (modalFlag === 'tooFar') {
             setIsTooFarModalOpen(true);
         }
     }, []);
-    
+
     useEffect(() => { // Fetch Services
         const fetchServices = async () => {
             try { const response = await apiClient.get(`/services`); setServices(response.data || []); }
@@ -958,19 +961,19 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         loadBarbers();
 
         // Refresh barber list every 30 seconds to catch status/rating changes
-        const interval = setInterval(loadBarbers, 30000); 
+        const interval = setInterval(loadBarbers, 30000);
 
         return () => clearInterval(interval);
     }, []); //
-    
+
     // Find this useEffect (around line 1073)
     useEffect(() => {
         const handleFocus = () => stopBlinking();
-        
+
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
                 stopBlinking();
-                
+
                 // Re-sync unread messages
                 const hasUnread = localStorage.getItem('hasUnreadFromBarber') === 'true';
                 setHasUnreadFromBarber(hasUnread);
@@ -991,14 +994,14 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 }
             }
         };
-        
+
         window.addEventListener("focus", handleFocus);
         document.addEventListener("visibilitychange", handleVisibility);
-        
-        return () => { 
-            window.removeEventListener("focus", handleFocus); 
-            document.removeEventListener("visibilitychange", handleVisibility); 
-            stopBlinking(); 
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+            document.removeEventListener("visibilitychange", handleVisibility);
+            stopBlinking();
         };
     }, [fetchPublicQueue]); //// <-- IMPORTANT: Add fetchPublicQueue as a dependency
 
@@ -1011,13 +1014,13 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             queueChannel = supabase.channel(`public_queue_${joinedBarberId}`)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries', filter: `barber_id=eq.${joinedBarberId}` }, (payload) => {
                     console.log("Realtime Update Received:", payload);
-                    
+
                     if (payload.eventType === 'UPDATE' && payload.new.id.toString() === myQueueEntryId) {
                         const newStatus = payload.new.status;
                         const isConfirmed = payload.new.is_confirmed; // <--- Get confirmation status
 
                         console.log(`My status updated to: ${newStatus} (Confirmed: ${isConfirmed})`);
-                        
+
                         if (newStatus === 'Up Next') {
                             if (isConfirmed) {
                                 // If I just confirmed, STOP everything
@@ -1030,25 +1033,25 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
                             }
                         }
-                        else if (newStatus === 'In Progress') { 
+                        else if (newStatus === 'In Progress') {
                             // ... (Keep existing logic) ...
                             playSound(queueNotificationSound);
                             startBlinking(TURN_TITLE);
                             localStorage.setItem('stickyModal', 'yourTurn');
                             if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
                         }
-                        else if (newStatus === 'Done') { 
+                        else if (newStatus === 'Done') {
                             localStorage.setItem('pendingFeedback', JSON.stringify({
-                            barberId: joinedBarberId,
-                            timestamp: Date.now()
-                        }));
-                        // --- FIX END ---
-                        setIsServiceCompleteModalOpen(true); 
-                        stopBlinking();
+                                barberId: joinedBarberId,
+                                timestamp: Date.now()
+                            }));
+                            // --- FIX END ---
+                            setIsServiceCompleteModalOpen(true);
+                            stopBlinking();
                         }
-                        else if (newStatus === 'Cancelled') { 
-                            setIsCancelledModalOpen(true); 
-                            stopBlinking(); 
+                        else if (newStatus === 'Cancelled') {
+                            setIsCancelledModalOpen(true);
+                            stopBlinking();
                         }
                     }
                     fetchPublicQueue(joinedBarberId);
@@ -1083,7 +1086,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     }, [selectedBarberId]);
 
     // --- FIND THIS useEffect INSIDE CustomerView (around line 1490) ---
-    useEffect(() => { 
+    useEffect(() => {
         if (!session?.user?.id || !joinedBarberId || !myQueueEntryId) return;
 
         console.log("Restoring chat history for Queue ID:", myQueueEntryId);
@@ -1094,13 +1097,13 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         // 2. Subscribe to NEW messages
         const chatChannel = supabase.channel(`customer_chat_fix_${myQueueEntryId}`) // Unique name
             .on(
-                'postgres_changes', 
-                { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'chat_messages', 
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'chat_messages',
                     filter: `queue_entry_id=eq.${myQueueEntryId}` // Ensure this matches DB ID
-                }, 
+                },
                 (payload) => {
                     const newMsg = payload.new;
                     console.log("[Customer] Message received:", newMsg);
@@ -1114,16 +1117,16 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             if (lastMsg && lastMsg.message === newMsg.message && lastMsg.senderId === newMsg.sender_id) {
                                 return prev;
                             }
-                            
-                            return [...prev, { 
-                                senderId: newMsg.sender_id, 
+
+                            return [...prev, {
+                                senderId: newMsg.sender_id,
                                 message: newMsg.message,
                                 created_at: newMsg.created_at
                             }];
                         });
-                        
+
                         playSound(messageNotificationSound);
-                        
+
                         // Handle Badge logic
                         if (!isChatOpen) {
                             setHasUnreadFromBarber(true);
@@ -1136,7 +1139,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                 }
             )
             .subscribe((status) => {
-                    console.log(`[Customer Chat] Subscription status: ${status}`);
+                console.log(`[Customer Chat] Subscription status: ${status}`);
             });
 
         return () => {
@@ -1147,7 +1150,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     // --- UPDATE SEND FUNCTION ---
     const sendCustomerMessage = async (recipientId, messageText) => {
         if (!messageText.trim()) return;
-        
+
         // Optimistic UI Update (Show immediately)
         const tempMsg = { senderId: session.user.id, message: messageText, created_at: new Date().toISOString() };
         setChatMessagesFromBarber(prev => [...prev, tempMsg]);
@@ -1168,7 +1171,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
     useEffect(() => { // EWT Preview
         if (selectedBarberId) {
             // 🟢 FIX: INSTANTLY CLEAR OLD DATA TO PREVENT GHOST NUMBERS
-            setLiveQueue([]); 
+            setLiveQueue([]);
             liveQueueRef.current = [];
             setPeopleWaiting(0); // Reset the count immediately
             setFinishTime(0);    // Reset the time immediately
@@ -1180,7 +1183,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             setLiveQueue([]);
             liveQueueRef.current = [];
             setPeopleWaiting(0);
-            setIsQueueLoading(false); 
+            setIsQueueLoading(false);
         }
     }, [selectedBarberId, fetchPublicQueue]);
 
@@ -1188,10 +1191,10 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
         const calculateWaitTime = () => {
             const newQueue = liveQueue;
             const myIndexNew = newQueue.findIndex(e => e.id.toString() === myQueueEntryId);
-            
+
             // Determine who is ahead of us
             const peopleAheadNew = myIndexNew !== -1 ? newQueue.slice(0, myIndexNew) : newQueue;
-            
+
             const relevantEntries = newQueue.filter(e => e.status === 'Waiting' || e.status === 'Up Next');
             setPeopleWaiting(relevantEntries.length);
 
@@ -1199,21 +1202,21 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
             // --- THE NEW LOGIC ---
             const dbWaitMinutes = peopleAheadNew.reduce((sum, entry) => {
-            const duration = entry.services?.duration_minutes || 30;
-            const heads = entry.head_count || 1; // <--- Get group size
-            const totalDuration = duration * heads; // <--- Multiply!
+                const duration = entry.services?.duration_minutes || 30;
+                const heads = entry.head_count || 1; // <--- Get group size
+                const totalDuration = duration * heads; // <--- Multiply!
 
-            // If In Progress, we assume (Total Duration - Time Elapsed)
-            if (entry.status === 'In Progress' && entry.updated_at) {
-                const startTime = new Date(entry.updated_at).getTime();
-                const minutesElapsed = (now - startTime) / 60000;
-                const minutesRemaining = Math.max(5, totalDuration - minutesElapsed);
-                return sum + minutesRemaining;
-            }
+                // If In Progress, we assume (Total Duration - Time Elapsed)
+                if (entry.status === 'In Progress' && entry.updated_at) {
+                    const startTime = new Date(entry.updated_at).getTime();
+                    const minutesElapsed = (now - startTime) / 60000;
+                    const minutesRemaining = Math.max(5, totalDuration - minutesElapsed);
+                    return sum + minutesRemaining;
+                }
 
-            // If waiting, add full duration
-            return sum + totalDuration;
-        }, 0);
+                // If waiting, add full duration
+                return sum + totalDuration;
+            }, 0);
             // ---------------------
 
             const calculatedTarget = now + (dbWaitMinutes * 60000);
@@ -1222,7 +1225,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             if (!myQueueEntryId) {
                 // Browsing: Update strictly based on the new "Time-Adjusted" math
                 setFinishTime(calculatedTarget);
-            } 
+            }
             else {
                 // Joined: Apply "Stickiness" to prevent minor jitters
                 const storedTarget = localStorage.getItem('targetFinishTime');
@@ -1235,9 +1238,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     setFinishTime(currentTarget);
                 }
             }
-            
+
         };
-        
+
         if (liveQueue.length > 0 || myQueueEntryId) {
             calculateWaitTime();
         }
@@ -1274,7 +1277,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
     return (
         <div className="card">
-            
+
             {/* Instructions Modal */}
             <div className="modal-overlay" style={{ display: isInstructionsModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content instructions-modal">
@@ -1291,47 +1294,47 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     </div>
                 </div>
             </div>
-            
+
             {/* Service Complete Modal */}
             <div className="modal-overlay" style={{ display: isServiceCompleteModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     {!feedbackSubmitted ? (
                         <form className="feedback-form" onSubmit={async (e) => {
                             e.preventDefault();
-                            if (customerRating === 0) { 
-                                setMessage('Please select a star rating.'); 
-                                return; 
+                            if (customerRating === 0) {
+                                setMessage('Please select a star rating.');
+                                return;
                             }
-                            if (feedbackText.trim().length < 1) { 
-                                setMessage('Please leave a short comment.'); 
-                                return; 
+                            if (feedbackText.trim().length < 1) {
+                                setMessage('Please leave a short comment.');
+                                return;
                             }
-                            
-                            try { 
-                                await apiClient.post(`/feedback`, { 
-                                    barber_id: joinedBarberId, 
-                                    customer_name: customerName, 
-                                    comments: feedbackText.trim(), 
+
+                            try {
+                                await apiClient.post(`/feedback`, {
+                                    barber_id: joinedBarberId,
+                                    customer_name: customerName,
+                                    comments: feedbackText.trim(),
                                     rating: customerRating,
                                     queue_id: myQueueEntryId
-                                }); 
-                            } catch (err) { 
-                                console.error("Failed to submit feedback", err); 
+                                });
+                            } catch (err) {
+                                console.error("Failed to submit feedback", err);
                                 setMessage('Failed to submit feedback.');
                             }
                             setFeedbackSubmitted(true);
-                            setMessage(''); 
+                            setMessage('');
                         }}>
                             <div className="modal-body">
                                 <h2>Service Complete!</h2>
                                 <p>Thank you! Please rate your experience with {currentBarberName}:</p>
-                                
+
                                 {/* NEW: Star Rating Input */}
-                                <div className="star-rating-input" style={{fontSize: '2rem', marginBottom: '15px'}}>
+                                <div className="star-rating-input" style={{ fontSize: '2rem', marginBottom: '15px' }}>
                                     {[1, 2, 3, 4, 5].map(star => (
-                                        <span 
+                                        <span
                                             key={star}
-                                            style={{cursor: 'pointer', color: star <= customerRating ? '#FFD700' : 'var(--text-secondary)'}}
+                                            style={{ cursor: 'pointer', color: star <= customerRating ? '#FFD700' : 'var(--text-secondary)' }}
                                             onClick={() => setCustomerRating(star)}
                                         >
                                             ★
@@ -1350,14 +1353,14 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     textAlign: 'center',
                                     boxShadow: 'rgb(30,30,30)'
                                 }}>
-                                    <div style={{fontSize: '1rem', marginBottom: '10px', color: 'var(--text-primary)'}}>
+                                    <div style={{ fontSize: '1rem', marginBottom: '10px', color: 'var(--text-primary)' }}>
                                         🔥 <strong>Maintain your fresh look!</strong>
                                     </div>
 
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {AD_INVENTORY.map((product) => (
-                                            <div 
-                                                key={product.id} 
+                                            <div
+                                                key={product.id}
                                                 onClick={() => setViewProduct(product)} // <--- CLICK HANDLER
                                                 style={{
                                                     display: 'flex',
@@ -1383,41 +1386,41 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                                     {product.badge}
                                                 </div>
 
-                                                <img 
-                                                    src={product.image} 
+                                                <img
+                                                    src={product.image}
                                                     alt={product.title}
                                                     style={{
-                                                        width: '50px', height: '50px', borderRadius: '6px', 
-                                                        objectFit: 'cover', border: '1px solid rgba(0,0,0,0.1)', 
+                                                        width: '50px', height: '50px', borderRadius: '6px',
+                                                        objectFit: 'cover', border: '1px solid rgba(0,0,0,0.1)',
                                                         flexShrink: 0, backgroundColor: '#fff'
-                                                    }} 
+                                                    }}
                                                 />
 
-                                                <div style={{marginLeft: '12px', textAlign: 'left', flex: 1}}>
-                                                    <div style={{fontSize: '0.9rem', fontWeight: 'bold', color: product.theme.text, lineHeight: '1.2'}}>
+                                                <div style={{ marginLeft: '12px', textAlign: 'left', flex: 1 }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: product.theme.text, lineHeight: '1.2' }}>
                                                         {product.title}
                                                     </div>
-                                                    <div style={{fontSize: '0.75rem', color: 'black', opacity: 0.8}}>
+                                                    <div style={{ fontSize: '0.75rem', color: 'black', opacity: 0.8 }}>
                                                         Click for details...
                                                     </div>
                                                 </div>
 
-                                                <div style={{fontWeight: '800', fontSize: '0.95rem', color: product.theme.text, marginLeft: '8px'}}>
+                                                <div style={{ fontWeight: '800', fontSize: '0.95rem', color: product.theme.text, marginLeft: '8px' }}>
                                                     {product.price}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                    <p style={{margin: '10px 0 0 0', fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--text-secondary)'}}>
+                                    <p style={{ margin: '10px 0 0 0', fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
                                         Tap a product to view details
                                     </p>
                                 </div>
                                 {/* ---------------------------------- */}
                                 {/* ▲▲▲ END AD ▲▲▲ */}
 
-                                <textarea 
-                                    value={feedbackText} 
-                                    onChange={(e) => setFeedbackText(e.target.value)} 
+                                <textarea
+                                    value={feedbackText}
+                                    onChange={(e) => setFeedbackText(e.target.value)}
                                     placeholder="How was your cut? (Optional - e.g. 'Great fade!')"
                                     style={{
                                         width: '100%',
@@ -1447,15 +1450,15 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 {message && <p className="message error small">{message}</p>}
                             </div>
                             <div className="modal-footer">
-                                <button 
-                                    type="button" 
-                                    className="btn btn-secondary" 
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
                                     onClick={() => { setFeedbackSubmitted(true); setCustomerRating(0); }} // Skip button action
                                 >
                                     Skip
                                 </button>
-                                <button type="submit" 
-                                    className="btn btn-primary" 
+                                <button type="submit"
+                                    className="btn btn-primary"
                                     disabled={customerRating === 0 || feedbackText.trim().length < 5}>
                                     Submit Rating
                                 </button>
@@ -1485,12 +1488,12 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     </div>
                 </div>
             </div>
-            
+
             {/* Too Far Modal */}
             <div className="modal-overlay" style={{ display: isTooFarModalOpen ? 'flex' : 'none' }}>
                 <div className="modal-content">
                     <div className="modal-body">
-                        <h2 style={{color: 'var(--error-color)'}}>⚠️ You are drifting away!</h2>
+                        <h2 style={{ color: 'var(--error-color)' }}>⚠️ You are drifting away!</h2>
                         <p>You are moving further from the shop.</p>
                         <p><strong>ETA to return: ~{etaMinutes} mins</strong></p>
                         <p>Please head back so you don't lose your spot!</p>
@@ -1519,7 +1522,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         <p>
                             VIP priority incurs an additional <strong>₱{vipPrice} per head</strong> fee.
                         </p>
-                        <div style={{background:'rgba(255, 149, 0, 0.1)', padding:'10px', borderRadius:'8px', marginTop:'10px'}}>
+                        <div style={{ background: 'rgba(255, 149, 0, 0.1)', padding: '10px', borderRadius: '8px', marginTop: '10px' }}>
                             <strong>Total VIP Surcharge: ₱{vipPrice * headCount}</strong>
                         </div>
                     </div>
@@ -1531,18 +1534,18 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     </div>
                 </div>
             </div>
-            
+
             {/* Add this inside CustomerView return, maybe above the tabs */}
             {'Notification' in window && Notification.permission === 'default' && !isGuest && (
-                <div className="message warning small" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div className="message warning small" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Enable notifications for "Up Next" alerts?</span>
-                    <button 
+                    <button
                         onClick={async () => {
                             const success = await requestPermission();
                             if (success) {
                                 alert("Notifications Enabled!");
                             }
-                        }} 
+                        }}
                         className="btn btn-primary"
                     >
                         Enable
@@ -1551,7 +1554,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             )}
 
             {/* --- MAIN CONTENT START --- */}
-            
+
             {/* 1. View Toggle Tabs */}
             <div className="card-header customer-view-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
                 <button className={viewMode === 'join' ? 'active' : ''} onClick={() => setViewMode('join')} style={{ flex: '1 1 auto' }}>
@@ -1569,34 +1572,34 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             {viewMode === 'join' && !myQueueEntryId && (
                 <div className="card-body">
                     {/* 1. SUB-TABS: NOW vs LATER */}
-                    <div className="customer-view-tabs" style={{marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                        <button 
-                            className={joinMode === 'now' ? 'active' : ''} 
+                    <div className="customer-view-tabs" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        <button
+                            className={joinMode === 'now' ? 'active' : ''}
                             onClick={() => setJoinMode('now')}
-                            style={{flex: '1 1 auto', textAlign: 'center'}}
+                            style={{ flex: '1 1 auto', textAlign: 'center' }}
                         >
                             ⚡ Join Queue Now
                         </button>
-                            {/* Book Appointment tab is hidden for guests */}
-                            {!isGuest && <button 
-                                className={joinMode === 'later' ? 'active' : ''} 
-                                onClick={() => setJoinMode('later')}
-                                style={{flex: '1 1 auto', textAlign: 'center'}}
-                            >
-                                📅 Book Appointment
-                            </button>}
+                        {/* Book Appointment tab is hidden for guests */}
+                        {!isGuest && <button
+                            className={joinMode === 'later' ? 'active' : ''}
+                            onClick={() => setJoinMode('later')}
+                            style={{ flex: '1 1 auto', textAlign: 'center' }}
+                        >
+                            📅 Book Appointment
+                        </button>}
                     </div>
 
                     {/* 2. SHARED INPUTS (Name, Email) */}
                     <div className="form-group">
                         <label>Your Name:</label>
-                        <input 
-                            type="text" 
-                            value={customerName} 
+                        <input
+                            type="text"
+                            value={customerName}
                             onChange={(e) => isGuest && setGuestName(e.target.value)}
-                            required 
-                            readOnly={!isGuest} 
-                            className={isGuest ? "form-control" : "prefilled-input"} 
+                            required
+                            readOnly={!isGuest}
+                            className={isGuest ? "form-control" : "prefilled-input"}
                             placeholder={isGuest ? "Enter your name" : ""}
                         />
                     </div>
@@ -1608,41 +1611,41 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             <div className="form-group"><label>Select Service:</label><select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}><option value="">-- Choose service --</option>{services.map((service) => (<option key={service.id} value={service.id}>{service.name} ({service.duration_minutes} min / ₱{service.price_php})</option>))}</select></div>
                             <div className="form-group">
                                 <label>Group Size (Number of Heads):</label>
-                                
+
                                 {/* --- NEW STEPPER UI --- */}
                                 <div className="stepper-wrapper">
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         className="btn-stepper"
                                         onClick={() => setHeadCount(prev => Math.max(1, prev - 1))}
                                     >
                                         −
                                     </button>
                                     <span className="stepper-count">{headCount}</span>
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         className="btn-stepper"
                                         onClick={() => setHeadCount(prev => prev + 1)}
                                     >
                                         +
                                     </button>
                                 </div>
-                                
+
                                 {/* --- DYNAMIC INFO / WARNING --- */}
-                                <div style={{marginTop: '10px'}}>
+                                <div style={{ marginTop: '10px' }}>
                                     {headCount > 1 ? (
-                                        <div className="message warning small" style={{textAlign:'left'}}>
-                                            <strong style={{display:'block', marginBottom:'4px'}}>👥 Group Details:</strong>
-                                            <ul style={{margin:0, paddingLeft:'20px'}}>
+                                        <div className="message warning small" style={{ textAlign: 'left' }}>
+                                            <strong style={{ display: 'block', marginBottom: '4px' }}>👥 Group Details:</strong>
+                                            <ul style={{ margin: 0, paddingLeft: '20px' }}>
                                                 <li>This will book <strong>{headCount} slots</strong> back-to-back.</li>
                                                 <li>
                                                     Total Duration: <strong>
                                                         {services.find(s => s.id.toString() === selectedServiceId)?.duration_minutes * headCount || 0} mins
                                                     </strong>.
                                                 </li>
-                                                <li style={{color: 'var(--error-color)', fontWeight: 'bold', marginTop:'5px'}}>
-                                                    Note: Everyone must get the same service. 
-                                                    <span style={{fontWeight:'normal', color:'var(--text-primary)'}}> If guests want different services, please join the queue individually.</span>
+                                                <li style={{ color: 'var(--error-color)', fontWeight: 'bold', marginTop: '5px' }}>
+                                                    Note: Everyone must get the same service.
+                                                    <span style={{ fontWeight: 'normal', color: 'var(--text-primary)' }}> If guests want different services, please join the queue individually.</span>
                                                 </li>
                                             </ul>
                                         </div>
@@ -1662,9 +1665,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     {isVIPToggled && (<p className="success-message small">VIP Priority is active. You will be placed Up Next.</p>)}
                                 </div>
                             )}
-                            
+
                             {/* Photo Upload - Hidden for guests */}
-{!isGuest && (
+                            {!isGuest && (
                                 <div className="form-group photo-upload-group">
                                     <label>Desired Haircut Photo (Optional):</label>
                                     <p className="message small">Upload anytime before joining or after. Optional but helpful for barbers!</p>
@@ -1700,29 +1703,29 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
                             {/* Feedback List */}
                             {selectedBarberId && (<div className="feedback-list-container customer-feedback">
-                            <h3 className="feedback-subtitle">Recent Feedback</h3>
-                            <ul className="feedback-list">
-                                {barberFeedback.length > 0 ? (barberFeedback.map((item, index) => (
-                                    <li key={index} className="feedback-item">
-                                        <div className="feedback-header">
-                                            <span className="feedback-score" style={{fontSize: '1.2rem', lineHeight: '1'}}>
-                                                <span style={{color: '#FFD700'}}>
-                                                    {'★'.repeat(Math.round(Math.max(0, Math.min(5, item.score || 0))))}
+                                <h3 className="feedback-subtitle">Recent Feedback</h3>
+                                <ul className="feedback-list">
+                                    {barberFeedback.length > 0 ? (barberFeedback.map((item, index) => (
+                                        <li key={index} className="feedback-item">
+                                            <div className="feedback-header">
+                                                <span className="feedback-score" style={{ fontSize: '1.2rem', lineHeight: '1' }}>
+                                                    <span style={{ color: '#FFD700' }}>
+                                                        {'★'.repeat(Math.round(Math.max(0, Math.min(5, item.score || 0))))}
+                                                    </span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>
+                                                        {'☆'.repeat(5 - Math.round(Math.max(0, Math.min(5, item.score || 0))))}
+                                                    </span>
                                                 </span>
-                                                <span style={{color: 'var(--text-secondary)'}}>
-                                                    {'☆'.repeat(5 - Math.round(Math.max(0, Math.min(5, item.score || 0))))}
+                                                <span className="feedback-customer">
+                                                    {item.customer_name || 'Customer'}
                                                 </span>
-                                            </span>
-                                            <span className="feedback-customer">
-                                                {item.customer_name || 'Customer'}
-                                            </span>
-                                        </div>
-                                        {item.comments && <p className="feedback-comment">"{item.comments}"</p>}
-                                    </li>
-                            ))) : (<p className="empty-text">No feedback yet for this barber.</p>)}</ul></div>)}
+                                            </div>
+                                            {item.comments && <p className="feedback-comment">"{item.comments}"</p>}
+                                        </li>
+                                    ))) : (<p className="empty-text">No feedback yet for this barber.</p>)}</ul></div>)}
 
                             {/* EWT Display */}
-                            {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{margin:0, textAlign:'center', width:'100%', color:'var(--text-secondary)'}}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{ margin: 0, textAlign: 'center', width: '100%', color: 'var(--text-secondary)' }}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                 <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
                                 <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                             </div>))}
@@ -1732,8 +1735,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     <span>
                                         <b>iPhone Users:</b> Push alerts/sounds are not supported. Please keep this tab open!
                                     </span>
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={() => setShowIOSPrompt(false)}
                                         style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}
                                     >
@@ -1741,8 +1744,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     </button>
                                 </div>
                             )}
-                            
-                            <button type="submit" disabled={isLoading || !selectedBarberId || barbers.length === 0 || isUploading} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
+
+                            <button type="submit" disabled={isLoading || !selectedBarberId || barbers.length === 0 || isUploading} className="btn btn-primary btn-full-width" style={{ marginTop: '20px' }}>
                                 {isLoading ? 'Joining...' : 'Join Queue Now'}
                             </button>
                         </form>
@@ -1765,12 +1768,12 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
                             <div className="form-group">
                                 <label>Select Date:</label>
-                                <input 
-                                    type="date" 
-                                    value={selectedDate} 
+                                <input
+                                    type="date"
+                                    value={selectedDate}
                                     min={getTomorrowDate()}   // <--- CHANGE THIS PART
-                                    onChange={e => setSelectedDate(e.target.value)} 
-                                    required 
+                                    onChange={e => setSelectedDate(e.target.value)}
+                                    required
                                 />
                             </div>
 
@@ -1779,19 +1782,19 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 {!selectedBarberId || !selectedServiceId ? (
                                     <p className="message small">Select a Service and Barber to see times.</p>
                                 ) : (
-                                    <div className="slots-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginTop: '10px'}}>
+                                    <div className="slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginTop: '10px' }}>
                                         {availableSlots.length > 0 ? availableSlots.map(slot => (
-                                            <button 
-                                                type="button" 
-                                                key={slot} 
+                                            <button
+                                                type="button"
+                                                key={slot}
                                                 className={`btn ${selectedSlot === slot ? 'btn-primary' : 'btn-secondary'}`}
                                                 onClick={() => setSelectedSlot(slot)}
-                                                style={{fontSize: '0.8rem', padding: '8px'}}
+                                                style={{ fontSize: '0.8rem', padding: '8px' }}
                                             >
-                                                {new Date(slot).toLocaleTimeString('en-PH', {hour: '2-digit', minute:'2-digit', timeZone: 'Asia/Manila'})}
+                                                {new Date(slot).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' })}
                                             </button>
                                         )) : (
-                                            <p className="empty-text" style={{gridColumn: '1/-1'}}>No slots available for this date.</p>
+                                            <p className="empty-text" style={{ gridColumn: '1/-1' }}>No slots available for this date.</p>
                                         )}
                                     </div>
                                 )}
@@ -1808,38 +1811,37 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     fontSize: '0.9rem',
                                     textAlign: 'center'
                                 }}>
-                                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                                         <span>Service Price:</span>
                                         <strong>₱{services.find(s => s.id.toString() === selectedServiceId)?.price_php}</strong>
                                     </div>
-                                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                                         <span>Appointment Fee:</span>
                                         <strong>+ ₱{vipPrice}.00</strong>
                                     </div>
-                                    <hr style={{borderColor: 'rgba(255, 149, 0, 0.3)', margin: '5px 0'}} />
-                                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem'}}>
+                                    <hr style={{ borderColor: 'rgba(255, 149, 0, 0.3)', margin: '5px 0' }} />
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem' }}>
                                         <strong>Total Estimate:</strong>
                                         <strong>
                                             ₱{(parseFloat(services.find(s => s.id.toString() === selectedServiceId)?.price_php || 0) + vipPrice).toFixed(2)}
                                         </strong>
                                     </div>
-                                    <p style={{margin: '8px 0 0 0', fontSize: '0.75rem', opacity: 0.8}}>
+                                    <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', opacity: 0.8 }}>
                                         *Fee guarantees your time slot. Payable at the shop.
                                     </p>
                                 </div>
                             )}
-                            <button type="submit" disabled={isLoading || !selectedSlot} className="btn btn-primary btn-full-width" style={{marginTop: '20px'}}>
+                            <button type="submit" disabled={isLoading || !selectedSlot} className="btn btn-primary btn-full-width" style={{ marginTop: '20px' }}>
                                 {isLoading ? 'Booking...' : 'Confirm Booking'}
                             </button>
                         </form>
                     )}
-                    
+
                     {/* FIX: improved message coloring logic */}
                     {message && (
-                        <p className={`message ${
-                            message.toLowerCase().includes('success') ? 'success' : 
-                            /failed|error|required|taken|invalid|missing|please|cannot/i.test(message) ? 'error' : 'success'
-                        }`}>
+                        <p className={`message ${message.toLowerCase().includes('success') ? 'success' :
+                                /failed|error|required|taken|invalid|missing|please|cannot/i.test(message) ? 'error' : 'success'
+                            }`}>
                             {message}
                         </p>
                     )}
@@ -1854,15 +1856,15 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     {myQueueEntry?.status === 'Up Next' && (
                         <div className={`status-banner up-next-banner ${myQueueEntry.is_confirmed ? 'confirmed-pulse' : ''}`}>
                             <h2><IconNext /> You're Up Next!</h2>
-                            
+
                             {optimisticMessage ? (
-                                <p className="success-message small" style={{textAlign: 'center'}}>{optimisticMessage}</p>
+                                <p className="success-message small" style={{ textAlign: 'center' }}>{optimisticMessage}</p>
                             ) : myQueueEntry.is_confirmed ? (
                                 <p><strong>✅ Confirmed!</strong> Please sit in the waiting area.</p>
                             ) : (
                                 <>
                                     {/* STATUS INDICATORS */}
-                                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', fontSize:'0.9rem', color:'var(--text-secondary)'}}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                         <span>
                                             {travelDirection === 'closing' ? '⬇️ Closing in...' : travelDirection === 'away' ? '⬆️ Moving away...' : '📍 Location active'}
                                         </span>
@@ -1874,8 +1876,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     {/* CONDITIONAL BUTTON */}
                                     {hasArrived ? (
                                         // SCENARIO 1: AT THE SHOP (GREEN LIGHT)
-                                        <div style={{animation: 'pulse-border 2s infinite', borderRadius:'6px'}}>
-                                            <p style={{color: 'var(--success-color)', fontWeight:'bold', margin:'5px 0'}}>
+                                        <div style={{ animation: 'pulse-border 2s infinite', borderRadius: '6px' }}>
+                                            <p style={{ color: 'var(--success-color)', fontWeight: 'bold', margin: '5px 0' }}>
                                                 🎯 You have arrived!
                                             </p>
                                             <button onClick={handleConfirmAttendance} className="btn btn-success btn-full-width">
@@ -1884,8 +1886,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                         </div>
                                     ) : (
                                         // SCENARIO 2: FAR AWAY (LOCKED)
-                                        <div style={{opacity: 0.8}}>
-                                            <p style={{fontSize:'0.85rem', margin:'0 0 10px 0'}}>
+                                        <div style={{ opacity: 0.8 }}>
+                                            <p style={{ fontSize: '0.85rem', margin: '0 0 10px 0' }}>
                                                 Please move closer to the shop to check in.
                                             </p>
                                             <button disabled className="btn btn-secondary btn-full-width">
@@ -1912,14 +1914,14 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             boxShadow: '0 4px 15px rgba(255, 149, 0, 0.3)',
                             animation: 'pulse-border 2s infinite' // Reuse your existing animation
                         }}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px'}}>
-                                <span style={{fontSize: '1.5rem'}}>⚡</span>
-                                <h3 style={{margin: 0, fontSize: '1.1rem', fontWeight: '800'}}>Faster Seat Available!</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                                <span style={{ fontSize: '1.5rem' }}>⚡</span>
+                                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>Faster Seat Available!</h3>
                             </div>
-                            <p style={{margin: '0 0 10px 0', fontSize: '0.9rem'}}>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem' }}>
                                 <strong>{freeBarber.full_name}</strong> is free right now.
                             </p>
-                            <button 
+                            <button
                                 onClick={handleSelfTransfer}
                                 className="btn"
                                 style={{
@@ -1936,7 +1938,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     )}
                     <h2>Live Queue for {joinedBarberId ? currentBarberName : '...'}</h2>
                     <div className="queue-number-display">
-                        Your Queue Number is: 
+                        Your Queue Number is:
                         <strong>#{liveQueue.find(e => e.id.toString() === myQueueEntryId)?.daily_number || myQueueEntryId}</strong>
                     </div>
                     <div className="current-serving-display">
@@ -1948,7 +1950,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         <div className="ewt-item"><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
                         <div className="ewt-item"><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
                     </div>
-                    <div 
+                    <div
                         onClick={() => window.open(CAFE_AD.locationLink, '_blank')}
                         style={{
                             margin: '15px 0',
@@ -1972,20 +1974,20 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             WAITING AREA PARTNER
                         </div>
 
-                        <div style={{display: 'flex', alignItems: 'center'}}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
                             {/* Left: Icon/Image */}
                             <div style={{
-                                width: '100px', 
-                                height: '100px', 
+                                width: '100px',
+                                height: '100px',
                                 background: `url(${CAFE_AD.image}) center/cover no-repeat`,
                                 flexShrink: 0
                             }}></div>
 
                             {/* Right: Text */}
-                            <div style={{padding: '10px 15px', textAlign: 'left', flex: 1}}>
+                            <div style={{ padding: '10px 15px', textAlign: 'left', flex: 1 }}>
                                 <h4 style={{
-                                    margin: '0 0 4px 0', 
-                                    color: '#fff', 
+                                    margin: '0 0 4px 0',
+                                    color: '#fff',
                                     fontSize: '1.4rem', /* Increased size because Blanka is naturally small */
                                     fontFamily: 'Blanka, sans-serif', /* <--- APPLY FONT HERE ONLY */
                                     letterSpacing: '2px', /* Blanka looks better with spacing */
@@ -1993,24 +1995,24 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 }}>
                                     ☕ {CAFE_AD.name}
                                 </h4>
-                                <p style={{margin: 0, fontSize: '0.8rem', color: '#d7ccc8', lineHeight: '1.3'}}>
+                                <p style={{ margin: 0, fontSize: '0.8rem', color: '#d7ccc8', lineHeight: '1.3' }}>
                                     {CAFE_AD.pitch}
                                 </p>
                                 <div style={{
-                                    marginTop: '6px', 
-                                    fontSize: '0.7rem', 
-                                    color: '#ffc107', 
+                                    marginTop: '6px',
+                                    fontSize: '0.7rem',
+                                    color: '#ffc107',
                                     fontWeight: '600'
                                 }}>
                                     {CAFE_AD.perks}
                                 </div>
-                                
+
                                 {/* CTA Button Lookalike */}
                                 <div style={{
-                                    marginTop: '8px', 
+                                    marginTop: '8px',
                                     display: 'inline-block',
-                                    background: 'rgba(255,255,255,0.2)', 
-                                    padding: '4px 8px', 
+                                    background: 'rgba(255,255,255,0.2)',
+                                    padding: '4px 8px',
                                     borderRadius: '4px',
                                     fontSize: '0.7rem',
                                     color: 'white'
@@ -2030,18 +2032,18 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 // --- GHOST SLOT RENDER ---
                                 if (entry.is_ghost) {
                                     return (
-                                        <li key={entry.id} className="queue-item ghost-slot" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px'}}>
+                                        <li key={entry.id} className="queue-item ghost-slot" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 10px' }}>
                                             <div className="queue-item-info">
-                                                <span style={{color:'var(--text-secondary)', marginRight:'5px'}}>{index + 1}.</span>
-                                                <strong style={{color:'var(--text-secondary)'}}>📅 {entry.display_time} - Reserved</strong>
+                                                <span style={{ color: 'var(--text-secondary)', marginRight: '5px' }}>{index + 1}.</span>
+                                                <strong style={{ color: 'var(--text-secondary)' }}>📅 {entry.display_time} - Reserved</strong>
                                             </div>
                                             <span className="status-badge" style={{
-                                                background:'rgba(128, 128, 128, 0.1)', 
-                                                color:'var(--text-secondary)', 
-                                                border:'1px solid var(--border-color)',
-                                                fontSize:'0.75rem',
-                                                padding:'2px 8px',
-                                                borderRadius:'4px'
+                                                background: 'rgba(128, 128, 128, 0.1)',
+                                                color: 'var(--text-secondary)',
+                                                border: '1px solid var(--border-color)',
+                                                fontSize: '0.75rem',
+                                                padding: '2px 8px',
+                                                borderRadius: '4px'
                                             }}>
                                                 Booked
                                             </span>
@@ -2067,7 +2069,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         ))}
                     </ul>
                     <div className="live-queue-actions">
-{!isGuest && myQueueEntryId && (<div className="form-group photo-upload-group live-update-group">
+                        {!isGuest && myQueueEntryId && (<div className="form-group photo-upload-group live-update-group">
                             <label>Update Haircut Photo ({myQueueEntry?.daily_number || '#' + myQueueEntryId}):</label>
                             <p className="message small">Already in queue? Update your photo anytime.</p>
                             <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} id="file-upload-update" className="file-upload-input" />
@@ -2093,15 +2095,15 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             {isChatOpen && currentChatTargetBarberUserId && !isGuest && (
                                 <div className="chat-window-container">
                                     <div className="chat-window-header">
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <h4>Chat with {currentBarberName}</h4>
 
                                             {/* --- REPORT BUTTON HERE --- */}
                                             <button
-                                            onClick={() => setReportModalOpen(true)} 
-                                                className="btn btn-danger btn-icon" 
+                                                onClick={() => setReportModalOpen(true)}
+                                                className="btn btn-danger btn-icon"
                                                 title="Report Issue / Help"
-                                                style={{padding: '2px', width: '24px', height: '24px'}} // Make it small
+                                                style={{ padding: '2px', width: '24px', height: '24px' }} // Make it small
                                             >
                                                 ❓
                                             </button>
@@ -2112,34 +2114,34 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                         </button>
                                     </div>
 
-                                    <ChatWindow 
-                                        currentUser_id={session.user.id} 
-                                        otherUser_id={currentChatTargetBarberUserId} 
-                                        messages={chatMessagesFromBarber} 
-                                        onSendMessage={sendCustomerMessage} 
+                                    <ChatWindow
+                                        currentUser_id={session.user.id}
+                                        otherUser_id={currentChatTargetBarberUserId}
+                                        messages={chatMessagesFromBarber}
+                                        onSendMessage={sendCustomerMessage}
                                     />
 
                                     {/* --- ADD MODAL HERE --- */}
-                                    <ReportModal 
-                                        isOpen={isReportModalOpen} 
+                                    <ReportModal
+                                        isOpen={isReportModalOpen}
                                         onClose={() => setReportModalOpen(false)}
                                         reporterId={session.user.id}
                                         reportedId={currentChatTargetBarberUserId}
-                                        userRole="customer" 
+                                        userRole="customer"
                                     />
                                 </div>
                             )}
                         </div>
                     </div>
                     <div className="danger-zone">
-                        <button 
+                        <button
                             onClick={() => {
                                 // CONFIRMATION DIALOG ADDED HERE
                                 if (window.confirm("Are you sure? You will lose your spot in line and have to start over!")) {
                                     handleReturnToJoin(true);
                                 }
-                            }} 
-                            disabled={isLoading} 
+                            }}
+                            disabled={isLoading}
                             className='btn btn-danger btn-full-width'
                         >
                             {isLoading ? 'Leaving...' : 'Leave Queue / Join Another'}
@@ -2160,8 +2162,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                             borderRadius: '12px',
                             border: '1px solid var(--primary-orange)'
                         }}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                                <h3 style={{margin: 0, color: 'var(--primary-orange)', fontSize: '1.1rem'}}>🎉 Your Loyalty Stats</h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <h3 style={{ margin: 0, color: 'var(--primary-orange)', fontSize: '1.1rem' }}>🎉 Your Loyalty Stats</h3>
                                 <span style={{
                                     background: 'var(--primary-orange)',
                                     color: '#000',
@@ -2174,41 +2176,41 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                     {loyaltyData.current_tier || 'bronze'}
                                 </span>
                             </div>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                <div style={{textAlign: 'center'}}>
-                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Total Spent</span>
-                                    <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Spent</span>
+                                    <span style={{ display: 'block', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                                         ₱{(parseFloat(loyaltyData.total_spent) || 0).toFixed(2)}
                                     </span>
                                 </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Total Visits</span>
-                                    <span style={{display: 'block', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Visits</span>
+                                    <span style={{ display: 'block', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                                         {loyaltyData.total_visits || 0}
                                     </span>
                                 </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Points</span>
-                                    <span style={{display: 'block', fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-orange)'}}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Points</span>
+                                    <span style={{ display: 'block', fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-orange)' }}>
                                         {loyaltyData.total_points || 0}
                                     </span>
                                 </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Lifetime Points</span>
-                                    <span style={{display: 'block', fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Lifetime Points</span>
+                                    <span style={{ display: 'block', fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                                         {loyaltyData.lifetime_points || 0}
                                     </span>
                                 </div>
                             </div>
                         </div>
                     )}
-                    
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
-                        <h2 style={{margin: 0}}>My Past Services</h2>
-                        <button 
-                            onClick={() => setIsMyReportsOpen(true)} 
-                            className="btn btn-secondary" 
-                            style={{fontSize:'0.85rem', padding:'6px 12px'}}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h2 style={{ margin: 0 }}>My Past Services</h2>
+                        <button
+                            onClick={() => setIsMyReportsOpen(true)}
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.85rem', padding: '6px 12px' }}
                         >
                             ⚠️ My Reports
                         </button>
@@ -2223,9 +2225,9 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
                                 // --- FIXED PRICE CALCULATION ---
                                 const basePrice = parseFloat(entry.services?.price_php || 0);
-                                const heads = entry.head_count || 1; 
+                                const heads = entry.head_count || 1;
                                 const vipFee = entry.is_vip ? 100 : 0;
-                                
+
                                 // Safety Check: Ensure tip is a number (defaults to 0 if null)
                                 const tip = entry.tip_amount ? parseFloat(entry.tip_amount) : 0;
 
@@ -2241,12 +2243,12 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                             <span className="service">
                                                 {entry.services?.name || 'Unknown Service'}
                                             </span>
-                                            
+
                                             {entry.is_vip && (
-                                                <span className="status-badge" style={{ 
-                                                    backgroundColor: 'rgba(255, 149, 0, 0.3)', 
-                                                    color: 'var(--primary-orange)', 
-                                                    border: '1px solid var(--primary-orange)', 
+                                                <span className="status-badge" style={{
+                                                    backgroundColor: 'rgba(255, 149, 0, 0.3)',
+                                                    color: 'var(--primary-orange)',
+                                                    border: '1px solid var(--primary-orange)',
                                                     marginLeft: '8px'
                                                 }}>
                                                     VIP
@@ -2256,27 +2258,27 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                                 {entry.status}
                                             </span>
                                         </div>
-                                        
+
                                         {/* Comment Section */}
                                         {entry.comments && entry.comments.trim().length > 0 && (
-                                            <p className="feedback-comment" style={{paddingLeft: '0', fontStyle: 'normal', marginTop: '5px', color: 'var(--text-primary)'}}>
+                                            <p className="feedback-comment" style={{ paddingLeft: '0', fontStyle: 'normal', marginTop: '5px', color: 'var(--text-primary)' }}>
                                                 Comment: "{entry.comments}"
                                             </p>
                                         )}
-                                        
+
                                         <div className="history-meta">
                                             <span className="barber-name">
                                                 {barberName}
                                             </span>
-                                            
+
                                             {/* TOTAL PRICE with Breakdown */}
-                                            <span className="amount" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
-                                                <span style={{fontWeight:'bold'}}>₱{totalCost.toFixed(2)}</span>
-                                                
+                                            <span className="amount" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                <span style={{ fontWeight: 'bold' }}>₱{totalCost.toFixed(2)}</span>
+
                                                 {/* Show details only if relevant */}
                                                 {(heads > 1 || tip > 0) && (
-                                                    <small style={{fontSize:'0.7rem', color:'var(--text-secondary)'}}>
-                                                        {heads > 1 ? `(${heads} pax)` : ''} 
+                                                    <small style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                                        {heads > 1 ? `(${heads} pax)` : ''}
                                                         {tip > 0 ? ` + ₱${tip} tip` : ''}
                                                     </small>
                                                 )}
@@ -2292,8 +2294,8 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
             {/* D. APPOINTMENTS VIEW - Hidden for guests */}
             {viewMode === 'appointments' && !isGuest && (
                 <div className="card-body">
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
-                        <h2 style={{margin:0}}>My Bookings</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h2 style={{ margin: 0 }}>My Bookings</h2>
                         <button onClick={fetchMyAppointments} className="btn btn-secondary btn-icon" title="Refresh">
                             <IconRefresh />
                         </button>
@@ -2312,11 +2314,11 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 const displayDate = safeDateObj.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
 
                                 // 3. USE THE PRE-FORMATTED TIME FROM THE BACKEND (Bypasses all JS Timezone issues)
-                                const displayTime = appt.formatted_time; 
+                                const displayTime = appt.formatted_time;
 
                                 // 4. Check if past (Naive string comparison is safer here)
                                 const nowPH = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
-                                const todayStr = `${nowPH.getUTCFullYear()}-${String(nowPH.getUTCMonth()+1).padStart(2,'0')}-${String(nowPH.getUTCDate()).padStart(2,'0')}T${String(nowPH.getUTCHours()).padStart(2,'0')}:${String(nowPH.getUTCMinutes()).padStart(2,'0')}:00`;
+                                const todayStr = `${nowPH.getUTCFullYear()}-${String(nowPH.getUTCMonth() + 1).padStart(2, '0')}-${String(nowPH.getUTCDate()).padStart(2, '0')}T${String(nowPH.getUTCHours()).padStart(2, '0')}:${String(nowPH.getUTCMinutes()).padStart(2, '0')}:00`;
                                 const isPast = appt.scheduled_time < todayStr;
                                 // Determine Badge Color
                                 let statusColor = 'var(--text-secondary)';
@@ -2324,7 +2326,7 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                                 let statusText = appt.status;
 
                                 if (appt.is_converted_to_queue) {
-                                    statusColor = '#007aff'; 
+                                    statusColor = '#007aff';
                                     statusBg = 'rgba(0,122,255,0.1)';
                                     statusText = 'Live in Queue';
                                 } else if (appt.status === 'confirmed') {
@@ -2343,40 +2345,40 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
 
                                 return (
                                     <li key={appt.id} style={{
-                                        opacity: isPast && !appt.is_converted_to_queue ? 0.6 : 1, 
+                                        opacity: isPast && !appt.is_converted_to_queue ? 0.6 : 1,
                                         borderLeft: `4px solid ${statusColor}`,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: '5px'
                                     }}>
-                                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                                            <strong style={{fontSize:'1.1rem'}}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <strong style={{ fontSize: '1.1rem' }}>
                                                 {displayDate}
                                             </strong>
                                             <span style={{
-                                                color: statusColor, 
-                                                background: statusBg, 
-                                                padding: '2px 8px', 
-                                                borderRadius: '4px', 
-                                                fontSize: '0.8rem', 
-                                                fontWeight:'bold',
+                                                color: statusColor,
+                                                background: statusBg,
+                                                padding: '2px 8px',
+                                                borderRadius: '4px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 'bold',
                                                 textTransform: 'uppercase'
                                             }}>
                                                 {statusText}
                                             </span>
                                         </div>
-                                        
-                                        <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.95rem'}}>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
                                             <span>🕒 {displayTime}</span>
                                             <span>✂️ {appt.services?.name || 'Service'}</span>
                                         </div>
-                                        
-                                        <div style={{fontSize:'0.9rem', color:'var(--text-secondary)'}}>
+
+                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                             Barber: <strong>{appt.barber_profiles?.full_name || 'Any'}</strong>
                                         </div>
 
                                         {appt.is_converted_to_queue && (
-                                            <small style={{color: 'var(--link-color)', marginTop:'5px'}}>
+                                            <small style={{ color: 'var(--link-color)', marginTop: '5px' }}>
                                                 * This booking has been moved to the Live Queue.
                                             </small>
                                         )}
@@ -2387,40 +2389,40 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                     )}
                 </div>
             )}
-            <MyReportsModal 
-                isOpen={isMyReportsOpen} 
-                onClose={() => setIsMyReportsOpen(false)} 
-                userId={session?.user?.id} 
+            <MyReportsModal
+                isOpen={isMyReportsOpen}
+                onClose={() => setIsMyReportsOpen(false)}
+                userId={session?.user?.id}
             />
             {/* --- PRODUCT DETAIL MODAL (POPS OVER EVERYTHING) --- */}
             {viewProduct && (
-                <div className="modal-overlay" style={{zIndex: 2000}} onClick={() => setViewProduct(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: '350px'}}>
-                        
+                <div className="modal-overlay" style={{ zIndex: 2000 }} onClick={() => setViewProduct(null)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '350px' }}>
+
                         {/* Header / Image Area */}
                         <div style={{
-                            background: viewProduct.theme.background, 
-                            padding: '20px', 
+                            background: viewProduct.theme.background,
+                            padding: '20px',
                             textAlign: 'center',
                             borderBottom: `1px solid ${viewProduct.theme.border}`,
                             borderTopLeftRadius: '12px',
                             borderTopRightRadius: '12px'
                         }}>
-                            <img 
-                                src={viewProduct.image} 
-                                alt={viewProduct.title} 
+                            <img
+                                src={viewProduct.image}
+                                alt={viewProduct.title}
                                 style={{
-                                    width: '120px', 
-                                    height: '120px', 
-                                    borderRadius: '10px', 
-                                    objectFit: 'cover', 
+                                    width: '120px',
+                                    height: '120px',
+                                    borderRadius: '10px',
+                                    objectFit: 'cover',
                                     border: '4px solid white',
                                     boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
                                     backgroundColor: '#fff'
-                                }} 
+                                }}
                             />
                             <h2 style={{
-                                margin: '15px 0 5px 0', 
+                                margin: '15px 0 5px 0',
                                 color: viewProduct.theme.text,
                                 fontSize: '1.5rem'
                             }}>
@@ -2439,28 +2441,28 @@ console.log('[DEBUG CustomerView] Session:', session?.user?.email, 'isGuest:', i
                         </div>
 
                         {/* Details Body */}
-                        <div className="modal-body" style={{textAlign: 'left', padding: '20px'}}>
-                            <p style={{fontSize: '1rem', lineHeight: '1.6', color: 'var(--text-primary)'}}>
+                        <div className="modal-body" style={{ textAlign: 'left', padding: '20px' }}>
+                            <p style={{ fontSize: '1rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
                                 {viewProduct.description}
                             </p>
-                            
+
                             <div style={{
-                                marginTop: '20px', 
-                                padding: '15px', 
-                                background: 'var(--bg-dark)', 
+                                marginTop: '20px',
+                                padding: '15px',
+                                background: 'var(--bg-dark)',
                                 borderRadius: '8px',
                                 border: '1px solid var(--border-color)',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center'
                             }}>
-                                <span style={{color: 'var(--text-secondary)'}}>Price:</span>
-                                <strong style={{fontSize: '1.4rem', color: 'var(--primary-orange)'}}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Price:</span>
+                                <strong style={{ fontSize: '1.4rem', color: 'var(--primary-orange)' }}>
                                     {viewProduct.price}
                                 </strong>
                             </div>
-                            
-                            <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '15px', textAlign: 'center'}}>
+
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '15px', textAlign: 'center' }}>
                                 To buy this, simply show this screen to the barber at the counter.
                             </p>
                         </div>
