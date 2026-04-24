@@ -1839,9 +1839,10 @@ export const CustomerView = ({ session }) => {
 
                     {/* FIX: improved message coloring logic */}
                     {message && (
-                        <p className={`message ${message.toLowerCase().includes('success') ? 'success' :
-                                /failed|error|required|taken|invalid|missing|please|cannot/i.test(message) ? 'error' : 'success'
-                            }`}>
+                        <p className={`message ${
+                            message.toLowerCase().includes('success') ? 'success' : 
+                            /failed|error|required|taken|invalid|missing|please|cannot/i.test(message) ? 'error' : 'success'
+                        }`}>
                             {message}
                         </p>
                     )}
