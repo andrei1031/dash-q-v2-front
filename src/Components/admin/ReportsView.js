@@ -51,6 +51,20 @@ export const ReportsView = () => {
             setAdminNotes(prev => ({ ...prev, [id]: text }));
         };
 
+        const handleUnban = async (userId) => {
+            if (!window.confirm("Are you sure you want to unban this user?")) return;
+
+            try {
+                await apiClient.put(`/reports/unban/${userId}`);
+                alert("User unbanned successfully.");
+                // Refresh your list to show the updated status
+                fetchReports(); 
+            } catch (err) {
+                console.error("Unban request failed:", err);
+                alert("Error: Could not unban user.");
+            }
+        };
+
         return (
             <div className="card">
                 <div className="card-header"><h2>🚨 Incident Reports</h2></div>
