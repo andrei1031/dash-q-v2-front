@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import apiClient from "../http-commons";
 import { API_URL } from "../http-commons";
 import axios from "axios";
 
@@ -64,6 +65,7 @@ export const ReportsView = () => {
                 alert("Error: Could not unban user.");
             }
         };
+
 
         return (
             <div className="card">
