@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
-import { API_URL } from "../http-commons";
 import { IconCamera } from "../assets/Icon";
-import axios from "axios";
+import apiClient from "../http-commons"; // Use your configured apiClient
 
-export const ReportModal = ({ isOpen, onClose, reporterId, reportedId, userRole, onSubmit }) => {
+export const ReportModal = ({ isOpen, onClose, reporterId, reportedId, userRole }) => {
     const [reason, setReason] = useState('Rude Behavior');
     const [description, setDescription] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
@@ -18,20 +17,21 @@ export const ReportModal = ({ isOpen, onClose, reporterId, reportedId, userRole,
             setSelectedFile(e.target.files[0]);
         }
     };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         let proofImageUrl = null;
 
         try {
-            // 1. Upload Proof if selected
+            // 1. Upload Proof to Supabase Storage if a file is selected
             if (selectedFile) {
                 setIsUploading(true);
                 const fileExt = selectedFile.name.split('.').pop();
                 const filePath = `proofs/${reporterId}-${Date.now()}.${fileExt}`;
                 
                 const { error: uploadError } = await supabase.storage
-                    .from('report_proofs') // Make sure this bucket exists!
+                    .from('report_proofs') // Ensure this bucket exists in your Supabase project
                     .upload(filePath, selectedFile);
                 
                 if (uploadError) throw uploadError;
@@ -41,8 +41,10 @@ export const ReportModal = ({ isOpen, onClose, reporterId, reportedId, userRole,
                 setIsUploading(false);
             }
 
-            // 2. Submit Report
-            await axios.post(`${API_URL}/reports`, {
+            // 2. Submit Report to Backend
+            // NOTE: We use '/reports' because the apiClient usually handles the '/api' prefix
+            // This matches the backend mount: app.use('/api/reports', reportsRoutes)
+            await apiClient.post('/reports', {
                 reporterId,
                 reportedId,
                 role: userRole,
@@ -54,8 +56,9 @@ export const ReportModal = ({ isOpen, onClose, reporterId, reportedId, userRole,
             alert("Report submitted successfully.");
             onClose();
         } catch (err) {
-            console.error(err);
-            alert("Failed to submit report. " + (err.message || ''));
+            console.error("Report submission error:", err);
+            const errorMessage = err.response?.data?.error || err.message || 'Unknown error';
+            alert("Failed to submit report: " + errorMessage);
         } finally {
             setLoading(false);
             setIsUploading(false);
@@ -69,44 +72,63 @@ export const ReportModal = ({ isOpen, onClose, reporterId, reportedId, userRole,
             <div className="modal-content">
                 <div className="modal-body">
                     <h2 style={{color: 'var(--error-color)'}}>⚠️ Report User</h2>
-                    <p>Submit a report to the Admin.</p>
+                    <p>Submit a report to the shop administrator.</p>
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Reason:</label>
-                            <select value={reason} onChange={e => setReason(e.target.value)}>
-                                <option>Rude Behavior</option>
-                                <option>No-Show / Late</option>
-                                <option>Inappropriate Language</option>
-                                <option>Scam / Spam</option>
-                                <option>Other</option>
+                            <label>Reason for Report:</label>
+                            <select 
+                                value={reason} 
+                                onChange={e => setReason(e.target.value)}
+                                className="form-control"
+                            >
+                                <option value="Rude Behavior">Rude Behavior</option>
+                                <option value="No-Show / Late">No-Show / Late</option>
+                                <option value="Inappropriate Language">Inappropriate Language</option>
+                                <option value="Scam / Spam">Scam / Spam</option>
+                                <option value="Other">Other</option>
                             </select>
                         </div>
                         <div className="form-group">
-                            <label>Details:</label>
-                            <textarea value={description} onChange={e => setDescription(e.target.value)} required placeholder="Describe what happened..." />
+                            <label>Detailed Description:</label>
+                            <textarea 
+                                value={description} 
+                                onChange={e => setDescription(e.target.value)} 
+                                required 
+                                placeholder="Please describe exactly what happened..."
+                                className="form-control"
+                                style={{ minHeight: '100px' }}
+                            />
                         </div>
                         
-                        {/* --- NEW: Screenshot Upload --- */}
                         <div className="form-group photo-upload-group">
-                            <label>Attach Screenshot (Optional):</label>
-                            <input type="file" accept="image/*" onChange={handleFileChange} id="report-proof-upload" className="file-upload-input" />
+                            <label>Attach Screenshot / Proof (Optional):</label>
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={handleFileChange} 
+                                id="report-proof-upload" 
+                                className="file-upload-input" 
+                            />
                             <label htmlFor="report-proof-upload" className="btn btn-secondary btn-icon-label file-upload-label">
                                 <IconCamera /> {selectedFile ? selectedFile.name : 'Choose Image...'}
                             </label>
                         </div>
-                        {/* ----------------------------- */}
 
                         <div className="modal-footer">
-                            <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
-                            <button type="submit" disabled={loading || isUploading} className="btn btn-danger">
-                                {/* OLD: {loading || isUploading ? <Spinner /> : 'Submit Report'} */}
-                                {/* NEW: Static Text */}
-                                Submit Report
+                            <button type="button" onClick={onClose} className="btn btn-secondary">
+                                Cancel
+                            </button>
+                            <button 
+                                type="submit" 
+                                disabled={loading || isUploading} 
+                                className="btn btn-danger"
+                            >
+                                {loading ? 'Submitting...' : 'Submit Report'}
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
