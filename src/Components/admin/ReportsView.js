@@ -47,9 +47,11 @@ export const ReportsView = () => {
         if (!window.confirm("Are you sure you want to unban this user?")) return;
 
         try {
-            // Note: This matches the route we defined: router.put('/unban/:userId', unban_user)
-            await apiClient.put(`/reports/unban/${userId}`); 
-            alert("User unbanned successfully.");
+            const response = await apiClient.put(`/reports/unban/${userId}`);
+            alert(response.data.message || "User unbanned successfully.");
+            
+            // CRITICAL: You must refresh the list so the 'is_banned' status 
+            // updates in your local state, causing the button to hide.
             fetchReports(); 
         } catch (err) {
             console.error("Unban request failed:", err);
