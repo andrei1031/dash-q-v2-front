@@ -450,20 +450,24 @@ export const CustomerView = ({ session }) => {
         setMessage('Verifying barber availability...');
 
         try {
-            // --- START: PRE-CHECK VERIFICATION ---
-            // Fetch the latest status of all barbers to ensure the selected one is still available
+            // --- UPDATED PRE-CHECK VERIFICATION ---
             const statusRes = await apiClient.get(`/barbers`);
-            const currentBarber = statusRes.data.find(b => b.id.toString() === selectedBarberId);
+            const currentBarber = statusRes.data.find(b => b.id.toString() === selectedBarberId.toString());
 
-            // If the barber went offline or is no longer available, stop the process
-            if (!currentBarber || !currentBarber.is_active || !currentBarber.is_available) {
+            console.log("[DEBUG] Pre-check Barber:", currentBarber); // Check your console to see these values!
+
+            if (!currentBarber || currentBarber.is_active === false || currentBarber.is_available === false) {
+                console.warn("[JoinQueue] Blocked: Barber state is", { 
+                    exists: !!currentBarber, 
+                    active: currentBarber?.is_active, 
+                    available: currentBarber?.is_available 
+                });
+                
                 setMessage('❌ Sorry, this barber just went offline. Please choose another.');
                 setIsLoading(false);
-                // Refresh the local barber list so the UI updates immediately
-                setBarbers(statusRes.data || []);
+                setBarbers(statusRes.data || []); // Update UI to remove the offline barber
                 return;
             }
-            // --- END: PRE-CHECK VERIFICATION ---
 
             setMessage('Joining queue...');
 
