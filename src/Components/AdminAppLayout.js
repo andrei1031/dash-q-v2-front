@@ -398,7 +398,7 @@ export const AdminAppLayout = ({ session }) => {
                             <tr key={b.id} className={b.is_active ? 'active-barber' : 'inactive-barber'}>
                                 <td data-label="name">{b.full_name}</td>
                                 <td data-label="status">
-                                    {b.is_active ? <span className="status-active">ACTIVE</span> : <span className="status-inactive">BANNED/INACTIVE</span>}
+                                    {b.is_active ? <span className="status-active">ACTIVE</span> : <span className="status-inactive">INACTIVE</span>}
                                 </td>
                                 <td data-label="action">
                                     <button 
