@@ -48,14 +48,15 @@ export const ReportsView = () => {
 
         try {
             const response = await apiClient.put(`/reports/unban/${userId}`);
-            alert(response.data.message || "User unbanned successfully.");
-            
-            // CRITICAL: You must refresh the list so the 'is_banned' status 
-            // updates in your local state, causing the button to hide.
+            alert(response.data.message);
             fetchReports(); 
         } catch (err) {
-            console.error("Unban request failed:", err);
-            alert("Error: Could not unban user.");
+            // IMPROVED: Show the specific error from the backend response
+            const serverError = err.response?.data?.error || "Unknown server error";
+            const errorDetails = err.response?.data?.details || "";
+            
+            console.error("Unban failed:", serverError, errorDetails);
+            alert(`Error: ${serverError}. ${errorDetails}`);
         }
     };
 
