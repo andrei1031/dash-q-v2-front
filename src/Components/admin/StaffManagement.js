@@ -38,10 +38,22 @@ export const StaffManagement = () => {
         if (!window.confirm(`Are you sure you want to ${actionText} this barber?`)) return;
 
         try {
+            // 1. Send the update to the backend
             await apiClient.put(`/admin/staff/toggle/${barberId}`, { status: newStatus });
+            
+            // 2. INSTANTLY update the UI locally without waiting for the database
+            setStaffList(prevList => 
+                prevList.map(barber => 
+                    barber.id === barberId 
+                        ? { ...barber, is_active: newStatus, is_available: newStatus } 
+                        : barber
+                )
+            );
 
+            // 3. Show the success banner
             setMessage(`Barber successfully ${actionText}d!`);
-            fetchStaffList();
+            
+            // You can remove fetchStaffList() from here since we updated it locally!
         } catch (err) {
             const serverError = err.response?.data?.error || err.message || "Unknown error";
             console.error("Toggle Failed Details:", err.response?.data || err);
