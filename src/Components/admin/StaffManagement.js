@@ -7,21 +7,23 @@ export const StaffManagement = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [message, setMessage] = useState("");
 
-    // Fetch barbers from Supabase
     const fetchStaffList = async () => {
         setIsLoading(true);
         try {
-            // Assuming your staff have a role of 'barber' in the profiles table
+            // Fetch directly from barber_profile. 
+            // If name/email are in a linked 'profiles' table, this syntax grabs them too.
+            // If name/email are actually columns right inside barber_profile, just use .select('*')
             const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('role', 'barber')
-                .order('full_name', { ascending: true });
+                .from('barber_profile')
+                .select(`
+                    *,
+                    profiles (full_name, email)
+                `);
 
             if (error) throw error;
             setStaffList(data || []);
         } catch (error) {
-            console.error("Error fetching staff:", error);
+            console.error("Error fetching staff from barber_profile:", error);
             setMessage("Failed to load staff members.");
         } finally {
             setIsLoading(false);
@@ -32,31 +34,30 @@ export const StaffManagement = () => {
         fetchStaffList();
     }, []);
 
-    // Toggle logic for Activate/Deactivate
     const handleToggleStatus = async (barberId, currentActiveStatus) => {
         const newStatus = !currentActiveStatus;
         const actionText = newStatus ? "Activate" : "Deactivate";
 
-        if (!window.confirm(`Are you sure you want to ${actionText} this staff member?`)) return;
+        if (!window.confirm(`Are you sure you want to ${actionText} this barber?`)) return;
 
         try {
-            // This calls the backend route we created earlier
             await apiClient.put(`/admin/staff/toggle/${barberId}`, { status: newStatus });
-            
-            setMessage(`Staff member successfully ${actionText}d!`);
-            fetchStaffList(); // Refresh the list to show updated status
+
+            setMessage(`Barber successfully ${actionText}d!`);
+            fetchStaffList();
         } catch (err) {
-            console.error("Failed to toggle status:", err);
-            setMessage("Error: Could not update staff status.");
+            const serverError = err.response?.data?.error || err.message || "Unknown error";
+            console.error("Toggle Failed Details:", err.response?.data || err);
+            setMessage(`Error: ${serverError}`);
         }
     };
 
     return (
         <div className="card">
             <div className="card-header">
-                <h2>👥 Staff Management</h2>
+                <h2>💈 Barber Management</h2>
                 <p style={{ color: 'var(--text-secondary)', margin: '0' }}>
-                    Activate or deactivate barbers. Deactivated barbers can log in but will be hidden from the customer queue.
+                    Manage barber availability. Inactive barbers are hidden from the queue.
                 </p>
             </div>
 
@@ -68,10 +69,10 @@ export const StaffManagement = () => {
                 )}
 
                 {isLoading ? (
-                    <div className="loading">Loading staff...</div>
+                    <div className="loading">Loading barbers...</div>
                 ) : staffList.length === 0 ? (
                     <div className="empty-state">
-                        <p>No staff members found.</p>
+                        <p>No barbers found in barber_profile.</p>
                     </div>
                 ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px' }}>
@@ -79,37 +80,38 @@ export const StaffManagement = () => {
                             <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                                 <th style={{ padding: '10px', textAlign: 'left' }}>Name</th>
                                 <th style={{ padding: '10px', textAlign: 'left' }}>Email</th>
-                                <th style={{ padding: '10px', textAlign: 'center' }}>System Status</th>
+                                <th style={{ padding: '10px', textAlign: 'center' }}>Queue Status</th>
                                 <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {staffList.map((staff) => (
-                                <tr key={staff.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            {staffList.map((barber) => (
+                                <tr key={barber.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                     <td style={{ padding: '10px' }}>
-                                        <strong>{staff.full_name || 'Unnamed Barber'}</strong>
+                                        {/* Adjust this depending on where the name lives in your schema */}
+                                        <strong>{barber.full_name || barber.profiles?.full_name || 'Unnamed Barber'}</strong>
                                     </td>
                                     <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>
-                                        {staff.email}
+                                        {barber.email || barber.profiles?.email || 'N/A'}
                                     </td>
                                     <td style={{ padding: '10px', textAlign: 'center' }}>
                                         <span style={{
                                             padding: '4px 8px',
                                             borderRadius: '4px',
                                             fontSize: '0.85rem',
-                                            background: staff.is_active ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)',
-                                            color: staff.is_active ? 'var(--success-color)' : 'var(--error-color)'
+                                            background: barber.is_active ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)',
+                                            color: barber.is_active ? 'var(--success-color)' : 'var(--error-color)'
                                         }}>
-                                            {staff.is_active ? 'Active' : 'Inactive'}
+                                            {barber.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     <td style={{ padding: '10px', textAlign: 'right' }}>
-                                        <button 
-                                            onClick={() => handleToggleStatus(staff.id, staff.is_active)}
-                                            className={`btn ${staff.is_active ? 'btn-danger' : 'btn-success'}`}
+                                        <button
+                                            onClick={() => handleToggleStatus(barber.id, barber.is_active)}
+                                            className={`btn ${barber.is_active ? 'btn-danger' : 'btn-success'}`}
                                             style={{ fontSize: '0.85rem', padding: '6px 12px' }}
                                         >
-                                            {staff.is_active ? '⛔ Deactivate' : '✅ Activate'}
+                                            {barber.is_active ? '⛔ Deactivate' : '✅ Activate'}
                                         </button>
                                     </td>
                                 </tr>
