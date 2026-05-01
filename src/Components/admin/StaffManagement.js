@@ -14,7 +14,7 @@ export const StaffManagement = () => {
             // If name/email are in a linked 'profiles' table, this syntax grabs them too.
             // If name/email are actually columns right inside barber_profile, just use .select('*')
             const { data, error } = await supabase
-                .from('barber_profile')
+                .from('barber_profiles')
                 .select(`
                     *,
                     profiles (full_name, email)
