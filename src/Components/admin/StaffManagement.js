@@ -76,7 +76,6 @@ export const StaffManagement = () => {
                         <thead>
                             <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                                 <th style={{ padding: '10px', textAlign: 'left' }}>Name</th>
-                                <th style={{ padding: '10px', textAlign: 'left' }}>Email</th>
                                 <th style={{ padding: '10px', textAlign: 'center' }}>Queue Status</th>
                                 <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
                             </tr>
@@ -87,9 +86,6 @@ export const StaffManagement = () => {
                                     <td style={{ padding: '10px' }}>
                                         {/* Adjust this depending on where the name lives in your schema */}
                                         <strong>{barber.full_name || barber.profiles?.full_name || 'Unnamed Barber'}</strong>
-                                    </td>
-                                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>
-                                        {barber.email || barber.profiles?.email || 'N/A'}
                                     </td>
                                     <td style={{ padding: '10px', textAlign: 'center' }}>
                                         <span style={{
