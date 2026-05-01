@@ -523,7 +523,6 @@ export const CustomerView = ({ session }) => {
             }
 
             if (newEntry && newEntry.id) {
-                setMessage(`Success! You are #${newEntry.id} in the queue.`);
                 localStorage.setItem('myQueueEntryId', newEntry.id.toString());
                 localStorage.setItem('joinedBarberId', newEntry.barber_id.toString());
                 setMyQueueEntryId(newEntry.id.toString());
