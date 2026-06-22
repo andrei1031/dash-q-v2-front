@@ -55,9 +55,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         }
     };
     const formatDistance = (meters) => {
-        if (meters < 20) return "Nearby (0-20m)";
-        if (meters < 50) return "Very Close (20-50m)";
-        if (meters < 100) return "Close (~100m)";
+        if (meters < 20) return "Nearby";
+        if (meters < 50) return "Very Close";
+        if (meters < 100) return "Close";
         return Math.round(meters / 50) * 50 + "m away";
     };
     const handleRejectAppointment = async (apptId) => {
