@@ -854,8 +854,8 @@ export const CustomerView = ({ session }) => {
         const BARBERSHOP_LON = 120.63648441731617;
 
         // 1. Distance Thresholds
-        const WARNING_DISTANCE = 100; // Meters to trigger "Too Far"
-        const ARRIVAL_DISTANCE = 20;  // Meters to trigger "Green Light"
+        const WARNING_DISTANCE = 5; // Meters to trigger "Too Far"
+        const ARRIVAL_DISTANCE = 2;  // Meters to trigger "Green Light"
         const WALKING_SPEED_MPM = 80; // Approx 80 meters per minute (average walking speed)
 
         if (!myQueueEntryId || !('geolocation' in navigator) || isGuest) return;

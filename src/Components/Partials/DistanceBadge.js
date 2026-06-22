@@ -4,10 +4,10 @@ export const DistanceBadge = ({ meters, label }) => {
     let colorClass = 'dist-green';
     let text = `${meters}m`;
 
-    if (meters > 1000) {
+    if (meters > 5) {
         colorClass = 'dist-red';
         text = `${(meters / 1000).toFixed(1)}km`;
-    } else if (meters > 200) {
+    } else if (meters > 3) {
         colorClass = 'dist-orange';
     }
     return (
