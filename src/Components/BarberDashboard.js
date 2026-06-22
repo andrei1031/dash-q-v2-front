@@ -560,7 +560,10 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                     <div className="queue-item-info">
                                         <strong>#{queueDetails.inProgress.daily_number || queueDetails.inProgress.id} - {queueDetails.inProgress.customer_name}</strong>
 
-                                        <DistanceBadge meters={queueDetails.inProgress.current_distance_meters} />
+                                        <DistanceBadge 
+                                            meters={queueDetails.inProgress.current_distance_meters} 
+                                            label={formatDistance(queueDetails.inProgress.current_distance_meters)} 
+                                        />
                                         <PhotoDisplay entry={queueDetails.inProgress} label="In Chair" />
                                         <button 
                                             onClick={() => handleLoyaltyCheck(queueDetails.inProgress)} 
@@ -635,7 +638,10 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         )}
                                         
                                         {/* Show standard Green/Orange badge ONLY if they are safe */}
-                                        {!isHighRisk && <DistanceBadge meters={upNext.current_distance_meters} />}
+                                        {!isHighRisk && <DistanceBadge 
+                                            meters={queueDetails.inProgress.current_distance_meters} 
+                                            label={formatDistance(queueDetails.inProgress.current_distance_meters)} 
+                                        />}
                                         
                                         {/* Confirmation Status */}
                                         {upNext.is_confirmed ? (
@@ -687,7 +693,10 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         👥 Group of {c.head_count}
                                     </span>
     )}
-                                    <DistanceBadge meters={c.current_distance_meters} />
+                                    <DistanceBadge 
+                                        meters={queueDetails.inProgress.current_distance_meters} 
+                                        label={formatDistance(queueDetails.inProgress.current_distance_meters)} 
+                                    />
                                     {c.reference_image_url && <PhotoDisplay entry={c} label="Waiting" />}
                                 </div>
                                 {/* REPLACE the Chat Button in "Waiting" loop with this: */}

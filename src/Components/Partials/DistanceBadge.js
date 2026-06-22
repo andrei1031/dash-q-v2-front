@@ -12,8 +12,8 @@ export const DistanceBadge = ({ meters }) => {
         colorClass = 'dist-orange';
     }
     return (
-        <span className={`distance-badge ${colorClass}`}>
-            📍 {text} away
+        <span className="badge-distance">
+            {label || `${Math.round(meters)}m`}
         </span>
     );
 }

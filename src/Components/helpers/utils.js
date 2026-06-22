@@ -77,3 +77,9 @@ export const getTomorrowDate = () => {
     date.setDate(date.getDate() + 1); // Move to tomorrow
     return date.toISOString().split('T')[0];
 };
+export const formatDistance = (meters) => {
+    if (meters < 20) return "Nearby (0-20m)";
+    if (meters < 50) return "Very Close (20-50m)";
+    if (meters < 100) return "Close (~100m)";
+    return Math.round(meters / 50) * 50 + "m away";
+};
