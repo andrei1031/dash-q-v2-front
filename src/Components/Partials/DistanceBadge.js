@@ -1,5 +1,4 @@
-
-export const DistanceBadge = ({ meters }) => {
+export const DistanceBadge = ({ meters, label }) => {
     if (meters === null || meters === undefined) return null;
     
     let colorClass = 'dist-green';
