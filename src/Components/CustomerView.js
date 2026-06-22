@@ -230,13 +230,12 @@ export const CustomerView = ({ session }) => {
 
                 if (myEntry) {
                     // 1. "UP NEXT" LOGIC
+                    // Inside fetchPublicQueue
                     if (myEntry.status === 'Up Next') {
-                        // --- ✅ FIX START: Check Confirmation ---
                         if (myEntry.is_confirmed) {
-                            stopBlinking(); // Stop blinking immediately
-                            // Do NOT play sound
+                            // Just stop blinking. Do NOT play sounds here.
+                            stopBlinking(); 
                         } else {
-                            // Only play if NOT confirmed yet
                             const modalFlag = localStorage.getItem('stickyModal');
                             if (modalFlag !== 'yourTurn') {
                                 playSound(queueNotificationSound);
@@ -245,7 +244,6 @@ export const CustomerView = ({ session }) => {
                                 if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
                             }
                         }
-                        // --- ✅ FIX END ---
                     }
                     // 2. "IN PROGRESS" LOGIC
                     else if (myEntry.status === 'In Progress') {
@@ -1036,35 +1034,53 @@ export const CustomerView = ({ session }) => {
 
                     if (payload.eventType === 'UPDATE' && payload.new.id.toString() === myQueueEntryId) {
                         const newStatus = payload.new.status;
-                        const isConfirmed = payload.new.is_confirmed; // <--- Get confirmation status
+                        const isConfirmed = payload.new.is_confirmed; 
 
-                        console.log(`My status updated to: ${newStatus} (Confirmed: ${isConfirmed})`);
+                        // --- SMART PING DETECTION ---
+                        // A manual Ping changes the database WITHOUT changing location, status, or confirmation.
+                        const oldEntry = liveQueueRef.current.find(e => e.id.toString() === myQueueEntryId);
+                        const isManualPing = oldEntry && 
+                                            oldEntry.current_distance_meters === payload.new.current_distance_meters && 
+                                            oldEntry.status === newStatus &&
+                                            oldEntry.is_confirmed === isConfirmed;
+
+                        console.log(`Status: ${newStatus} | Confirmed: ${isConfirmed} | Ping: ${isManualPing}`);
 
                         if (newStatus === 'Up Next') {
                             if (isConfirmed) {
-                                // If I just confirmed, STOP everything
-                                stopBlinking();
+                                // 1. If Checked In: Stay completely silent, UNLESS the barber explicitly pings
+                                if (isManualPing) {
+                                    playSound(queueNotificationSound);
+                                    startBlinking("Barber Pinged You!");
+                                    if (navigator.vibrate) navigator.vibrate([500, 100, 500]);
+                                } else {
+                                    stopBlinking();
+                                }
                             } else {
-                                // Only alert if NOT confirmed
-                                playSound(queueNotificationSound);
-                                startBlinking(NEXT_UP_TITLE);
-                                localStorage.setItem('stickyModal', 'yourTurn');
-                                if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                                // 2. Not Checked In: Ring on the first alert, OR if manually pinged
+                                const modalFlag = localStorage.getItem('stickyModal');
+                                if (modalFlag !== 'yourTurn' || isManualPing) {
+                                    playSound(queueNotificationSound);
+                                    startBlinking(isManualPing ? "Barber Pinged You!" : NEXT_UP_TITLE);
+                                    localStorage.setItem('stickyModal', 'yourTurn');
+                                    if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                                }
                             }
                         }
                         else if (newStatus === 'In Progress') {
-                            // ... (Keep existing logic) ...
-                            playSound(queueNotificationSound);
-                            startBlinking(TURN_TITLE);
-                            localStorage.setItem('stickyModal', 'yourTurn');
-                            if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                            const modalFlag = localStorage.getItem('stickyModal');
+                            if (modalFlag !== 'inProgress') { 
+                                playSound(queueNotificationSound);
+                                startBlinking(TURN_TITLE);
+                                localStorage.setItem('stickyModal', 'inProgress');
+                                if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                            }
                         }
                         else if (newStatus === 'Done') {
                             localStorage.setItem('pendingFeedback', JSON.stringify({
                                 barberId: joinedBarberId,
                                 timestamp: Date.now()
                             }));
-                            // --- FIX END ---
                             setIsServiceCompleteModalOpen(true);
                             stopBlinking();
                         }
