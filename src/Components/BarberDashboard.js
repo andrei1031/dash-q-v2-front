@@ -55,8 +55,8 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         }
     };
     const formatDistance = (meters) => {
-        if (meters < 20) return "Nearby";
-        if (meters < 50) return "Very Close";
+        if (meters < 10) return "Nearby";
+        if (meters < 20) return "Very Close";
         if (meters < 100) return "Close";
         return Math.round(meters / 50) * 50 + "m away";
     };
