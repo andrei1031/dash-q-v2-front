@@ -571,28 +571,31 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                             ⭐ Check Loyalty
                                         </button>
                                     </div>
-                                    <button 
-                                        onClick={() => handlePingCustomer(queueDetails.inProgress)} 
-                                        className="btn btn-icon" 
-                                        title="Ping Customer"
-                                        style={{ marginRight: '5px' }}
-                                    >
-                                        🔔
-                                    </button>
-                                    <button 
-                                        onClick={() => openChat(queueDetails.inProgress)} 
-                                        className="btn btn-icon" 
-                                        title="Chat"
-                                        disabled={!queueDetails.inProgress.profiles?.id}
-                                        style={{position: 'relative'}}
-                                    >
-                                        <IconChat />
-                                        {queueDetails.inProgress.unread_count > 0 && (
-                                            <span className="notification-badge">
-                                                {queueDetails.inProgress.unread_count}
-                                            </span>
-                                        )}
-                                    </button>
+                                    {/* Group Action Buttons Together */}
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                                        <button 
+                                            onClick={() => handlePingCustomer(queueDetails.inProgress)} 
+                                            className="btn btn-icon" 
+                                            title="Ping Customer"
+                                        >
+                                            🔔
+                                        </button>
+
+                                        <button 
+                                            onClick={() => openChat(queueDetails.inProgress)} 
+                                            className="btn btn-icon" 
+                                            title="Chat"
+                                            disabled={!queueDetails.inProgress.profiles?.id}
+                                            style={{position: 'relative'}}
+                                        >
+                                            <IconChat />
+                                            {queueDetails.inProgress.unread_count > 0 && (
+                                                <span className="notification-badge">
+                                                    {queueDetails.inProgress.unread_count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </div>
                                 </li>
                             </ul>
                         ) : (<p className="empty-text">Chair empty</p>)}
@@ -643,27 +646,31 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         
                                         <PhotoDisplay entry={upNext} label="Up Next" />
                                     </div>
-                                    <button 
-                                        onClick={() => handlePingCustomer(upNext)} 
-                                        className="btn btn-icon" 
-                                        title="Ping Customer"
-                                        style={{ marginRight: '5px' }}
-                                    >
-                                        🔔
-                                    </button>
-                                    <button 
-                                        onClick={() => openChat(upNext)} 
-                                        className="btn btn-icon" 
-                                        title={upNext.profiles?.id ? "Chat" : "Guest"} 
-                                        disabled={!upNext.profiles?.id}
-                                    >
-                                        <IconChat />
-                                        {upNext.profiles?.id && upNext.unread_count > 0 && (
-                                            <span className="notification-badge">
-                                                {upNext.unread_count}
-                                            </span>
-                                        )}
-                                    </button>
+                                    {/* Group Action Buttons Together */}
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                                        <button 
+                                            onClick={() => handlePingCustomer(upNext)} 
+                                            className="btn btn-icon" 
+                                            title="Ping Customer"
+                                        >
+                                            🔔
+                                        </button>
+
+                                        <button 
+                                            onClick={() => openChat(upNext)} 
+                                            className="btn btn-icon" 
+                                            title={upNext.profiles?.id ? "Chat" : "Guest"} 
+                                            disabled={!upNext.profiles?.id}
+                                            style={{position: 'relative'}}
+                                        >
+                                            <IconChat />
+                                            {upNext.profiles?.id && upNext.unread_count > 0 && (
+                                                <span className="notification-badge">
+                                                    {upNext.unread_count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </div>
                                 </li>
                             </ul>
                         ) : (
