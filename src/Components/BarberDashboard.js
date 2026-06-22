@@ -568,7 +568,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
 
                                         <DistanceBadge 
                                             meters={queueDetails.inProgress?.current_distance_meters} 
-                                            label={formatDistance(queueDetails.inProgress.current_distance_meters)} 
+                                            label={formatDistance(queueDetails.inProgress?.current_distance_meters || 0)} 
                                         />
                                         <PhotoDisplay entry={queueDetails.inProgress} label="In Chair" />
                                         <button 
@@ -644,8 +644,9 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         )}
                                         
                                         {/* Show standard Green/Orange badge ONLY if they are safe */}
-                                        {!isHighRisk && <DistanceBadge meters={upNext?.current_distance_meters}
-                                            label={formatDistance(queueDetails.inProgress.current_distance_meters)} 
+                                        {!isHighRisk && <DistanceBadge 
+                                            meters={upNext?.current_distance_meters}
+                                            label={formatDistance(upNext?.current_distance_meters || 0)} 
                                         />}
                                         
                                         {/* Confirmation Status */}
@@ -699,8 +700,8 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                     </span>
     )}
                                     <DistanceBadge 
-                                        meters={queueDetails.inProgress?.current_distance_meters} 
-                                        label={formatDistance(queueDetails.inProgress.current_distance_meters)} 
+                                        meters={c.current_distance_meters} 
+                                        label={formatDistance(c.current_distance_meters || 0)} 
                                     />
                                     {c.reference_image_url && <PhotoDisplay entry={c} label="Waiting" />}
                                 </div>
