@@ -167,12 +167,21 @@ export const CustomerView = ({ session }) => {
         if (userInitiated && myQueueEntryId) {
             setIsLoading(true);
             try {
+                // FIX: Grab all possible ID types to prove ownership
+                const userId = session?.user?.id 
+                    || localStorage.getItem('guestId') 
+                    || localStorage.getItem('deviceFingerprint') 
+                    || null;
+
                 await apiClient.delete(`/queue/${myQueueEntryId}`, {
-                    data: { userId: session?.user?.id || null }
+                    data: { userId: userId }
                 });
                 setMessage("You left the queue.");
             }
-            catch (error) { console.error("Failed to leave queue:", error); setMessage("Error leaving queue."); }
+            catch (error) { 
+                console.error("Failed to leave queue:", error); 
+                setMessage("Error leaving queue."); 
+            }
             finally { setIsLoading(false); }
         }
         setIsServiceCompleteModalOpen(false); setIsCancelledModalOpen(false);
@@ -723,8 +732,15 @@ export const CustomerView = ({ session }) => {
 
         setIsLoading(true);
         try {
-            await apiClient.delete(`/queue/${myQueueEntryId}`, { data: { userId: session?.user?.id || null } }); //
+            // FIX: Provide proper authorization to delete current spot
+            const userId = session?.user?.id 
+                || localStorage.getItem('guestId') 
+                || localStorage.getItem('deviceFingerprint') 
+                || null;
 
+            await apiClient.delete(`/queue/${myQueueEntryId}`, { 
+                data: { userId: userId } 
+            });
 
             await apiClient.post(`/queue`, {
                 customer_name: customerName,
