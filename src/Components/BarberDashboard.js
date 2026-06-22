@@ -412,6 +412,24 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             closeModal();
         }
     };
+    const handlePingCustomer = async (customer) => {
+        if (!customer) return;
+        
+        // Optimistic alert so the barber knows it clicked
+        console.log(`Pinging customer #${customer.id}...`);
+        
+        try {
+            // We will create this route on your backend next
+            await apiClient.post(`/queue/ping`, { 
+                queueId: customer.id,
+                barberId: barberId 
+            });
+            alert(`🔔 Ping sent to ${customer.customer_name}!`);
+        } catch (err) {
+            console.error('Failed to ping customer:', err);
+            alert('Failed to send ping. They might not have notifications enabled.');
+        }
+    };
 
     const openChat = async (customer) => {
         const customerUserId = customer?.profiles?.id;
@@ -554,6 +572,14 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         </button>
                                     </div>
                                     <button 
+                                        onClick={() => handlePingCustomer(queueDetails.inProgress)} 
+                                        className="btn btn-icon" 
+                                        title="Ping Customer"
+                                        style={{ marginRight: '5px' }}
+                                    >
+                                        🔔
+                                    </button>
+                                    <button 
                                         onClick={() => openChat(queueDetails.inProgress)} 
                                         className="btn btn-icon" 
                                         title="Chat"
@@ -561,7 +587,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         style={{position: 'relative'}}
                                     >
                                         <IconChat />
-                                        {/* BADGE LOGIC */}
                                         {queueDetails.inProgress.unread_count > 0 && (
                                             <span className="notification-badge">
                                                 {queueDetails.inProgress.unread_count}
@@ -618,8 +643,14 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         
                                         <PhotoDisplay entry={upNext} label="Up Next" />
                                     </div>
-                                    
-                                    {/* Chat Button */}
+                                    <button 
+                                        onClick={() => handlePingCustomer(upNext)} 
+                                        className="btn btn-icon" 
+                                        title="Ping Customer"
+                                        style={{ marginRight: '5px' }}
+                                    >
+                                        🔔
+                                    </button>
                                     <button 
                                         onClick={() => openChat(upNext)} 
                                         className="btn btn-icon" 
