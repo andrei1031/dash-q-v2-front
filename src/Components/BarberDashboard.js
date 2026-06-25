@@ -323,18 +323,21 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             await apiClient.post(`/queue`, {
                 customer_name: manualCustomerName.trim() + " (Walk-in)",
                 customer_email: `${walkInId}@guest.com`,
-                customer_phone: 'N/A',            // Added fallback
+                customer_phone: 'N/A',            
                 barber_id: barberId,
-                service_id: 1,                    // Make sure '1' actually exists in your Supabase 'services' table!
-                head_count: 1,                    // Added fallback
-                user_id: null,
+                service_id: 1, // (Reminder: make sure ID 1 exists in your services table!)
+                head_count: 1,                    
+                
+                // --- THE FIX: Send the fake ID instead of null ---
+                user_id: walkInId, 
                 guestId: walkInId,
                 deviceFingerprint: walkInId,
+                
                 is_vip: false,
-                reference_image_url: null,        // Added fallback
-                player_id: null,                  // Added fallback
-                ai_haircut_image_url: null,       // Added fallback
-                share_ai_image: false             // Added fallback
+                reference_image_url: null,        
+                player_id: null,                  
+                ai_haircut_image_url: null,       
+                share_ai_image: false             
             });
             
             setIsManualAddOpen(false);
