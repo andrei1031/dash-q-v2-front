@@ -319,30 +319,27 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setError('');
         
         try {
-            const walkInId = `walkin_${Date.now()}`;
+            setIsAddingWalkIn(true);
+            setError('');
+            
             await apiClient.post(`/queue`, {
                 customer_name: manualCustomerName.trim() + " (Walk-in)",
-                customer_email: `${walkInId}@guest.com`,
+                customer_email: `walkin_${Date.now()}@guest.com`,
                 customer_phone: 'N/A',            
                 barber_id: barberId,
-                service_id: 1, // Make sure '1' is a valid service ID!
+                service_id: 1, // (Reminder: ensure ID 1 is a valid service in your DB)
                 head_count: 1,                    
                 
-                user_id: walkInId, 
+                // --- THE ULTIMATE FIX ---
+                // By sending null for all three, the backend skips the recovery 
+                // check that was crashing on the invalid UUID formats.
+                user_id: null, 
+                guestId: null,
+                deviceFingerprint: null,
                 
-                // --- Send BOTH formats just to be absolutely sure ---
-                guestId: walkInId,
-                guest_id: walkInId,
-                deviceFingerprint: walkInId,
-                device_fingerprint: walkInId,
-                
-                is_vip: false,
-                reference_image_url: null,        
-                player_id: null,                  
-                ai_haircut_image_url: null,       
-                share_ai_image: false             
+                is_vip: false 
             });
-            
+
             setIsManualAddOpen(false);
             setManualCustomerName('');
             fetchQueueDetails(); // Refresh the list immediately
