@@ -325,13 +325,16 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 customer_email: `${walkInId}@guest.com`,
                 customer_phone: 'N/A',            
                 barber_id: barberId,
-                service_id: 1, // (Reminder: make sure ID 1 exists in your services table!)
+                service_id: 1, // Make sure '1' is a valid service ID!
                 head_count: 1,                    
                 
-                // --- THE FIX: Send the fake ID instead of null ---
                 user_id: walkInId, 
+                
+                // --- Send BOTH formats just to be absolutely sure ---
                 guestId: walkInId,
+                guest_id: walkInId,
                 deviceFingerprint: walkInId,
+                device_fingerprint: walkInId,
                 
                 is_vip: false,
                 reference_image_url: null,        
