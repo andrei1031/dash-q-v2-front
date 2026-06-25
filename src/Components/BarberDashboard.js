@@ -1166,16 +1166,13 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                 <h2>Add Walk-in Customer</h2>
                             </div>
                             <div className="modal-body">
-                                <p>This will manually add a customer to the bottom of your Waiting list.</p>
-                                <div className="form-group">
-                                    <input
-                                        type="checkbox"
-                                        id="isVIP"
-                                        checked={isManualVIP}
-                                        onChange={(e) => setIsManualVIP(e.target.checked)}
-                                    />
-                                    <label htmlFor="isVIP">Mark as VIP Customer</label>
-                                    <label htmlFor="walkinName">Customer Name:</label>
+                                <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '20px' }}>
+                                    This will manually add a customer to the bottom of your Waiting list.
+                                </p>
+
+                                {/* 1. Name Input */}
+                                <div className="form-group" style={{ marginBottom: '20px' }}>
+                                    <label htmlFor="walkinName" style={{ display: 'block', marginBottom: '8px' }}>Customer Name:</label>
                                     <input
                                         type="text"
                                         id="walkinName"
@@ -1184,7 +1181,33 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                                         placeholder="e.g., John Doe"
                                         autoFocus
                                         required
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#222', color: '#fff' }}
                                     />
+                                </div>
+
+                                {/* 2. VIP Toggle Row */}
+                                <div className="form-group" 
+                                    onClick={() => setIsManualVIP(!isManualVIP)}
+                                    style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        padding: '12px', 
+                                        background: isManualVIP ? 'rgba(255, 149, 0, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                                        border: isManualVIP ? '1px solid var(--primary-orange)' : '1px solid #444',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}>
+                                    <input
+                                        type="checkbox"
+                                        id="isVIP"
+                                        checked={isManualVIP}
+                                        onChange={(e) => setIsManualVIP(e.target.checked)}
+                                        style={{ width: '20px', height: '20px', marginRight: '12px', accentColor: 'var(--primary-orange)' }}
+                                    />
+                                    <label htmlFor="isVIP" style={{ cursor: 'pointer', fontWeight: isManualVIP ? 'bold' : 'normal' }}>
+                                        {isManualVIP ? '⭐ Marked as VIP' : 'Mark as VIP Customer'}
+                                    </label>
                                 </div>
                             </div>
                             <div className="modal-footer">
