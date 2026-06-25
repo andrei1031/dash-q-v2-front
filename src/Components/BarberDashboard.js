@@ -39,6 +39,7 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [isManualAddOpen, setIsManualAddOpen] = useState(false);
     const [manualCustomerName, setManualCustomerName] = useState('');
     const [isAddingWalkIn, setIsAddingWalkIn] = useState(false);
+    const [isManualVIP, setIsManualVIP] = useState(false); // Add this near your other useState lines
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
@@ -329,15 +330,16 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 barber_id: barberId,
                 service_id: 1, // (Reminder: ensure ID 1 is a valid service in your DB)
                 head_count: 1,                    
+
+                is_vip: isManualVIP,
                 
-                // --- THE ULTIMATE FIX ---
-                // By sending null for all three, the backend skips the recovery 
-                // check that was crashing on the invalid UUID formats.
                 user_id: null, 
                 guestId: null,
                 deviceFingerprint: null,
-                
-                is_vip: false 
+                reference_image_url: null,        
+                player_id: null,                  
+                ai_haircut_image_url: null,       
+                share_ai_image: false
             });
 
             setIsManualAddOpen(false);
@@ -1166,6 +1168,13 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                             <div className="modal-body">
                                 <p>This will manually add a customer to the bottom of your Waiting list.</p>
                                 <div className="form-group">
+                                    <input
+                                        type="checkbox"
+                                        id="isVIP"
+                                        checked={isManualVIP}
+                                        onChange={(e) => setIsManualVIP(e.target.checked)}
+                                    />
+                                    <label htmlFor="isVIP">Mark as VIP Customer</label>
                                     <label htmlFor="walkinName">Customer Name:</label>
                                     <input
                                         type="text"
