@@ -319,17 +319,22 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         setError('');
         
         try {
-            // Reusing your existing queue endpoint!
             const walkInId = `walkin_${Date.now()}`;
             await apiClient.post(`/queue`, {
                 customer_name: manualCustomerName.trim() + " (Walk-in)",
-                customer_email: `${walkInId}@guest.com`, // Dummy email
+                customer_email: `${walkInId}@guest.com`,
+                customer_phone: 'N/A',            // Added fallback
                 barber_id: barberId,
-                service_id: 1, // Defaulting to service ID 1. Change if needed.
+                service_id: 1,                    // Make sure '1' actually exists in your Supabase 'services' table!
+                head_count: 1,                    // Added fallback
                 user_id: null,
                 guestId: walkInId,
                 deviceFingerprint: walkInId,
-                is_vip: false 
+                is_vip: false,
+                reference_image_url: null,        // Added fallback
+                player_id: null,                  // Added fallback
+                ai_haircut_image_url: null,       // Added fallback
+                share_ai_image: false             // Added fallback
             });
             
             setIsManualAddOpen(false);
