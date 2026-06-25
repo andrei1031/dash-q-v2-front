@@ -35,7 +35,10 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
     const [barberAppointments, setBarberAppointments] = useState([]);
     const [loadingAppts, setLoadingAppts] = useState(false);
     const [pendingApptCount, setPendingApptCount] = useState(0);
-    const [vipPrice, setVipPrice] = useState(100); // Fetch dynamic VIP price
+    const [vipPrice, setVipPrice] = useState(100);
+    const [isManualAddOpen, setIsManualAddOpen] = useState(false);
+    const [manualCustomerName, setManualCustomerName] = useState('');
+    const [isAddingWalkIn, setIsAddingWalkIn] = useState(false);
     
     const upNext = queueDetails.upNext;
     const isHighRisk = upNext && (upNext.current_distance_meters > 500); // Risk if > 500m
@@ -303,7 +306,43 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
         return () => {
             if (channel) supabase.removeChannel(channel);
         };
-    }, [barberId, fetchQueueDetails, onQueueUpdate, fetchAppointmentCount]); // <-- Add setUnreadMessages here
+    }, [barberId, fetchQueueDetails, onQueueUpdate, fetchAppointmentCount]);
+
+    const handleAddWalkIn = async (e) => {
+        e.preventDefault();
+        if (!manualCustomerName.trim()) {
+            alert("Please enter a customer name.");
+            return;
+        }
+        
+        setIsAddingWalkIn(true);
+        setError('');
+        
+        try {
+            // Reusing your existing queue endpoint!
+            const walkInId = `walkin_${Date.now()}`;
+            await apiClient.post(`/queue`, {
+                customer_name: manualCustomerName.trim() + " (Walk-in)",
+                customer_email: `${walkInId}@guest.com`, // Dummy email
+                barber_id: barberId,
+                service_id: 1, // Defaulting to service ID 1. Change if needed.
+                user_id: null,
+                guestId: walkInId,
+                deviceFingerprint: walkInId,
+                is_vip: false 
+            });
+            
+            setIsManualAddOpen(false);
+            setManualCustomerName('');
+            fetchQueueDetails(); // Refresh the list immediately
+            
+        } catch (err) {
+            console.error("Failed to add walk-in:", err);
+            alert(err.response?.data?.error || "Failed to add walk-in customer.");
+        } finally {
+            setIsAddingWalkIn(false);
+        }
+    };
 
     // --- Handlers ---
     const closeModal = () => {
@@ -758,23 +797,19 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                 )}
             </div>
 
-            <div className="card-footer" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+            <div className="card-footer" style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px'}}>
+    
+                {/* --- NEW WALK-IN BUTTON --- */}
+                <button onClick={() => setIsManualAddOpen(true)} className="btn btn-success btn-icon-label">
+                    ➕ Walk-in
+                </button>
+
                 <button onClick={fetchBarberAppointments} className="btn btn-primary btn-icon-label" disabled={loadingAppts} style={{position: 'relative'}}>
-                    {/* OLD: {loadingAppts ? <Spinner /> : '📅 Bookings'} */}
-                    {/* NEW: Static Text */}
                     📅 Bookings
                     {pendingApptCount > 0 && (
                         <span className="notification-badge" style={{
-                            position: 'absolute',
-                            top: '-8px',
-                            right: '-8px',
-                            background: '#ff3b30',
-                            color: 'white',
-                            borderRadius: '50%',
-                            padding: '2px 6px',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold',
-                            border: '2px solid var(--surface-color)'
+                            position: 'absolute', top: '-8px', right: '-8px', background: '#ff3b30', color: 'white',
+                            borderRadius: '50%', padding: '2px 6px', fontSize: '0.75rem', fontWeight: 'bold', border: '2px solid var(--surface-color)'
                         }}>
                             {pendingApptCount}
                         </span>
@@ -1110,6 +1145,49 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
                         <div className="modal-footer single-action">
                             <button onClick={() => setIsApptListOpen(false)} className="btn btn-secondary">Close</button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {isManualAddOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content modal-form">
+                        <form onSubmit={handleAddWalkIn}>
+                            <div className="modal-header">
+                                <h2>Add Walk-in Customer</h2>
+                            </div>
+                            <div className="modal-body">
+                                <p>This will manually add a customer to the bottom of your Waiting list.</p>
+                                <div className="form-group">
+                                    <label htmlFor="walkinName">Customer Name:</label>
+                                    <input
+                                        type="text"
+                                        id="walkinName"
+                                        value={manualCustomerName}
+                                        onChange={(e) => setManualCustomerName(e.target.value)}
+                                        placeholder="e.g., John Doe"
+                                        autoFocus
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    type="button" 
+                                    onClick={() => { setIsManualAddOpen(false); setManualCustomerName(''); }} 
+                                    className="btn btn-secondary"
+                                    disabled={isAddingWalkIn}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className="btn btn-primary"
+                                    disabled={isAddingWalkIn}
+                                >
+                                    {isAddingWalkIn ? 'Adding...' : 'Add to Queue'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
