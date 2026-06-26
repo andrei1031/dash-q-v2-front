@@ -850,8 +850,8 @@ export const CustomerView = ({ session }) => {
     }, [viewMode, session?.user?.id, fetchLoyaltyHistory]);
 
     useEffect(() => {
-        const BARBERSHOP_LAT = 16.413335408353596; // Update with real coords
-        const BARBERSHOP_LON = 120.63648441731617;
+        const BARBERSHOP_LAT = 16.40839505882394; // Update with real coords
+        const BARBERSHOP_LON = 120.59772533028749;
 
         // 1. Distance Thresholds
         const WARNING_DISTANCE = 20; // Meters to trigger "Too Far"
