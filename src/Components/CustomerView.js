@@ -9,7 +9,6 @@ import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
 import { MyReportsModal } from "./modals/MyReportsModal";
 import apiClient from "./http-commons";
-import React, { useState } from 'react';
 import http from '../http-commons'; // Assuming this is your axios instance
 
 export const CustomerView = ({ session }) => {
