@@ -9,6 +9,8 @@ import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
 import { MyReportsModal } from "./modals/MyReportsModal";
 import apiClient from "./http-commons";
+import React, { useState } from 'react';
+import http from '../http-commons'; // Assuming this is your axios instance
 
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
@@ -205,6 +207,59 @@ export const CustomerView = ({ session }) => {
 
         console.log("[handleReturnToJoin] State reset complete.");
     }, [myQueueEntryId, session]);
+
+    const handleCancel = async (id) => {
+        if(window.confirm("Are you sure you want to cancel this appointment?")) {
+            try {
+                await http.put(`/appointments/${id}/cancel`);
+                alert("Appointment canceled. Your barber has been notified.");
+                refreshAppointments(); // Re-fetch list
+            } catch (err) {
+                console.error("Error canceling appointment:", err);
+                alert("Failed to cancel the appointment.");
+            }
+        }
+    };
+
+    const handleEdit = async (id, newDate, newTime) => {
+        // In a real app, open a modal here to get newDate and newTime
+        try {
+            await http.put(`/appointments/${id}/edit`, {
+                date: newDate,
+                time: newTime
+            });
+            alert("Appointment updated. Your barber has been notified.");
+            refreshAppointments();
+        } catch (err) {
+            console.error("Error editing appointment:", err);
+            alert("Failed to edit the appointment.");
+        }
+    };
+
+    return (
+        <div className="customer-appointments">
+            <h3>My Appointments</h3>
+            {appointments.map(app => (
+                <div key={app.id} className={`appointment-card ${app.status === 'Canceled' ? 'canceled' : ''}`}>
+                    <p><strong>Date:</strong> {app.date}</p>
+                    <p><strong>Time:</strong> {app.time}</p>
+                    <p><strong>Status:</strong> {app.status}</p>
+                    
+                    {app.status !== 'Canceled' && (
+                        <div className="action-buttons">
+                            {/* Pass actual values via a state/modal in production */}
+                            <button onClick={() => handleEdit(app.id, '2026-07-01', '14:00')}>
+                                Edit
+                            </button>
+                            <button onClick={() => handleCancel(app.id)} className="btn-danger">
+                                Cancel
+                            </button>
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
 
     const fetchPublicQueue = useCallback(async (barberId) => {
         if (!barberId) {
@@ -850,8 +905,8 @@ export const CustomerView = ({ session }) => {
     }, [viewMode, session?.user?.id, fetchLoyaltyHistory]);
 
     useEffect(() => {
-        const BARBERSHOP_LAT = 16.40839505882394; // Update with real coords
-        const BARBERSHOP_LON = 120.59772533028749;
+        const BARBERSHOP_LAT = 16.413335408353596; // Update with real coords
+        const BARBERSHOP_LON = 120.63648441731617;
 
         // 1. Distance Thresholds
         const WARNING_DISTANCE = 20; // Meters to trigger "Too Far"
