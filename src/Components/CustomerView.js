@@ -142,7 +142,7 @@ export const CustomerView = ({ session }) => {
 
         if(window.confirm("Are you sure you want to cancel this appointment?")) {
             try {
-                await apiClient.put(`/appointments/${id}/cancel`);
+                await apiClient.put(`/appointments/cancel/${id}`);
                 alert("Appointment canceled.");
                 fetchMyAppointments(); 
             } catch (err) {
@@ -168,7 +168,7 @@ export const CustomerView = ({ session }) => {
         
         setIsLoading(true);
         try {
-            await apiClient.put(`/appointments/${editingAppointmentId}/edit`, {
+            await apiClient.put(`/appointments/edit/${editingAppointmentId}`, {
                 scheduled_time: editSlot,
                 service_id: editServiceId
             });
