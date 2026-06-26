@@ -9,7 +9,7 @@ import { ChatWindow } from "./ChatWindow";
 import { ReportModal } from "./modals/ReportModal";
 import { MyReportsModal } from "./modals/MyReportsModal";
 import apiClient from "./http-commons";
-import http from './http-commons';
+
 
 export const CustomerView = ({ session }) => {
     const [barbers, setBarbers] = useState([]);
@@ -97,6 +97,11 @@ export const CustomerView = ({ session }) => {
 
     const customerName = isGuest ? guestName : (session?.user?.user_metadata?.full_name || '');
     const customerEmail = isGuest ? guestEmail : (session?.user?.email || '');
+    const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+    const [editDate, setEditDate] = useState('');
+    const [editSlot, setEditSlot] = useState(null);
+    const [editServiceId, setEditServiceId] = useState('');
+    const [editAvailableSlots, setEditAvailableSlots] = useState([]);
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -110,6 +115,58 @@ export const CustomerView = ({ session }) => {
             setIsLoading(false);
         }
     }, [session]);
+
+
+    useEffect(() => {
+        if (editingAppointmentId && editDate && editServiceId) {
+            const appt = myAppointments.find(a => a.id === editingAppointmentId);
+            if (appt && appt.barber_id) {
+                setEditAvailableSlots([]); // Clear old slots
+                apiClient.get(`/appointments/slots`, {
+                    params: { barberId: appt.barber_id, serviceId: editServiceId, date: editDate }
+                })
+                .then(res => setEditAvailableSlots(res.data))
+                .catch(err => console.error("Failed to load edit slots", err));
+            }
+        }
+    }, [editingAppointmentId, editDate, editServiceId, myAppointments]);
+
+    // 3. Add the actual Edit/Cancel handlers
+    const handleCancelAppointment = async (id) => {
+        if(window.confirm("Are you sure you want to cancel this appointment?")) {
+            try {
+                await apiClient.put(`/appointments/${id}/cancel`);
+                alert("Appointment canceled.");
+                fetchMyAppointments(); // Refresh the list
+            } catch (err) {
+                console.error("Error canceling appointment:", err);
+                alert("Failed to cancel the appointment.");
+            }
+        }
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        if (!editSlot || !editServiceId) {
+            alert('Please select a service and time slot.');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            await apiClient.put(`/appointments/${editingAppointmentId}/edit`, {
+                scheduled_time: editSlot,
+                service_id: editServiceId
+            });
+            alert("Appointment rescheduled successfully!");
+            setEditingAppointmentId(null);
+            fetchMyAppointments(); // Refresh the list
+        } catch (err) {
+            console.error("Error updating appointment:", err);
+            alert("Failed to update appointment.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const fetchLoyaltyHistory = useCallback(async (userId) => {
         if (!userId) return;
@@ -206,59 +263,6 @@ export const CustomerView = ({ session }) => {
 
         console.log("[handleReturnToJoin] State reset complete.");
     }, [myQueueEntryId, session]);
-
-    const handleCancel = async (id) => {
-        if(window.confirm("Are you sure you want to cancel this appointment?")) {
-            try {
-                await http.put(`/appointments/${id}/cancel`);
-                alert("Appointment canceled. Your barber has been notified.");
-                refreshAppointments(); // Re-fetch list
-            } catch (err) {
-                console.error("Error canceling appointment:", err);
-                alert("Failed to cancel the appointment.");
-            }
-        }
-    };
-
-    const handleEdit = async (id, newDate, newTime) => {
-        // In a real app, open a modal here to get newDate and newTime
-        try {
-            await http.put(`/appointments/${id}/edit`, {
-                date: newDate,
-                time: newTime
-            });
-            alert("Appointment updated. Your barber has been notified.");
-            refreshAppointments();
-        } catch (err) {
-            console.error("Error editing appointment:", err);
-            alert("Failed to edit the appointment.");
-        }
-    };
-
-    return (
-        <div className="customer-appointments">
-            <h3>My Appointments</h3>
-            {appointments.map(app => (
-                <div key={app.id} className={`appointment-card ${app.status === 'Canceled' ? 'canceled' : ''}`}>
-                    <p><strong>Date:</strong> {app.date}</p>
-                    <p><strong>Time:</strong> {app.time}</p>
-                    <p><strong>Status:</strong> {app.status}</p>
-                    
-                    {app.status !== 'Canceled' && (
-                        <div className="action-buttons">
-                            {/* Pass actual values via a state/modal in production */}
-                            <button onClick={() => handleEdit(app.id, '2026-07-01', '14:00')}>
-                                Edit
-                            </button>
-                            <button onClick={() => handleCancel(app.id)} className="btn-danger">
-                                Cancel
-                            </button>
-                        </div>
-                    )}
-                </div>
-            ))}
-        </div>
-    );
 
     const fetchPublicQueue = useCallback(async (barberId) => {
         if (!barberId) {
@@ -2466,6 +2470,84 @@ export const CustomerView = ({ session }) => {
                                         <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                             Barber: <strong>{appt.barber_profiles?.full_name || 'Any'}</strong>
                                         </div>
+                                        {/* Action Buttons (Only show if pending or confirmed and not converted to queue) */}
+                                        {(appt.status === 'pending' || appt.status === 'confirmed') && !appt.is_converted_to_queue && editingAppointmentId !== appt.id && (
+                                            <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                                                <button 
+                                                    className="btn btn-secondary" 
+                                                    style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                                                    onClick={() => {
+                                                        setEditingAppointmentId(appt.id);
+                                                        setEditServiceId(appt.service_id);
+                                                        setEditDate(appt.scheduled_time.split('T')[0]);
+                                                        setEditSlot(appt.scheduled_time);
+                                                    }}
+                                                >
+                                                    Reschedule
+                                                </button>
+                                                <button 
+                                                    className="btn btn-danger" 
+                                                    style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                                                    onClick={() => handleCancelAppointment(appt.id)}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Inline Edit Form */}
+                                        {editingAppointmentId === appt.id && (
+                                            <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                                <h4 style={{ margin: '0 0 10px 0' }}>Reschedule Appointment</h4>
+                                                
+                                                <div className="form-group" style={{ marginBottom: '10px' }}>
+                                                    <label>New Date:</label>
+                                                    <input 
+                                                        type="date" 
+                                                        value={editDate} 
+                                                        min={getTomorrowDate()} 
+                                                        onChange={(e) => setEditDate(e.target.value)} 
+                                                    />
+                                                </div>
+
+                                                <div className="form-group" style={{ marginBottom: '10px' }}>
+                                                    <label>Service:</label>
+                                                    <select value={editServiceId} onChange={(e) => setEditServiceId(e.target.value)}>
+                                                        {services.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="form-group">
+                                                    <label>Available Times:</label>
+                                                    <div className="slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px', marginTop: '10px' }}>
+                                                        {editAvailableSlots.length > 0 ? editAvailableSlots.map(slot => (
+                                                            <button
+                                                                type="button"
+                                                                key={slot}
+                                                                className={`btn ${editSlot === slot ? 'btn-primary' : 'btn-secondary'}`}
+                                                                onClick={() => setEditSlot(slot)}
+                                                                style={{ fontSize: '0.8rem', padding: '8px' }}
+                                                            >
+                                                                {new Date(slot).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                                                            </button>
+                                                        )) : (
+                                                            <p className="small" style={{ gridColumn: '1/-1' }}>Select a date to see available slots.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                                                    <button className="btn btn-primary" onClick={handleEditSubmit} disabled={isLoading || !editSlot}>
+                                                        {isLoading ? 'Saving...' : 'Save Changes'}
+                                                    </button>
+                                                    <button className="btn btn-secondary" onClick={() => setEditingAppointmentId(null)}>
+                                                        Discard
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {appt.is_converted_to_queue && (
                                             <small style={{ color: 'var(--link-color)', marginTop: '5px' }}>

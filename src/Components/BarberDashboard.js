@@ -15,7 +15,6 @@ import {
 import { playSound } from "./helpers/utils";
 import { messageNotificationSound } from "../App";
 import apiClient from "./http-commons";
-import http from './http-commons';
 
 export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, onQueueUpdate }) => {
 
@@ -80,51 +79,6 @@ export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, 
             alert("Failed to cancel appointment.");
         }
     };
-
-    const [appointments, setAppointments] = useState([]);
-
-    useEffect(() => {
-        fetchAppointments();
-    }, []);
-
-    const fetchAppointments = async () => {
-        try {
-            const response = await http.get('/appointments/barber');
-            setAppointments(response.data);
-        } catch (error) {
-            console.error('Error fetching appointments', error);
-        }
-    };
-
-    return (
-        <div className="barber-dashboard">
-            <h2>Today's Appointments</h2>
-            <div className="appointment-list">
-                {appointments.map(app => (
-                    <div 
-                        key={app.id} 
-                        className={`dashboard-card ${app.status === 'Canceled' ? 'bg-red-100 border-red-500' : ''} ${app.status === 'Rescheduled' ? 'bg-yellow-100 border-yellow-500' : ''}`}
-                    >
-                        <h4>Client: {app.customer_name}</h4>
-                        <p>Time: {app.time}</p>
-                        
-                        {/* Status Badges */}
-                        {app.status === 'Canceled' && (
-                            <span className="badge canceled-badge text-red-700 font-bold">
-                                ⚠️ CANCELED BY CUSTOMER
-                            </span>
-                        )}
-                        {app.status === 'Rescheduled' && (
-                            <span className="badge edited-badge text-yellow-700 font-bold">
-                                🔄 EDITED BY CUSTOMER
-                            </span>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
     const handleLoyaltyCheck = async (customer) => {
         if (!customer.customer_email) {
             setModalState({ 
