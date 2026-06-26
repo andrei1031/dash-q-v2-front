@@ -137,10 +137,11 @@ export const CustomerView = ({ session }) => {
             try {
                 await apiClient.put(`/appointments/${id}/cancel`);
                 alert("Appointment canceled.");
-                fetchMyAppointments(); // Refresh the list
+                fetchMyAppointments(); 
             } catch (err) {
-                console.error("Error canceling appointment:", err);
-                alert("Failed to cancel the appointment.");
+                const errorMsg = err.response?.data?.error || err.message;
+                console.error("Error canceling:", errorMsg);
+                alert(`Failed to cancel: ${errorMsg}`); // Now tells you exactly WHY it failed
             }
         }
     };
@@ -159,10 +160,11 @@ export const CustomerView = ({ session }) => {
             });
             alert("Appointment rescheduled successfully!");
             setEditingAppointmentId(null);
-            fetchMyAppointments(); // Refresh the list
+            fetchMyAppointments(); 
         } catch (err) {
-            console.error("Error updating appointment:", err);
-            alert("Failed to update appointment.");
+            const errorMsg = err.response?.data?.error || err.message;
+            console.error("Error updating:", errorMsg);
+            alert(`Failed to update: ${errorMsg}`); // Now tells you exactly WHY it failed
         } finally {
             setIsLoading(false);
         }
