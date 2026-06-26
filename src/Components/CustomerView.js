@@ -133,6 +133,13 @@ export const CustomerView = ({ session }) => {
 
     // 3. Add the actual Edit/Cancel handlers
     const handleCancelAppointment = async (id) => {
+        console.log("Attempting to cancel ID:", id); // Check your browser console for this!
+        
+        if (!id) {
+            alert("Error: The Appointment ID is missing!");
+            return;
+        }
+
         if(window.confirm("Are you sure you want to cancel this appointment?")) {
             try {
                 await apiClient.put(`/appointments/${id}/cancel`);
@@ -140,18 +147,25 @@ export const CustomerView = ({ session }) => {
                 fetchMyAppointments(); 
             } catch (err) {
                 const errorMsg = err.response?.data?.error || err.message;
-                console.error("Error canceling:", errorMsg);
-                alert(`Failed to cancel: ${errorMsg}`); // Now tells you exactly WHY it failed
+                console.error("Cancel Error Details:", err.response);
+                alert(`Failed to cancel: ${errorMsg}`); 
             }
         }
     };
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
+        console.log("Attempting to edit ID:", editingAppointmentId);
+        
+        if (!editingAppointmentId) {
+            alert("Error: The Appointment ID is missing!");
+            return;
+        }
         if (!editSlot || !editServiceId) {
             alert('Please select a service and time slot.');
             return;
         }
+        
         setIsLoading(true);
         try {
             await apiClient.put(`/appointments/${editingAppointmentId}/edit`, {
@@ -163,8 +177,8 @@ export const CustomerView = ({ session }) => {
             fetchMyAppointments(); 
         } catch (err) {
             const errorMsg = err.response?.data?.error || err.message;
-            console.error("Error updating:", errorMsg);
-            alert(`Failed to update: ${errorMsg}`); // Now tells you exactly WHY it failed
+            console.error("Edit Error Details:", err.response);
+            alert(`Failed to update: ${errorMsg}`); 
         } finally {
             setIsLoading(false);
         }
