@@ -15,7 +15,7 @@ import {
 import { playSound } from "./helpers/utils";
 import { messageNotificationSound } from "../App";
 import apiClient from "./http-commons";
-import http from '../http-commons';
+import http from './http-commons';
 
 export const BarberDashboard = ({ barberId, barberName, onCutComplete, session, onQueueUpdate }) => {
 
