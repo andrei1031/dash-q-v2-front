@@ -1041,8 +1041,16 @@ export const CustomerView = ({ session }) => {
     useEffect(() => {
         const loadBarbers = async () => {
             try {
-                const response = await apiClient.get(`/barbers`);
-                setBarbers(response.data || []);
+                // Query Supabase directly to bypass any live queue offline filters
+                const { data, error } = await supabase
+                    .from('barber_profiles')
+                    .select('*')
+                    .eq('is_booking_enabled', true); // Only get barbers allowed by admin
+
+                if (error) throw error;
+                
+                console.log("[DEBUG] Bookable Barbers fetched successfully:", data);
+                setBarbers(data || []);
             } catch (error) {
                 console.error('Failed fetch available barbers:', error);
                 setMessage('Could not load barbers.');
@@ -1052,11 +1060,11 @@ export const CustomerView = ({ session }) => {
 
         loadBarbers();
 
-        // Refresh barber list every 30 seconds to catch status/rating changes
+        // Refresh barber list every 30 seconds to catch status changes
         const interval = setInterval(loadBarbers, 30000);
 
         return () => clearInterval(interval);
-    }, []); //
+    }, []);
 
     // Find this useEffect (around line 1073)
     useEffect(() => {
@@ -1871,7 +1879,7 @@ export const CustomerView = ({ session }) => {
                                 <select value={selectedBarberId} onChange={(e) => setSelectedBarberId(e.target.value)} required>
                                     <option value="">-- Choose Barber --</option>
                                     {barbers.map(b => (
-                                        <option key={b.id} value={b.id}>{b.full_name}</option>
+                                        <option key={b.id} value={b.id}>{b.name}</option>
                                     ))}
                                 </select>
                             </div>
