@@ -10,12 +10,10 @@ export const StaffManagement = () => {
     const fetchStaffList = async () => {
         setIsLoading(true);
         try {
-            // Fetch directly from barber_profile. 
-            // If name/email are in a linked 'profiles' table, this syntax grabs them too.
-            // If name/email are actually columns right inside barber_profile, just use .select('*')
             const { data, error } = await supabase
-            .from('barber_profiles')
-            .select('*');
+                .from('barber_profiles')
+                .select('*')
+                .order('id', { ascending: true }); // Keeps the list stable when updating
 
             if (error) throw error;
             setStaffList(data || []);
@@ -52,12 +50,34 @@ export const StaffManagement = () => {
 
             // 3. Show the success banner
             setMessage(`Barber successfully ${actionText}d!`);
-            
-            // You can remove fetchStaffList() from here since we updated it locally!
+            setTimeout(() => setMessage(''), 3000); // Clears message automatically
         } catch (err) {
             const serverError = err.response?.data?.error || err.message || "Unknown error";
             console.error("Toggle Failed Details:", err.response?.data || err);
             setMessage(`Error: ${serverError}`);
+        }
+    };
+
+    // 🟢 MOVED THIS ABOVE THE RETURN STATEMENT 🟢
+    const handleToggleBooking = async (barberId, currentStatus) => {
+        const newState = !currentStatus;
+        try {
+            await apiClient.put(`/admin/barber/booking-status`, {
+                barberId: barberId,
+                is_booking_enabled: newState
+            });
+            
+            // Update UI locally
+            setStaffList(prevList => 
+                prevList.map(barber => 
+                    barber.id === barberId ? { ...barber, is_booking_enabled: newState } : barber
+                )
+            );
+            setMessage(`Booking is now ${newState ? 'ENABLED' : 'DISABLED'} for this barber.`);
+            setTimeout(() => setMessage(''), 3000); // Clears message automatically
+        } catch (err) {
+            console.error("Failed to toggle booking status", err);
+            setMessage("Failed to update appointment status.");
         }
     };
 
@@ -89,6 +109,8 @@ export const StaffManagement = () => {
                             <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                                 <th style={{ padding: '10px', textAlign: 'left' }}>Name</th>
                                 <th style={{ padding: '10px', textAlign: 'center' }}>Queue Status</th>
+                                {/* 🟢 Added missing header for Bookings 🟢 */}
+                                <th style={{ padding: '10px', textAlign: 'center' }}>Appointments</th>
                                 <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
@@ -99,18 +121,16 @@ export const StaffManagement = () => {
                                         <strong>{barber.full_name || 'Unnamed Barber'}</strong>
                                     </td>
                                     <td style={{ padding: '10px', textAlign: 'center' }}>
-                                        {/* 1. Existing Active Status */}
                                         <span style={{ fontSize: '0.85rem', color: barber.is_active ? 'var(--success-color)' : 'var(--error-color)' }}>
                                             {barber.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     
-                                    {/* 2. NEW: Appointment Toggle Column */}
                                     <td style={{ padding: '10px', textAlign: 'center' }}>
                                         <label style={{ cursor: 'pointer', fontSize: '0.85rem' }}>
                                             <input 
                                                 type="checkbox" 
-                                                checked={barber.is_booking_enabled ?? true} // Default true if null
+                                                checked={barber.is_booking_enabled ?? true} 
                                                 onChange={() => handleToggleBooking(barber.id, barber.is_booking_enabled ?? true)}
                                             />
                                             &nbsp;Bookable
@@ -134,24 +154,4 @@ export const StaffManagement = () => {
             </div>
         </div>
     );
-        const handleToggleBooking = async (barberId, currentStatus) => {
-        const newState = !currentStatus;
-        try {
-            await apiClient.put(`/admin/barber/booking-status`, {
-                barberId: barberId,
-                is_booking_enabled: newState
-            });
-            
-            // Update UI locally
-            setStaffList(prevList => 
-                prevList.map(barber => 
-                    barber.id === barberId ? { ...barber, is_booking_enabled: newState } : barber
-                )
-            );
-            setMessage(`Booking is now ${newState ? 'ENABLED' : 'DISABLED'} for this barber.`);
-        } catch (err) {
-            console.error("Failed to toggle booking status", err);
-            setMessage("Failed to update appointment status.");
-        }
-    };
 };
