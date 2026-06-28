@@ -1769,7 +1769,7 @@ export const CustomerView = ({ session }) => {
                                     <label>Service Priority:</label>
                                     <div className="priority-toggle-control">
                                         <button type="button" className={`priority-option ${!isVIPToggled ? 'active' : ''}`} onClick={() => setIsVIPToggled(false)}>No Priority</button>
-                                        <button type="button" className={`priority-option ${isVIPToggled ? 'active vip' : ''}`} onClick={() => handleVIPToggle({ target: { checked: true } })} disabled={isVIPToggled}>VIP Priority (+₱{vipPrice})</button>
+                                        <button type="button" className={`priority-option ${isVIPToggled ? 'active vip' : ''}`} onClick={() => handleVIPToggle({ target: { checked: true } })} disabled={isVIPToggled}>VIP Priority (+₱{vipPrice}) per pax</button>
                                     </div>
                                     {isVIPToggled && (<p className="success-message small">VIP Priority is active. You will be placed Up Next.</p>)}
                                 </div>
