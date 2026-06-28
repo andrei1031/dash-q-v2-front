@@ -102,7 +102,8 @@ export const CustomerView = ({ session }) => {
     const [editSlot, setEditSlot] = useState(null);
     const [editServiceId, setEditServiceId] = useState('');
     const [editAvailableSlots, setEditAvailableSlots] = useState([]);
-    const [groupSize, setGroupSize] = useState(1);
+    const [queueBarbers, setQueueBarbers] = useState([]);      // For "Join Queue"
+    const [appointmentBarbers, setAppointmentBarbers] = useState([]);
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -1081,10 +1082,31 @@ export const CustomerView = ({ session }) => {
                 // RE-FETCH BARBER LIST ON TAB FOCUS
                 const loadBarbers = async () => {
                     try {
-                        const response = await apiClient.get(`/barbers`);
-                        setBarbers(response.data || []);
-                    } catch (e) { console.error("Focus re-sync failed", e); }
-                };
+                        const { data, error } = await supabase
+                            .from('barber_profiles')
+                            .select('*');
+
+                        if (error) throw error;
+                        
+                        console.log("[DEBUG] All Barbers fetched:", data);
+
+                        // Populate both lists
+                        // 1. Walk-ins: Require active AND available
+                        setQueueBarbers(data.filter(b => b.is_active && b.is_available));
+                        
+                        // 2. Appointments: Require booking_enabled
+                        setAppointmentBarbers(data.filter(b => b.is_booking_enabled === true));
+                        
+                        // 3. Keep 'barbers' state for legacy components if needed, 
+                        // but it's cleaner to use the specific lists
+                        setBarbers(data || []); 
+                    } catch (error) {
+                        console.error('Failed fetch barbers:', error);
+                        setBarbers([]);
+                        setQueueBarbers([]);
+                        setAppointmentBarbers([]);
+                    }
+                }; 
                 loadBarbers();
 
                 // Existing queue re-fetch logic
@@ -1802,20 +1824,20 @@ export const CustomerView = ({ session }) => {
                             {/* Barber Selection */}
                             <div className="form-group">
                                 <label>Select Available Barber:</label>
-                                {barbers.length > 0 ? (
+                                {queueBarbers.length > 0 ? (
                                     <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
-                                        {barbers.map((barber) => (
+                                        {queueBarbers.map((barber) => (
                                             <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())} style={{ transition: 'all 0.2s ease', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                                                 <span className="barber-name">{barber.full_name}</span>
                                                 <div className="barber-rating">
                                                     <span className="star-icon">⭐</span>
-                                                    <span className="score-text">{parseFloat(barber.average_score).toFixed(1)}</span>
-                                                    <span className="review-count">({barber.review_count})</span>
+                                                    <span className="score-text">{parseFloat(barber.average_score || 0).toFixed(1)}</span>
+                                                    <span className="review-count">({barber.review_count || 0})</span>
                                                 </div>
                                             </button>
                                         ))}
                                     </div>
-                                ) : (<p className="empty-text">No barbers are available right now.</p>)}
+                                ) : (<p className="empty-text">No barbers are available for walk-ins right now.</p>)}
                                 <input type="hidden" value={selectedBarberId} required />
                             </div>
 
@@ -1878,8 +1900,8 @@ export const CustomerView = ({ session }) => {
                                 <label>Select Barber:</label>
                                 <select value={selectedBarberId} onChange={(e) => setSelectedBarberId(e.target.value)} required>
                                     <option value="">-- Choose Barber --</option>
-                                    {barbers.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                    {appointmentBarbers.map(b => (
+                                        <option key={b.id} value={b.id}>{b.full_name}</option>
                                     ))}
                                 </select>
                             </div>
