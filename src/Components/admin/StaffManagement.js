@@ -96,20 +96,27 @@ export const StaffManagement = () => {
                             {staffList.map((barber) => (
                                 <tr key={barber.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                     <td style={{ padding: '10px' }}>
-                                        {/* Adjust this depending on where the name lives in your schema */}
-                                        <strong>{barber.full_name || barber.profiles?.full_name || 'Unnamed Barber'}</strong>
+                                        <strong>{barber.full_name || 'Unnamed Barber'}</strong>
                                     </td>
                                     <td style={{ padding: '10px', textAlign: 'center' }}>
-                                        <span style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
-                                            fontSize: '0.85rem',
-                                            background: barber.is_active ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)',
-                                            color: barber.is_active ? 'var(--success-color)' : 'var(--error-color)'
-                                        }}>
+                                        {/* 1. Existing Active Status */}
+                                        <span style={{ fontSize: '0.85rem', color: barber.is_active ? 'var(--success-color)' : 'var(--error-color)' }}>
                                             {barber.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
+                                    
+                                    {/* 2. NEW: Appointment Toggle Column */}
+                                    <td style={{ padding: '10px', textAlign: 'center' }}>
+                                        <label style={{ cursor: 'pointer', fontSize: '0.85rem' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={barber.is_booking_enabled ?? true} // Default true if null
+                                                onChange={() => handleToggleBooking(barber.id, barber.is_booking_enabled ?? true)}
+                                            />
+                                            &nbsp;Bookable
+                                        </label>
+                                    </td>
+
                                     <td style={{ padding: '10px', textAlign: 'right' }}>
                                         <button
                                             onClick={() => handleToggleStatus(barber.id, barber.is_active)}
@@ -127,4 +134,24 @@ export const StaffManagement = () => {
             </div>
         </div>
     );
+        const handleToggleBooking = async (barberId, currentStatus) => {
+        const newState = !currentStatus;
+        try {
+            await apiClient.put(`/admin/barber/booking-status`, {
+                barberId: barberId,
+                is_booking_enabled: newState
+            });
+            
+            // Update UI locally
+            setStaffList(prevList => 
+                prevList.map(barber => 
+                    barber.id === barberId ? { ...barber, is_booking_enabled: newState } : barber
+                )
+            );
+            setMessage(`Booking is now ${newState ? 'ENABLED' : 'DISABLED'} for this barber.`);
+        } catch (err) {
+            console.error("Failed to toggle booking status", err);
+            setMessage("Failed to update appointment status.");
+        }
+    };
 };
