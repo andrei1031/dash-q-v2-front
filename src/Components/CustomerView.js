@@ -1042,23 +1042,14 @@ export const CustomerView = ({ session }) => {
     useEffect(() => {
         const loadBarbers = async () => {
             try {
-                // Query Supabase directly to bypass any live queue offline filters
-                const { data, error } = await supabase
-                    .from('barber_profiles')
-                    .select('*')
-                    .eq('is_booking_enabled', true); // Only get barbers allowed by admin
-
-                if (error) throw error;
-                
-                console.log("[DEBUG] Bookable Barbers fetched successfully:", data);
-                setBarbers(data || []);
+                const response = await apiClient.get(`/barbers`);
+                setBarbers(response.data || []);
             } catch (error) {
                 console.error('Failed fetch available barbers:', error);
                 setMessage('Could not load barbers.');
                 setBarbers([]);
             }
         };
-
         loadBarbers();
 
         // Refresh barber list every 30 seconds to catch status changes
@@ -1090,23 +1081,22 @@ export const CustomerView = ({ session }) => {
                         
                         console.log("[DEBUG] All Barbers fetched:", data);
 
-                        // Populate both lists
-                        // 1. Walk-ins: Require active AND available
-                        setQueueBarbers(data.filter(b => b.is_active && b.is_available));
+                        // 1. Walk-in Rule: Active AND Available
+                        const walkInList = data.filter(b => b.is_active === true && b.is_available === true);
+                        setQueueBarbers(walkInList);
                         
-                        // 2. Appointments: Require booking_enabled
-                        setAppointmentBarbers(data.filter(b => b.is_booking_enabled === true));
+                        // 2. Appointment Rule: Booking Enabled ONLY
+                        const appointmentList = data.filter(b => b.is_booking_enabled === true);
+                        setAppointmentBarbers(appointmentList);
                         
-                        // 3. Keep 'barbers' state for legacy components if needed, 
-                        // but it's cleaner to use the specific lists
+                        // This keeps your dropdowns populated
                         setBarbers(data || []); 
                     } catch (error) {
                         console.error('Failed fetch barbers:', error);
-                        setBarbers([]);
                         setQueueBarbers([]);
                         setAppointmentBarbers([]);
                     }
-                }; 
+                };
                 loadBarbers();
 
                 // Existing queue re-fetch logic
@@ -1827,18 +1817,23 @@ export const CustomerView = ({ session }) => {
                                 {queueBarbers.length > 0 ? (
                                     <div className="barber-selection-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
                                         {queueBarbers.map((barber) => (
-                                            <button type="button" key={barber.id} className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} onClick={() => setSelectedBarberId(barber.id.toString())} style={{ transition: 'all 0.2s ease', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                                            <button 
+                                                type="button" 
+                                                key={barber.id} 
+                                                className={`barber-card ${selectedBarberId === barber.id.toString() ? 'selected' : ''}`} 
+                                                onClick={() => setSelectedBarberId(barber.id.toString())}
+                                            >
                                                 <span className="barber-name">{barber.full_name}</span>
                                                 <div className="barber-rating">
                                                     <span className="star-icon">⭐</span>
                                                     <span className="score-text">{parseFloat(barber.average_score || 0).toFixed(1)}</span>
-                                                    <span className="review-count">({barber.review_count || 0})</span>
                                                 </div>
                                             </button>
                                         ))}
                                     </div>
-                                ) : (<p className="empty-text">No barbers are available for walk-ins right now.</p>)}
-                                <input type="hidden" value={selectedBarberId} required />
+                                ) : (
+                                    <p className="empty-text">No barbers are available for walk-ins right now.</p>
+                                )}
                             </div>
 
                             {/* Feedback List */}
