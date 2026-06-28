@@ -102,6 +102,7 @@ export const CustomerView = ({ session }) => {
     const [editSlot, setEditSlot] = useState(null);
     const [editServiceId, setEditServiceId] = useState('');
     const [editAvailableSlots, setEditAvailableSlots] = useState([]);
+    const [groupSize, setGroupSize] = useState(1);
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -1961,6 +1962,25 @@ export const CustomerView = ({ session }) => {
             {/* B. LIVE QUEUE VIEW (SHOWS WHEN IN JOIN MODE AND IN QUEUE) */}
             {viewMode === 'join' && myQueueEntryId && (
                 <div className="live-queue-view card-body">
+                    <div className="queue-action-bar" style={{ 
+                        marginBottom: '20px', 
+                        padding: '10px', 
+                        background: 'rgba(255, 59, 48, 0.05)', 
+                        borderRadius: '8px',
+                        border: '1px solid var(--error-color)'
+                    }}>
+                        <button
+                            onClick={() => {
+                                if (window.confirm("Are you sure? You will lose your spot in line!")) {
+                                    handleReturnToJoin(true);
+                                }
+                            }}
+                            disabled={isLoading}
+                            className='btn btn-danger btn-full-width'
+                        >
+                            {isLoading ? 'Leaving...' : 'Leave Queue'}
+                        </button>
+                    </div>
                     {/* --- YOUR LIVE QUEUE CONTENT GOES HERE --- */}
                     {myQueueEntry?.status === 'In Progress' && (<div className="status-banner in-progress-banner"><h2><IconCheck /> It's Your Turn!</h2><p>The barber is calling you now.</p></div>)}
                     {myQueueEntry?.status === 'Up Next' && (
@@ -2242,20 +2262,6 @@ export const CustomerView = ({ session }) => {
                                 </div>
                             )}
                         </div>
-                    </div>
-                    <div className="danger-zone">
-                        <button
-                            onClick={() => {
-                                // CONFIRMATION DIALOG ADDED HERE
-                                if (window.confirm("Are you sure? You will lose your spot in line and have to start over!")) {
-                                    handleReturnToJoin(true);
-                                }
-                            }}
-                            disabled={isLoading}
-                            className='btn btn-danger btn-full-width'
-                        >
-                            {isLoading ? 'Leaving...' : 'Leave Queue / Join Another'}
-                        </button>
                     </div>
                 </div>
             )}
