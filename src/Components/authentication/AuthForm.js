@@ -462,7 +462,7 @@ export const AuthForm = ({ onGuestLogin, initialRole }) => {
                             {loading ? 'Please wait...' : (authView === 'login' ? 'Login' : 'Sign Up')}
                         </button>
                         {/* --- GUEST MODE SECTION (Only in Login View & Customer Role) --- */}
-                        {authView === 'login' && selectedRole === 'customer' && (
+                        {(authView === 'login' || authView === 'signup') && selectedRole === 'customer' && (
                             <div style={{marginTop: '20px', paddingTop: '15px', borderTop: '1px solid var(--border-color)', textAlign: 'center'}}>
                                 <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '10px'}}>Just visiting for today?</p>
                                 <button 
