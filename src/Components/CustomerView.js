@@ -1042,14 +1042,32 @@ export const CustomerView = ({ session }) => {
     useEffect(() => {
         const loadBarbers = async () => {
             try {
-                const response = await apiClient.get(`/barbers`);
-                setBarbers(response.data || []);
+                // Fetch ALL barbers directly from Supabase
+                const { data, error } = await supabase
+                    .from('barber_profiles')
+                    .select('*');
+
+                if (error) throw error;
+                
+                console.log("[DEBUG] Initial Load Barbers:", data);
+
+                // 1. Walk-ins: Require active AND available
+                setQueueBarbers(data.filter(b => b.is_active === true && b.is_available === true));
+                
+                // 2. Appointments: Require booking_enabled
+                setAppointmentBarbers(data.filter(b => b.is_booking_enabled === true));
+                
+                // 3. Fallback state
+                setBarbers(data || []);
             } catch (error) {
                 console.error('Failed fetch available barbers:', error);
                 setMessage('Could not load barbers.');
                 setBarbers([]);
+                setQueueBarbers([]);
+                setAppointmentBarbers([]);
             }
         };
+
         loadBarbers();
 
         // Refresh barber list every 30 seconds to catch status changes
