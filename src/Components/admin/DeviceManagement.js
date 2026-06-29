@@ -106,18 +106,24 @@ export const DeviceManagement = ({ session }) => {
     };
 
     const handleBlockDevice = async (e) => {
-        e.preventDefault();
+        // If it's called from a form, e will be an event. 
+        // If it's called manually, e will be the fingerprint string.
+        e?.preventDefault?.(); 
         
-        if (!blockReason.trim()) {
+        // Determine the fingerprint and reason
+        const fingerprint = typeof e === 'string' ? e : blockingDevice.deviceFingerprint;
+        const reason = blockReason || "Manual block";
+
+        if (!reason.trim()) {
             setMessage("Please provide a reason for blocking.");
             return;
         }
 
         try {
             await axios.post(`${API_URL}/admin/block-device`, {
-                adminUserId: session.user.id, // 🟢 MUST INCLUDE THIS
-                deviceFingerprint: blockingDevice.deviceFingerprint,
-                reason: blockReason
+                adminUserId: session.user.id, // 🟢 REQUIRED
+                deviceFingerprint: fingerprint,
+                reason: reason
             });
             
             setMessage("Device blocked successfully!");
@@ -375,6 +381,7 @@ export const DeviceManagement = ({ session }) => {
                                                             setBlockReason(device.reason);
                                                             setShowBlockModal(true);
                                                         }}
+                                                        onClick={() => handleBlockDevice(device.device_fingerprint, device.reason)}
                                                         className="btn btn-primary"
                                                         style={{ fontSize: '0.85rem', padding: '6px 12px' }}
                                                     >
