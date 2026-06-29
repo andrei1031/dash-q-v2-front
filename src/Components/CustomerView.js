@@ -105,8 +105,7 @@ export const CustomerView = ({ session }) => {
     const [queueBarbers, setQueueBarbers] = useState([]);      // For "Join Queue"
     const [appointmentBarbers, setAppointmentBarbers] = useState([]);
     const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
-    const [appealEmail, setAppealEmail] = useState('');
-    const [appealReason, setAppealReason] = useState('');
+    const [queueMessage, setQueueMessage] = useState("");
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -664,15 +663,14 @@ export const CustomerView = ({ session }) => {
             } else {
                 // 🟢 Directly show the backend error message (which now includes the BAN notice)
                 setMessage(errorMessage);
-                
-                // If blocked, clear local storage so they can't try to auto-reconnect
+    
                 if (errorMessage.includes("BLOCKED")) {
                     localStorage.removeItem('myQueueEntryId');
                     localStorage.removeItem('joinedBarberId');
                     
-                    // Add a button to open an appeal modal
+                    // This sets the HTML/Button for the appeal
                     setQueueMessage(
-                        <div style={{ marginTop: '10px' }}>
+                        <div style={{ marginTop: '10px', textAlign: 'center' }}>
                             <button 
                                 className="btn btn-secondary" 
                                 onClick={() => setIsAppealModalOpen(true)}
@@ -681,6 +679,8 @@ export const CustomerView = ({ session }) => {
                             </button>
                         </div>
                     );
+                } else {
+                    setQueueMessage(""); // Clear it if not blocked
                 }
             }
         } finally {
@@ -1804,7 +1804,7 @@ export const CustomerView = ({ session }) => {
                             📅 Book Appointment
                         </button>}
                     </div>
-
+                    {queueMessage && <div>{queueMessage}</div>}
                     {/* 2. SHARED INPUTS (Name, Email) */}
                     <div className="form-group">
                         <label>Your Name:</label>
