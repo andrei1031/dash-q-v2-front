@@ -537,7 +537,7 @@ export const CustomerView = ({ session }) => {
             const statusRes = await apiClient.get(`/barbers`);
             const currentBarber = statusRes.data.find(b => b.id.toString() === selectedBarberId.toString());
 
-            console.log("[DEBUG] Pre-check Barber:", currentBarber); // Check your console to see these values!
+            console.log("[DEBUG] Pre-check Barber:", currentBarber);
 
             if (!currentBarber || currentBarber.is_active === false || currentBarber.is_available === false) {
                 console.warn("[JoinQueue] Blocked: Barber state is", { 
@@ -585,6 +585,8 @@ export const CustomerView = ({ session }) => {
                 deviceFingerprint: deviceFingerprint || null
             };
 
+            // --- 🟢 STRIKE SYSTEM LOGIC STARTS HERE 🟢 ---
+            
             // Try guest endpoint first, fallback to regular queue
             let endpoint = isGuestUser ? `/guest/join` : `/queue`;
 
@@ -594,16 +596,28 @@ export const CustomerView = ({ session }) => {
             try {
                 response = await apiClient.post(endpoint, requestData);
                 newEntry = response.data.data || response.data;
+                
+                // Fire a browser alert if the backend sends a Strike 2 Warning
+                if (response.data.warning) {
+                    alert(response.data.warning);
+                }
+
             } catch (initialError) {
                 // If guest endpoint returns 404, try regular queue as fallback
                 if (isGuestUser && initialError.response && initialError.response.status === 404) {
                     endpoint = `/queue`;
                     response = await apiClient.post(endpoint, requestData);
-                    newEntry = response.data;
+                    newEntry = response.data.data || response.data; // Capture data properly here too
+                    
+                    if (response.data.warning) {
+                        alert(response.data.warning);
+                    }
                 } else {
                     throw initialError;
                 }
             }
+
+            // --- 🟢 END OF NEW LOGIC 🟢 ---
 
             if (newEntry && newEntry.id) {
                 localStorage.setItem('myQueueEntryId', newEntry.id.toString());
@@ -645,7 +659,14 @@ export const CustomerView = ({ session }) => {
                     setMessage(`Error: ${errorMsg}`);
                 }
             } else {
-                setMessage(errorMessage.includes('unavailable') ? errorMessage : 'Failed to join. Try again.');
+                // 🟢 Directly show the backend error message (which now includes the BAN notice)
+                setMessage(errorMessage);
+                
+                // If blocked, clear local storage so they can't try to auto-reconnect
+                if (errorMessage.includes("BLOCKED")) {
+                    localStorage.removeItem('myQueueEntryId');
+                    localStorage.removeItem('joinedBarberId');
+                }
             }
         } finally {
             setIsLoading(false);
