@@ -1,11 +1,50 @@
 import { useState, useEffect } from "react";
 import apiClient from "../http-commons";
 import { supabase } from "../supabase";
+import axios from "axios";
 
 export const StaffManagement = () => {
     const [staffList, setStaffList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [message, setMessage] = useState("");
+    const [barbers, setBarbers] = useState([]);
+    const [newBarberName, setNewBarberName] = useState("");
+
+    const fetchBarbers = async () => {
+        const res = await axios.get(`${API_URL}/admin/barbers`); // Ensure this route exists
+        setBarbers(res.data);
+    };
+
+    const addBarber = async () => {
+        await axios.post(`${API_URL}/admin/add-barber`, {
+            userId: session.user.id,
+            full_name: newBarberName,
+            is_active: true
+        });
+        setNewBarberName("");
+        fetchBarbers();
+    };
+
+    const deleteBarber = async (id) => {
+        if (!window.confirm("Delete this barber?")) return;
+        await axios.post(`${API_URL}/admin/delete-barber/${id}`, { userId: session.user.id });
+        fetchBarbers();
+    };
+
+    return (
+        <div>
+            <input value={newBarberName} onChange={(e) => setNewBarberName(e.target.value)} placeholder="Barber Name" />
+            <button onClick={addBarber}>Add Barber</button>
+            <ul>
+                {barbers.map(b => (
+                    <li key={b.id}>
+                        {b.full_name} 
+                        <button onClick={() => deleteBarber(b.id)}>Delete</button>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 
     const fetchStaffList = async () => {
         setIsLoading(true);
@@ -58,6 +97,27 @@ export const StaffManagement = () => {
         }
     };
 
+    const handleAddOrEditBarber = async (e) => {
+        e.preventDefault();
+        try {
+            if (editingBarber) {
+                await axios.post(`${API_URL}/admin/update-barber/${editingBarber.id}`, {
+                    adminUserId: session.user.id,
+                    full_name: barberName
+                });
+            } else {
+                await axios.post(`${API_URL}/admin/add-barber`, {
+                    adminUserId: session.user.id,
+                    full_name: barberName
+                });
+            }
+            setBarberName("");
+            setEditingBarber(null);
+            fetchBarbers(); // Refresh your barber list
+        } catch (error) {
+            console.error("Error saving barber:", error);
+        }
+    };
     // 🟢 MOVED THIS ABOVE THE RETURN STATEMENT 🟢
     const handleToggleBooking = async (barberId, currentStatus) => {
         const newState = !currentStatus;
