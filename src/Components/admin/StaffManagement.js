@@ -83,13 +83,18 @@ export const StaffManagement = ({ session }) => {
     const handleToggleBooking = async (barberId, currentStatus) => {
         const newState = !currentStatus;
         try {
-            await axios.post(`${API_URL}/admin/barber/booking-status`, { 
-                barberId, 
+            // Changed from .post to .put
+            await axios.put(`${API_URL}/admin/barber/booking-status`, { 
+                userId: session.user.id,
+                barberId: barberId, 
                 is_booking_enabled: newState 
             });
             fetchStaffList();
+            setMessage(`Booking status updated.`);
+            setTimeout(() => setMessage(""), 3000);
         } catch (err) {
-            setMessage("Failed to update booking status.");
+            console.error("Booking toggle error:", err);
+            setMessage("Failed to update booking status: " + (err.response?.data?.error || err.message));
         }
     };
 
