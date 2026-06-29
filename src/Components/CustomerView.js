@@ -105,7 +105,7 @@ export const CustomerView = ({ session }) => {
     const [queueBarbers, setQueueBarbers] = useState([]);      // For "Join Queue"
     const [appointmentBarbers, setAppointmentBarbers] = useState([]);
     const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
-    const [queueMessage, setQueueMessage] = useState("");
+   
 
     const fetchMyAppointments = useCallback(async () => {
         if (!session?.user?.id) return;
