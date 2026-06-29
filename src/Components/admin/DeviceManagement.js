@@ -92,12 +92,13 @@ export const DeviceManagement = ({ session }) => {
 
         try {
             await axios.post(`${API_URL}/admin/unblock-device`, { 
-                adminUserId: session.user.id, // 🟢 ADD THIS
+                // 🟢 BOTH FIELDS ARE REQUIRED BY YOUR AUTH MIDDLEWARE
+                adminUserId: session.user.id, 
                 deviceFingerprint: deviceFingerprint
             });
             
             setMessage("Device unblocked successfully!");
-            fetchData();
+            fetchData(); 
         } catch (error) {
             console.error("Error unblocking device:", error);
             setMessage(error.response?.data?.error || "Failed to unblock device.");
@@ -114,7 +115,7 @@ export const DeviceManagement = ({ session }) => {
 
         try {
             await axios.post(`${API_URL}/admin/block-device`, {
-                adminUserId: session.user.id, // 🟢 ADD THIS
+                adminUserId: session.user.id, // 🟢 MUST INCLUDE THIS
                 deviceFingerprint: blockingDevice.deviceFingerprint,
                 reason: blockReason
             });
