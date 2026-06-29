@@ -12,11 +12,41 @@ export const DeviceManagement = ({ session }) => {
     const [blockingDevice, setBlockingDevice] = useState(null);
     const [message, setMessage] = useState("");
     const [activeTab, setActiveTab] = useState('recent'); // 'recent' or 'blocked'
+    const [appeals, setAppeals] = useState([]);
 
     useEffect(() => {
         fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    
+
+    const fetchAppeals = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('appeals')
+                .select('*')
+                .eq('status', 'pending');
+            if (!error) setAppeals(data || []);
+        } catch (err) {
+            console.error("Error loading appeals:", err);
+        }
+    };
+
+    const resolveAppeal = async (appealId, fingerprint) => {
+        if (!window.confirm("Approve this appeal? This will unblock the device.")) return;
+        try {
+            // 1. Unblock the device
+            await axios.post(`${API_URL}/admin/unblock-device`, { deviceFingerprint: fingerprint });
+            // 2. Mark appeal as resolved
+            await supabase.from('appeals').update({ status: 'resolved' }).eq('id', appealId);
+            setMessage("Appeal approved and device unblocked!");
+            fetchAppeals();
+            fetchData(); // Refresh everything
+        } catch (err) {
+            setMessage("Failed to resolve appeal.");
+        }
+    };
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -127,6 +157,7 @@ export const DeviceManagement = ({ session }) => {
                 >
                     🚫 Blocked Devices ({blockedDevices.length})
                 </button>
+                <button className={`btn ${activeTab === 'appeals' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('appeals'); fetchAppeals(); }}>📩 Appeals</button>
             </div>
 
             {message && (
@@ -219,6 +250,57 @@ export const DeviceManagement = ({ session }) => {
                                             </tr>
                                         );
                                     })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            ) : activeTab === 'appeals' ? (
+                // 🟢 NEW APPEALS TAB RENDER 🟢
+                <div className="recent-guests">
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>
+                        Review submitted guest account appeals. Approving an appeal automatically unblocks their device.
+                    </p>
+                    {appeals.length === 0 ? (
+                        <div className="empty-state">
+                            <p>No pending appeals found.</p>
+                        </div>
+                    ) : (
+                        <div className="device-list">
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                                        <th style={{ padding: '10px', textAlign: 'left' }}>Contact Email</th>
+                                        <th style={{ padding: '10px', textAlign: 'left' }}>Reason for Appeal</th>
+                                        <th style={{ padding: '10px', textAlign: 'left' }}>Device ID</th>
+                                        <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {appeals.map((appeal) => (
+                                        <tr key={appeal.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ padding: '10px' }}>
+                                                <strong>{appeal.contact_email}</strong>
+                                            </td>
+                                            <td style={{ padding: '10px', maxWidth: '300px', wordBreak: 'break-word' }}>
+                                                "{appeal.reason}"
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <code style={{ fontSize: '0.75rem', background: 'var(--bg-dark)', padding: '2px 6px', borderRadius: '4px' }}>
+                                                    {appeal.device_fingerprint ? (appeal.device_fingerprint.substring(0, 15) + "...") : "Unknown"}
+                                                </code>
+                                            </td>
+                                            <td style={{ padding: '10px', textAlign: 'right' }}>
+                                                <button 
+                                                    className="btn btn-success" 
+                                                    onClick={() => resolveAppeal(appeal.id, appeal.device_fingerprint)}
+                                                    style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                                                >
+                                                    Approve & Unblock ✅
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>

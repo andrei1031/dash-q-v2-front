@@ -666,6 +666,18 @@ export const CustomerView = ({ session }) => {
                 if (errorMessage.includes("BLOCKED")) {
                     localStorage.removeItem('myQueueEntryId');
                     localStorage.removeItem('joinedBarberId');
+                    
+                    // Add a button to open an appeal modal
+                    setQueueMessage(
+                        <div style={{ marginTop: '10px' }}>
+                            <button 
+                                className="btn btn-secondary" 
+                                onClick={() => setIsAppealModalOpen(true)}
+                            >
+                                Appeal this Block
+                            </button>
+                        </div>
+                    );
                 }
             }
         } finally {
@@ -1700,6 +1712,37 @@ export const CustomerView = ({ session }) => {
                         <button onClick={confirmVIP} disabled={!selectedServiceId} className="btn btn-primary">
                             Confirm (+₱{vipPrice * headCount})
                         </button>
+                    </div>
+                </div>
+            </div>
+            {/* Appeal Modal */}
+            <div className="modal-overlay" style={{ display: isAppealModalOpen ? 'flex' : 'none' }}>
+                <div className="modal-content">
+                    <h2>Submit Appeal</h2>
+                    <p>Explain why you were blocked and provide an email for contact.</p>
+                    <input 
+                        type="email" 
+                        placeholder="Your Email" 
+                        onChange={(e) => setAppealEmail(e.target.value)} 
+                        className="form-control" 
+                    />
+                    <textarea 
+                        placeholder="Why should we unblock you?" 
+                        onChange={(e) => setAppealReason(e.target.value)}
+                        className="form-control"
+                        style={{ marginTop: '10px', width: '100%' }}
+                    />
+                    <div className="modal-footer" style={{ marginTop: '15px' }}>
+                        <button onClick={() => setIsAppealModalOpen(false)} className="btn btn-secondary">Cancel</button>
+                        <button onClick={async () => {
+                            await apiClient.post('/guest/appeal', { 
+                                deviceFingerprint: localStorage.getItem('deviceFingerprint'),
+                                reason: appealReason,
+                                email: appealEmail
+                            });
+                            setIsAppealModalOpen(false);
+                            alert("Appeal submitted!");
+                        }} className="btn btn-primary">Submit Appeal</button>
                     </div>
                 </div>
             </div>
