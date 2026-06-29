@@ -107,13 +107,13 @@ export const DeviceManagement = ({ session }) => {
     };
 
     const handleUnblockDevice = async (deviceFingerprint) => {
-        if (!window.confirm("Are you sure you want to unblock this device?")) return;
+    if (!window.confirm("Are you sure you want to unblock this device?")) return;
 
-        try {
-            await axios.post(`${API_URL}/admin/unblock-device`, {
-                adminUserId: session.user.id,
-                deviceFingerprint: deviceFingerprint
-            });
+    try {
+        await axios.post(`${API_URL}/admin/unblock-device`, {
+            adminUserId: session.user.id,        // Ensure this is included
+            deviceFingerprint: deviceFingerprint
+        });
             
             setMessage("Device unblocked successfully!");
             fetchData();
