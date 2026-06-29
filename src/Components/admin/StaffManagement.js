@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL } from "../http-commons"; // Goes up 2 levels: Components -> src
-import { supabase } from "../supabase";
+import { API_URL } from "../../http-commons"; 
+import { supabase } from "../../supabase";
 
 export const StaffManagement = ({ session }) => {
     const [staffList, setStaffList] = useState([]);
@@ -34,6 +34,13 @@ export const StaffManagement = ({ session }) => {
 
     const handleAddOrEditBarber = async (e) => {
         e.preventDefault();
+        
+        // Safety check to prevent "Cannot read properties of undefined"
+        if (!session?.user?.id) {
+            setMessage("Error: No admin session found.");
+            return;
+        }
+
         try {
             const payload = { 
                 adminUserId: session.user.id, 
@@ -94,61 +101,49 @@ export const StaffManagement = ({ session }) => {
     };
 
     return (
-        <div className="card">
-            <div className="card-header">
-                <h2>💈 Staff Management</h2>
-            </div>
+        <div className="staff-management-container">
+            <h2>Staff Management</h2>
             
-            <div className="card-body">
-                {message && <div className="message">{message}</div>}
+            {message && <div className="alert">{message}</div>}
 
-                <form onSubmit={handleAddOrEditBarber} style={{ marginBottom: '20px' }}>
-                    <input 
-                        value={barberName} 
-                        onChange={(e) => setBarberName(e.target.value)} 
-                        placeholder="Enter Barber Name" 
-                        required 
-                    />
-                    <button type="submit">{editingBarber ? "Update" : "Add"}</button>
-                    {editingBarber && <button onClick={() => {setEditingBarber(null); setBarberName("");}}>Cancel</button>}
-                </form>
+            {/* Input Form */}
+            <form onSubmit={handleAddOrEditBarber} className="staff-form">
+                <input 
+                    value={barberName} 
+                    onChange={(e) => setBarberName(e.target.value)} 
+                    placeholder="Barber Name" 
+                    required 
+                />
+                <button type="submit">{editingBarber ? "Update" : "Add"}</button>
+            </form>
 
-                {isLoading ? <div>Loading...</div> : (
-                    <table style={{ width: '100%' }}>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Active</th>
-                                <th>Bookable</th>
-                                <th>Actions</th>
+            {/* Simple Table Layout */}
+            {isLoading ? <div>Loading...</div> : (
+                <table className="staff-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {staffList.map((barber) => (
+                            <tr key={barber.id}>
+                                <td>{barber.full_name}</td>
+                                <td>{barber.is_active ? 'Active' : 'Inactive'}</td>
+                                <td>
+                                    <button onClick={() => handleToggleStatus(barber.id, barber.is_active)}>
+                                        {barber.is_active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button onClick={() => { setEditingBarber(barber); setBarberName(barber.full_name); }}>Edit</button>
+                                    <button onClick={() => deleteBarber(barber.id)}>Delete</button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {staffList.map((barber) => (
-                                <tr key={barber.id}>
-                                    <td>{barber.full_name}</td>
-                                    <td>
-                                        <button onClick={() => handleToggleStatus(barber.id, barber.is_active)}>
-                                            {barber.is_active ? 'Active' : 'Inactive'}
-                                        </button>
-                                    </td>
-                                    <td>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={barber.is_booking_enabled} 
-                                            onChange={() => handleToggleBooking(barber.id, barber.is_booking_enabled)}
-                                        />
-                                    </td>
-                                    <td>
-                                        <button onClick={() => { setEditingBarber(barber); setBarberName(barber.full_name); }}>Edit</button>
-                                        <button onClick={() => deleteBarber(barber.id)}>Delete</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+                        ))}
+                    </tbody>
+                </table>
+            )}
         </div>
     );
 };

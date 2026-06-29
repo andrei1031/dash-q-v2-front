@@ -881,7 +881,7 @@ export const AdminAppLayout = ({ session }) => {
                 <div className="container" style={{maxWidth:'1200px', width: '100%', padding: '20px 15px 40px', boxSizing: 'border-box', margin: '0 auto'}}>
                     {activeTab === 'live' && <LiveShopView />}
                     {activeTab === 'stats' && <StatsView />}
-                    {activeTab === 'staff' && <StaffManagement />}
+                    {activeTab === 'staff' && <StaffManagement session={session} />}
                     {activeTab === 'menu' && <MenuView />}
                     {activeTab === 'omni' && <OmniChatView session={session} />}
                     {activeTab === 'bookings' && <BookingsView />}
