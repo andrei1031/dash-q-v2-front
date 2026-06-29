@@ -1949,7 +1949,7 @@ export const CustomerView = ({ session }) => {
                             {/* EWT Display */}
                             {isQueueLoading && selectedBarberId ? (<div className="ewt-container"><p style={{ margin: 0, textAlign: 'center', width: '100%', color: 'var(--text-secondary)' }}>Loading estimates...</p></div>) : (selectedBarberId && (<div className="ewt-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                 <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Currently waiting</span><strong>{peopleWaiting} {peopleWaiting === 1 ? 'person' : 'people'}</strong></div>
-                                <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Calculating...'}</strong></div>
+                                <div className="ewt-item" style={{ flex: '1 1 140px' }}><span>Expected Time</span><strong>{finishTime > 0 ? new Date(finishTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '0'}</strong></div>
                             </div>))}
 
                             {isIOsDevice() && showIOSPrompt && (
