@@ -66,11 +66,13 @@ export const StaffManagement = ({ session }) => {
     const handleToggleStatus = async (barberId, currentActiveStatus) => {
         const newStatus = !currentActiveStatus;
         try {
-            await axios.post(`${API_URL}/admin/toggle-barber/${barberId}`, { 
-                adminUserId: session.user.id, // 🟢 MUST INCLUDE
-                status: newStatus 
+            // Updated to match your backend route
+            await axios.put(`${API_URL}/admin/barbers/${barberId}/status`, { 
+                userId: session.user.id, 
+                is_active: newStatus 
             });
-            fetchStaffList(); // Refreshes the list to show the change
+            fetchStaffList();
+            setMessage(`Barber status updated.`);
         } catch (err) {
             console.error("Toggle error:", err);
             setMessage("Failed to update status: " + (err.response?.data?.error || err.message));
@@ -93,13 +95,14 @@ export const StaffManagement = ({ session }) => {
     const deleteBarber = async (id) => {
         if (!window.confirm("Permanently delete this barber?")) return;
         try {
-            await axios.post(`${API_URL}/admin/delete-barber/${id}`, { 
-                adminUserId: session.user.id // 🟢 MUST INCLUDE
+            await axios.delete(`${API_URL}/admin/barbers/${id}`, { 
+                data: { userId: session.user.id } 
             });
             fetchStaffList();
+            setMessage("Barber deleted successfully.");
         } catch (error) {
             console.error("Delete error:", error);
-            setMessage("Failed to delete barber.");
+            setMessage("Failed to delete barber: " + (error.response?.data?.error || error.message));
         }
     };
 
