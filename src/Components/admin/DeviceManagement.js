@@ -33,18 +33,25 @@ export const DeviceManagement = ({ session }) => {
         }
     };
 
-    const resolveAppeal = async (appealId, fingerprint) => {
-        if (!window.confirm("Approve this appeal? This will unblock the device.")) return;
+    const resolveAppeal = async (appealId, deviceFingerprint) => {
+        if (!window.confirm("Approve appeal and unblock this device?")) return;
+
         try {
-            // 1. Unblock the device
-            await axios.post(`${API_URL}/admin/unblock-device`, { deviceFingerprint: fingerprint });
-            // 2. Mark appeal as resolved
-            await supabase.from('appeals').update({ status: 'resolved' }).eq('id', appealId);
+            // Look at the endpoint you are calling (it might be /admin/resolve-appeal or /admin/unblock-device)
+            await axios.post(`${API_URL}/admin/unblock-device`, { 
+                // 🟢 ADD THE ADMIN ID HERE 🟢
+                adminUserId: session.user.id, 
+                deviceFingerprint: deviceFingerprint,
+                appealId: appealId // (Include this if your backend needs it to update the appeal status)
+            });
+            
             setMessage("Appeal approved and device unblocked!");
-            fetchAppeals();
-            fetchData(); // Refresh everything
-        } catch (err) {
-            setMessage("Failed to resolve appeal.");
+            // Refresh your tables
+            fetchAppeals(); 
+            fetchData(); 
+        } catch (error) {
+            console.error("Error resolving appeal:", error);
+            setMessage(error.response?.data?.error || "Failed to resolve appeal.");
         }
     };
 
