@@ -113,22 +113,22 @@ export const DeviceManagement = ({ session }) => {
         }
     };
 
-    const handleUnblockDevice = async (deviceFingerprint) => {
-        if (!window.confirm("Are you sure you want to unblock this device?")) return;
+    const handleBlockDevice = async (deviceFingerprint, reason = "Manual block") => {
+        if (!window.confirm("Are you sure you want to block this device?")) return;
 
         try {
-            await axios.post(`${API_URL}/admin/unblock-device`, {
-                // 🟢 Add these two fields:
+            await axios.post(`${API_URL}/admin/block-device`, { 
+                // 🟢 ADD THE ADMIN ID HERE 🟢
                 adminUserId: session.user.id, 
-                deviceFingerprint: deviceFingerprint
+                deviceFingerprint: deviceFingerprint,
+                reason: reason // (If your backend expects a reason)
             });
             
-            setMessage("Device unblocked successfully!");
-            fetchData();
+            setMessage("Device blocked successfully!");
+            fetchData(); // Refresh the blocked devices list
         } catch (error) {
-            console.error("Error unblocking device:", error);
-            // This will now show the REAL error from the server
-            setMessage(error.response?.data?.error || "Failed to unblock device.");
+            console.error("Error blocking device:", error);
+            setMessage(error.response?.data?.error || "Failed to block device.");
         }
     };
 
