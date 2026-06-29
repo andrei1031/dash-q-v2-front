@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL } from "src/Components/http-commons"; // Ensure this import path is correct
+import apiClient from "../../http-commons"; // Ensure this import path is correct
 import { supabase } from "src/Components/supabase";
 
 export const StaffManagement = ({ session }) => {
