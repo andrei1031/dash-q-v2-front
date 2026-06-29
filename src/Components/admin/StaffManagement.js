@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { API_URL } from "../../http-commons";
-import { supabase } from "../../supabase";
+import { API_URL } from "../http-commons";
+import { supabase } from "../supabase";
 
 export const StaffManagement = ({ session }) => {
     const [staffList, setStaffList] = useState([]);
